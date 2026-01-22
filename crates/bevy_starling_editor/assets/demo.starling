@@ -1,0 +1,9 @@
+(
+    name: "Demo Particle System",
+    dimension: D3,
+    emitters: [
+        (
+            name: "Emitter 1",
+        ),
+    ],
+)

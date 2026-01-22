@@ -1,6 +1,19 @@
-[package]
-name = "starling"
-version = "0.1.0"
-edition = "2024"
+[workspace]
+members = ["crates/*"]
+resolver = "3"
 
-[dependencies]
+[workspace.lints.clippy]
+type_complexity = "allow"
+too_many_arguments = "allow"
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3
+
+[workspace.dependencies]
+bevy = { version = "0.18.0", features = ["file_watcher"] }
+serde = { version = "1", features = ["derive"] }
+ron = "0.10"
+thiserror = "2"

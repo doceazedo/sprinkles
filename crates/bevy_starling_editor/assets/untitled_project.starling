@@ -1,0 +1,9 @@
+(
+    name: "Untitled project",
+    dimension: D3,
+    emitters: [
+        (
+            name: "Emitter 1",
+        ),
+    ],
+)

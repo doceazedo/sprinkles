@@ -1,0 +1,9 @@
+(
+    name: "Teste AbC",
+    dimension: D3,
+    emitters: [
+        (
+            name: "Emitter 1",
+        ),
+    ],
+)
