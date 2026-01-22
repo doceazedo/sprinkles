@@ -12,6 +12,7 @@
             explosiveness: 0.0,
             randomness: 0.0,
             fixed_fps: 30,
+            draw_order: Index,
             draw_passes: [
                 (mesh: Sphere(radius: 1.0, rings: 16, sectors: 32)),
             ],

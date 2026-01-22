@@ -15,6 +15,7 @@ use asset::{ParticleSystemAsset, ParticleSystemAssetLoader};
 use render::{
     compute::ParticleComputePlugin,
     extract::extract_particle_systems,
+    sort::ParticleSortPlugin,
 };
 use systems::{cleanup_particle_entities, setup_particle_systems, update_particle_time, ParticleMaterial};
 
@@ -26,6 +27,7 @@ impl Plugin for StarlingPlugin {
         embedded_asset!(app, "shaders/particle_types.wgsl");
         embedded_asset!(app, "shaders/particle_simulate.wgsl");
         embedded_asset!(app, "shaders/particle_material.wgsl");
+        embedded_asset!(app, "shaders/particle_sort.wgsl");
 
         // asset loading
         app.init_asset::<ParticleSystemAsset>()
@@ -41,7 +43,7 @@ impl Plugin for StarlingPlugin {
         );
 
         // render plugins
-        app.add_plugins(ParticleComputePlugin);
+        app.add_plugins((ParticleComputePlugin, ParticleSortPlugin));
 
         // extract systems
         if let Some(render_app) = app.get_sub_app_mut(RenderApp) {
@@ -52,7 +54,7 @@ impl Plugin for StarlingPlugin {
 
 // re-exports for convenience
 pub use asset::{
-    DrawPassConfig, EmitterData, ParticleMesh, ParticleProcessConfig,
+    DrawOrder, DrawPassConfig, EmitterData, ParticleMesh, ParticleProcessConfig,
     ParticleSystemDimension,
 };
 pub use core::{ParticleData, ParticleSystem2D, ParticleSystem3D};

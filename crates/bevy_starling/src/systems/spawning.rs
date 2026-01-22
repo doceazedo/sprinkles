@@ -5,7 +5,7 @@ use bevy::{
 };
 
 use crate::{
-    asset::{ParticleMesh, ParticleSystemAsset},
+    asset::{DrawOrder, ParticleMesh, ParticleSystemAsset},
     core::{ParticleData, ParticleSystem3D},
     render::material::ParticleMaterialExtension,
     runtime::{ParticleBufferHandle, ParticleEntity, ParticleSystemRef, ParticleSystemRuntime},
@@ -38,6 +38,10 @@ pub fn setup_particle_systems(
         // create ShaderStorageBuffer asset for the particle data
         let particle_buffer_handle = buffers.add(ShaderStorageBuffer::from(particles));
 
+        // initialize particle indices buffer (identity mapping)
+        let indices: Vec<u32> = (0..amount).collect();
+        let indices_buffer_handle = buffers.add(ShaderStorageBuffer::from(indices));
+
         // create mesh based on draw pass configuration
         let mesh_handle = if let Some(draw_pass) = emitter.draw_passes.first() {
             match &draw_pass.mesh {
@@ -53,23 +57,14 @@ pub fn setup_particle_systems(
             meshes.add(Rectangle::new(1.0, 1.0))
         };
 
-        // create material with particle buffer
-        let material_handle = materials.add(ExtendedMaterial {
-            base: StandardMaterial {
-                base_color: Color::WHITE,
-                alpha_mode: AlphaMode::Blend,
-                ..default()
-            },
-            extension: ParticleMaterialExtension {
-                particles: particle_buffer_handle.clone(),
-            },
-        });
+        let use_index_draw_order = emitter.draw_order == DrawOrder::Index;
 
         // add runtime components to the particle system entity
         commands.entity(entity).insert((
             ParticleSystemRuntime::default(),
             ParticleBufferHandle {
-                particle_buffer: particle_buffer_handle,
+                particle_buffer: particle_buffer_handle.clone(),
+                indices_buffer: indices_buffer_handle.clone(),
                 max_particles: amount,
             },
             Transform::default(),
@@ -77,11 +72,25 @@ pub fn setup_particle_systems(
         ));
 
         // spawn individual particle entities
-        // each entity shares the same mesh and material, enabling automatic instancing
         for i in 0..amount {
+            let depth_bias = if use_index_draw_order { i as f32 } else { 0.0 };
+
+            let material_handle = materials.add(ExtendedMaterial {
+                base: StandardMaterial {
+                    base_color: Color::WHITE,
+                    alpha_mode: AlphaMode::Blend,
+                    depth_bias,
+                    ..default()
+                },
+                extension: ParticleMaterialExtension {
+                    particles: particle_buffer_handle.clone(),
+                    indices: indices_buffer_handle.clone(),
+                },
+            });
+
             commands.spawn((
                 Mesh3d(mesh_handle.clone()),
-                MeshMaterial3d(material_handle.clone()),
+                MeshMaterial3d(material_handle),
                 bevy::mesh::MeshTag(i),
                 Transform::default(),
                 Visibility::default(),

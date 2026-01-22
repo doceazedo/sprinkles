@@ -1,6 +1,7 @@
 pub mod compute;
 pub mod extract;
 pub mod material;
+pub mod sort;
 
 use bevy::render::render_resource::ShaderType;
 use bytemuck::{Pod, Zeroable};
@@ -30,4 +31,7 @@ pub struct EmitterUniforms {
     pub initial_scale_randomness: f32,
     pub explosiveness: f32,
     pub randomness: f32,
+
+    pub draw_order: u32,
+    pub _pad3: [u32; 3],
 }

@@ -30,7 +30,14 @@ struct EmitterParams {
     initial_scale_randomness: f32,
     explosiveness: f32,
     randomness: f32,
+
+    draw_order: u32,
+    _pad3_a: u32,
+    _pad3_b: u32,
+    _pad3_c: u32,
 }
+
+const DRAW_ORDER_INDEX: u32 = 0u;
 
 const PARTICLE_FLAG_ACTIVE: u32 = 1u;
 
@@ -88,7 +95,14 @@ fn spawn_particle(idx: u32) -> Particle {
     p.velocity = vec4(vel, lifetime);
 
     p.color = vec4(1.0, 1.0, 1.0, 1.0);
-    p.custom = vec4(0.0, f32(idx) / f32(params.amount), bitcast<f32>(seed), bitcast<f32>(PARTICLE_FLAG_ACTIVE));
+
+    // spawn_index tracks total spawns across all cycles for depth ordering
+    // only set when draw_order is Index, otherwise use 0
+    var spawn_index = 0.0;
+    if (params.draw_order == DRAW_ORDER_INDEX) {
+        spawn_index = f32(params.cycle * params.amount + idx);
+    }
+    p.custom = vec4(0.0, spawn_index, bitcast<f32>(seed), bitcast<f32>(PARTICLE_FLAG_ACTIVE));
 
     return p;
 }

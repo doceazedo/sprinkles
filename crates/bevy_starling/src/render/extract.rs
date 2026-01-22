@@ -4,7 +4,7 @@ use bevy::{
 };
 
 use crate::{
-    asset::ParticleSystemAsset,
+    asset::{DrawOrder, ParticleSystemAsset},
     core::ParticleSystem3D,
     runtime::{ParticleBufferHandle, ParticleSystemRuntime},
 };
@@ -19,7 +19,11 @@ pub struct ExtractedParticleSystem {
 pub struct ExtractedEmitterData {
     pub uniforms: EmitterUniforms,
     pub particle_buffer_handle: Handle<ShaderStorageBuffer>,
+    pub indices_buffer_handle: Handle<ShaderStorageBuffer>,
     pub amount: u32,
+    pub draw_order: u32,
+    pub camera_position: [f32; 3],
+    pub emitter_transform: Mat4,
 }
 
 pub fn extract_particle_systems(
@@ -30,14 +34,23 @@ pub fn extract_particle_systems(
             &ParticleSystemRuntime,
             &ParticleBufferHandle,
             &ParticleSystem3D,
+            &GlobalTransform,
         )>,
     >,
+    camera_query: Extract<Query<&GlobalTransform, With<Camera3d>>>,
     assets: Extract<Res<Assets<ParticleSystemAsset>>>,
     time: Extract<Res<Time>>,
 ) {
     let mut extracted = ExtractedParticleSystem::default();
 
-    for (entity, runtime, buffer_handle, particle_system) in query.iter() {
+    // get camera position for view depth sorting
+    let camera_position = camera_query
+        .iter()
+        .next()
+        .map(|t| t.translation())
+        .unwrap_or(Vec3::ZERO);
+
+    for (entity, runtime, buffer_handle, particle_system, global_transform) in query.iter() {
         let Some(asset) = assets.get(&particle_system.handle) else {
             continue;
         };
@@ -54,6 +67,13 @@ pub fn extract_particle_systems(
         // always use actual frame delta for physics simulation
         // fixed_fps only affects emission timing via system_phase
         let delta_time = time.delta_secs();
+
+        let draw_order = match emitter.draw_order {
+            DrawOrder::Index => 0,
+            DrawOrder::Lifetime => 1,
+            DrawOrder::ReverseLifetime => 2,
+            DrawOrder::ViewDepth => 3,
+        };
 
         let uniforms = EmitterUniforms {
             delta_time,
@@ -78,6 +98,9 @@ pub fn extract_particle_systems(
             initial_scale_randomness: emitter.process.initial_scale_randomness,
             explosiveness: emitter.explosiveness,
             randomness: emitter.randomness,
+
+            draw_order,
+            _pad3: [0; 3],
         };
 
         extracted.emitters.push((
@@ -85,7 +108,11 @@ pub fn extract_particle_systems(
             ExtractedEmitterData {
                 uniforms,
                 particle_buffer_handle: buffer_handle.particle_buffer.clone(),
+                indices_buffer_handle: buffer_handle.indices_buffer.clone(),
                 amount: emitter.amount,
+                draw_order,
+                camera_position: camera_position.into(),
+                emitter_transform: global_transform.to_matrix(),
             },
         ));
     }

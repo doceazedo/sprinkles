@@ -61,6 +61,7 @@ fn rand_seed() -> u32 {
 #[derive(Component)]
 pub struct ParticleBufferHandle {
     pub particle_buffer: Handle<ShaderStorageBuffer>,
+    pub indices_buffer: Handle<ShaderStorageBuffer>,
     pub max_particles: u32,
 }
 

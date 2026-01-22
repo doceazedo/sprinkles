@@ -4,7 +4,7 @@ struct Particle {
     position: vec4<f32>,  // xyz, scale
     velocity: vec4<f32>,  // xyz, lifetime
     color: vec4<f32>,
-    custom: vec4<f32>,    // age, phase, seed, flags
+    custom: vec4<f32>,    // age, spawn_index, seed, flags
 }
 
 struct EmitterParams {

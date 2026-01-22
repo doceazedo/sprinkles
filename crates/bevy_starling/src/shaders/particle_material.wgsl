@@ -3,8 +3,9 @@ struct Particle {
     position: vec4<f32>,  // xyz + scale
     velocity: vec4<f32>,  // xyz + lifetime_remaining
     color: vec4<f32>,     // rgba
-    custom: vec4<f32>,    // age, phase, seed, flags
+    custom: vec4<f32>,    // age, spawn_index, seed, flags
 }
+
 
 const PARTICLE_FLAG_ACTIVE: u32 = 1u;
 
@@ -28,14 +29,17 @@ const PARTICLE_FLAG_ACTIVE: u32 = 1u;
 
 // particle storage buffer at binding 100 to avoid conflict with StandardMaterial bindings
 @group(#{MATERIAL_BIND_GROUP}) @binding(100) var<storage, read> particles: array<Particle>;
+// particle indices for draw order sorting
+@group(#{MATERIAL_BIND_GROUP}) @binding(101) var<storage, read> particle_indices: array<u32>;
 
 @vertex
 fn vertex(vertex: Vertex) -> VertexOutput {
     var out: VertexOutput;
 
-    // get particle index from mesh tag
+    // get particle index from mesh tag through indirection buffer
     let tag = mesh_functions::get_tag(vertex.instance_index);
-    let particle = particles[tag];
+    let particle_index = particle_indices[tag];
+    let particle = particles[particle_index];
 
     // check if particle is active
     let flags = bitcast<u32>(particle.custom.w);
@@ -95,13 +99,14 @@ fn fragment(
     in: VertexOutput,
     @builtin(front_facing) is_front: bool,
 ) -> FragmentOutput {
-    // get particle index from instance index
+    // get particle index from instance index through indirection buffer
 #ifdef VERTEX_OUTPUT_INSTANCE_INDEX
     let tag = mesh_functions::get_tag(in.instance_index);
+    let particle_index = particle_indices[tag];
 #else
-    let tag = 0u;
+    let particle_index = 0u;
 #endif
-    let particle = particles[tag];
+    let particle = particles[particle_index];
 
     // check if particle is active
     let flags = bitcast<u32>(particle.custom.w);

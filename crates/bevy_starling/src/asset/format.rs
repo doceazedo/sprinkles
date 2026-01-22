@@ -8,6 +8,15 @@ pub enum ParticleSystemDimension {
     D2,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum DrawOrder {
+    #[default]
+    Index,
+    Lifetime,
+    ReverseLifetime,
+    ViewDepth,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EmitterData {
     pub name: String,
@@ -32,7 +41,9 @@ pub struct EmitterData {
     #[serde(default = "default_fixed_fps")]
     pub fixed_fps: u32,
 
-    // draw passes
+    // draw
+    #[serde(default)]
+    pub draw_order: DrawOrder,
     #[serde(default)]
     pub draw_passes: Vec<DrawPassConfig>,
 
@@ -69,6 +80,7 @@ impl Default for EmitterData {
             explosiveness: 0.0,
             randomness: 0.0,
             fixed_fps: 0,
+            draw_order: DrawOrder::Index,
             draw_passes: vec![DrawPassConfig::default()],
             process: ParticleProcessConfig::default(),
         }
