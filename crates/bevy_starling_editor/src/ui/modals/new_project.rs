@@ -9,7 +9,7 @@ use bevy_egui::egui::{self, RichText};
 use bevy_egui::EguiContexts;
 use bevy_starling::asset::{EmitterData, ParticleSystemAsset, ParticleSystemDimension};
 
-use crate::state::{project_path, save_editor_data, EditorData, EditorState};
+use crate::state::{project_path, save_editor_data, EditorData, EditorState, DEFAULT_PROJECTS_DIR};
 use egui_remixicon::icons;
 
 use crate::ui::styles::{
@@ -20,7 +20,7 @@ use crate::ui::styles::{
 #[derive(Event)]
 pub struct CreateProjectEvent {
     pub project_name: String,
-    pub file_name: String,
+    pub location: String,
     pub dimension: ParticleSystemDimension,
 }
 
@@ -33,9 +33,9 @@ const DEFAULT_PROJECT_NAME: &str = "Untitled project";
 pub struct NewProjectModal {
     pub open: bool,
     pub project_name: String,
-    pub file_name: String,
+    pub location: String,
     pub dimension: ParticleSystemDimension,
-    pub file_name_edited: bool,
+    pub location_edited: bool,
     pub untitled_counter: u32,
     pub focus_requested: bool,
 }
@@ -45,9 +45,9 @@ impl Default for NewProjectModal {
         Self {
             open: false,
             project_name: String::new(),
-            file_name: String::new(),
+            location: String::new(),
             dimension: ParticleSystemDimension::D3,
-            file_name_edited: false,
+            location_edited: false,
             untitled_counter: 1,
             focus_requested: false,
         }
@@ -57,9 +57,9 @@ impl Default for NewProjectModal {
 impl NewProjectModal {
     fn reset(&mut self) {
         self.project_name.clear();
-        self.file_name.clear();
+        self.location.clear();
         self.dimension = ParticleSystemDimension::D3;
-        self.file_name_edited = false;
+        self.location_edited = false;
         self.focus_requested = false;
     }
 
@@ -79,12 +79,16 @@ impl NewProjectModal {
         }
     }
 
-    fn effective_file_name(&self) -> String {
-        if self.file_name.trim().is_empty() {
-            to_file_name(&self.default_name())
+    fn effective_location(&self) -> String {
+        if self.location.trim().is_empty() {
+            format!("{}/{}", DEFAULT_PROJECTS_DIR, to_file_name(&self.default_name()))
         } else {
-            self.file_name.clone()
+            self.location.clone()
         }
+    }
+
+    fn default_location(&self) -> String {
+        format!("{}/{}", DEFAULT_PROJECTS_DIR, to_file_name(&self.default_name()))
     }
 }
 
@@ -150,7 +154,7 @@ pub fn draw_new_project_modal(
                 .inner_margin(egui::Margin::same(MODAL_PADDING))
                 .show(ui, |ui| {
                     let default_name = modal.default_name();
-                    let default_file_name = to_file_name(&default_name);
+                    let default_location = modal.default_location();
                     let placeholder_color = colors::placeholder_text();
 
                     ui.horizontal(|ui| {
@@ -167,8 +171,12 @@ pub fn draw_new_project_modal(
                                 .desired_width(INPUT_WIDTH)
                                 .hint_text(RichText::new(&default_name).color(placeholder_color)),
                         );
-                        if response.changed() && !modal.file_name_edited {
-                            modal.file_name = to_file_name(&modal.project_name);
+                        if response.changed() && !modal.location_edited {
+                            modal.location = format!(
+                                "{}/{}",
+                                DEFAULT_PROJECTS_DIR,
+                                to_file_name(&modal.project_name)
+                            );
                         }
                         if !modal.focus_requested {
                             response.request_focus();
@@ -183,17 +191,17 @@ pub fn draw_new_project_modal(
                             egui::vec2(LABEL_WIDTH, 24.0),
                             egui::Layout::right_to_left(egui::Align::Center),
                             |ui| {
-                                ui.label("File name:");
+                                ui.label("Location:");
                             },
                         );
                         ui.add_space(8.0);
                         let response = ui.add(
-                            egui::TextEdit::singleline(&mut modal.file_name)
-                                .desired_width(INPUT_WIDTH - 70.0)
-                                .hint_text(RichText::new(&default_file_name).color(placeholder_color)),
+                            egui::TextEdit::singleline(&mut modal.location)
+                                .desired_width(INPUT_WIDTH)
+                                .hint_text(RichText::new(&default_location).color(placeholder_color)),
                         );
                         if response.changed() {
-                            modal.file_name_edited = true;
+                            modal.location_edited = true;
                         }
                         ui.label(".starling");
                     });
@@ -215,11 +223,9 @@ pub fn draw_new_project_modal(
                         {
                             modal.dimension = ParticleSystemDimension::D3;
                         }
-                        if styled_radio(ui, modal.dimension == ParticleSystemDimension::D2, "2D")
-                            .clicked()
-                        {
-                            modal.dimension = ParticleSystemDimension::D2;
-                        }
+                        ui.add_enabled_ui(false, |ui| {
+                            styled_radio(ui, modal.dimension == ParticleSystemDimension::D2, "2D (TODO)");
+                        });
                     });
                 });
 
@@ -246,7 +252,7 @@ pub fn draw_new_project_modal(
     if should_create {
         commands.trigger(CreateProjectEvent {
             project_name: modal.effective_project_name(),
-            file_name: modal.effective_file_name(),
+            location: modal.effective_location(),
             dimension: modal.dimension,
         });
     }
@@ -259,10 +265,10 @@ pub fn on_create_project_event(
     mut modal: ResMut<NewProjectModal>,
     mut editor_state: ResMut<EditorState>,
     mut editor_data: ResMut<EditorData>,
-    asset_server: Res<AssetServer>,
+    mut assets: ResMut<Assets<ParticleSystemAsset>>,
 ) {
     let event = trigger.event();
-    let file_name = format!("{}.starling", event.file_name);
+    let location_with_ext = format!("{}.starling", event.location);
 
     let asset = ParticleSystemAsset {
         name: event.project_name.clone(),
@@ -278,21 +284,28 @@ pub fn on_create_project_event(
         Err(_) => return,
     };
 
-    let path = project_path(&file_name);
+    let path = project_path(&location_with_ext);
+    let is_default_projects_dir = event.location.starts_with(DEFAULT_PROJECTS_DIR);
 
     let write_path = path.clone();
     IoTaskPool::get()
         .spawn(async move {
+            if is_default_projects_dir {
+                if let Some(parent) = write_path.parent() {
+                    let _ = std::fs::create_dir_all(parent);
+                }
+            }
             let mut file = File::create(&write_path).expect("failed to create file");
             file.write_all(contents.as_bytes())
                 .expect("failed to write to file");
         })
         .detach();
 
-    editor_data.cache.add_recent_project(file_name.clone());
+    editor_data.cache.add_recent_project(location_with_ext.clone());
     save_editor_data(&editor_data);
 
-    editor_state.current_project = Some(asset_server.load(&file_name));
+    let handle = assets.add(asset);
+    editor_state.current_project = Some(handle);
     editor_state.current_project_path = Some(path);
 
     modal.untitled_counter += 1;

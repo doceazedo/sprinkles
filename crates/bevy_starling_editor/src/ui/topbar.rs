@@ -1,12 +1,10 @@
-use std::path::Path;
-
 use bevy::prelude::*;
 use bevy_egui::egui::{self, Color32, CornerRadius, FontId, Pos2, RichText, Vec2};
 use bevy_egui::EguiContexts;
 use bevy_starling::asset::ParticleSystemAsset;
 use egui_remixicon::icons;
 
-use crate::state::{EditorData, EditorState};
+use crate::state::{format_display_path, save_editor_data, EditorData, EditorState};
 use crate::ui::modals::{NewProjectModal, SaveProjectEvent};
 use crate::ui::styles::{self, colors, ghost_button_with_icon, icon_button, icon_button_colored, icon_toggle, ICON_BUTTON_SIZE};
 
@@ -19,7 +17,7 @@ pub fn draw_topbar(
     mut contexts: EguiContexts,
     mut editor_state: ResMut<EditorState>,
     mut new_project_modal: ResMut<NewProjectModal>,
-    editor_data: Res<EditorData>,
+    mut editor_data: ResMut<EditorData>,
     particle_systems: Res<Assets<ParticleSystemAsset>>,
     mut commands: Commands,
     time: Res<Time<Real>>,
@@ -48,9 +46,7 @@ pub fn draw_topbar(
                 let button_response =
                     ghost_button_with_icon(ui, &project_name, icons::ARROW_DOWN_S_LINE);
 
-                egui::Popup::menu(&button_response)
-                    .width(180.0)
-                    .show(|ui| {
+                egui::Popup::menu(&button_response).show(|ui| {
                         if ui
                             .button(format!("{} New project...", icons::FILE_ADD_LINE))
                             .clicked()
@@ -70,12 +66,24 @@ pub fn draw_topbar(
                         if editor_data.cache.recent_projects.is_empty() {
                             ui.weak("No recent projects");
                         } else {
-                            for file_name in &editor_data.cache.recent_projects {
-                                if let Some(name) = Path::new(file_name).file_stem().and_then(|s| s.to_str()) {
-                                    if ui.button(name).clicked() {
-                                        // TODO: load the project
-                                    }
+                            let mut project_to_remove: Option<String> = None;
+
+                            for project_path in editor_data.cache.recent_projects.clone() {
+                                let display_path = format_display_path(&project_path);
+
+                                let row_response = draw_recent_project_row(ui, &display_path);
+
+                                if row_response.clicked {
+                                    // TODO: load the project
                                 }
+                                if row_response.remove_clicked {
+                                    project_to_remove = Some(project_path.clone());
+                                }
+                            }
+
+                            if let Some(path) = project_to_remove {
+                                editor_data.cache.remove_recent_project(&path);
+                                save_editor_data(&editor_data);
                             }
                         }
                     });
@@ -299,6 +307,60 @@ fn draw_save_button(ui: &mut egui::Ui, editor_state: &EditorState, current_time:
             );
         }
     }
+
+    response
+}
+
+struct RecentProjectRowResponse {
+    clicked: bool,
+    remove_clicked: bool,
+}
+
+fn draw_recent_project_row(ui: &mut egui::Ui, display_path: &str) -> RecentProjectRowResponse {
+    let mut response = RecentProjectRowResponse {
+        clicked: false,
+        remove_clicked: false,
+    };
+
+    ui.horizontal(|ui| {
+        ui.spacing_mut().item_spacing.x = 4.0;
+
+        // draw clickable text as a button
+        let text_response = ui.button(display_path);
+
+        if text_response.clicked() {
+            response.clicked = true;
+        }
+
+        // remove button - only show icon on row hover
+        let row_hovered = text_response.hovered() || ui.rect_contains_pointer(ui.max_rect());
+        let button_size = text_response.rect.height();
+
+        // check if pointer is over the remove button area before drawing
+        let button_pos = ui.cursor().min;
+        let button_rect = egui::Rect::from_min_size(button_pos, Vec2::splat(button_size));
+        let button_hovered = ui.rect_contains_pointer(button_rect);
+
+        let icon_color = if button_hovered {
+            colors::TEXT_MUTED
+        } else if row_hovered {
+            colors::ZINC_500
+        } else {
+            Color32::TRANSPARENT
+        };
+
+        let remove_button = egui::Button::new(
+            RichText::new(icons::CLOSE_FILL)
+                .size(14.0)
+                .color(icon_color)
+        ).min_size(Vec2::splat(button_size));
+
+        let remove_response = ui.add(remove_button);
+
+        if row_hovered && remove_response.clicked() {
+            response.remove_clicked = true;
+        }
+    });
 
     response
 }

@@ -2,9 +2,10 @@ use bevy::prelude::*;
 use bevy_egui::{
     egui, input::egui_wants_any_pointer_input, EguiContexts, EguiPlugin, EguiPrimaryContextPass,
 };
+use bevy_starling::asset::ParticleSystemAsset;
 use bevy_starling::StarlingPlugin;
 
-use crate::state::{load_editor_data, project_path, EditorData, EditorState, InspectorState};
+use crate::state::{load_editor_data, project_path, save_editor_data, EditorData, EditorState, InspectorState};
 use crate::ui::modals::{
     draw_confirm_delete_modal, draw_new_project_modal, on_create_project_event,
     on_save_project_event, ConfirmDeleteModal, NewProjectModal,
@@ -88,19 +89,58 @@ fn setup_egui(mut contexts: EguiContexts, mut configured: ResMut<EguiConfigured>
 
 fn load_initial_project(
     mut editor_state: ResMut<EditorState>,
-    editor_data: Res<EditorData>,
-    asset_server: Res<AssetServer>,
+    mut editor_data: ResMut<EditorData>,
+    mut assets: ResMut<Assets<ParticleSystemAsset>>,
 ) {
-    if let Some(file_name) = &editor_data.cache.last_opened_project {
-        let path = project_path(file_name);
+    // try to load last opened project
+    if let Some(location) = &editor_data.cache.last_opened_project.clone() {
+        let path = project_path(location);
         if path.exists() {
-            editor_state.current_project = Some(asset_server.load(file_name));
-            editor_state.current_project_path = Some(path);
-            return;
+            if let Some(asset) = load_project_from_path(&path) {
+                let handle = assets.add(asset);
+                editor_state.current_project = Some(handle);
+                editor_state.current_project_path = Some(path);
+                return;
+            }
         }
     }
 
-    let demo_file = "demo.starling";
-    editor_state.current_project = Some(asset_server.load(demo_file));
-    editor_state.current_project_path = Some(project_path(demo_file));
+    // only load demo on first run (when no recent projects exist)
+    let is_first_run = editor_data.cache.recent_projects.is_empty();
+
+    if is_first_run {
+        let demo_file = "examples/3d_explosion.starling";
+        let demo_path = project_path(demo_file);
+        if demo_path.exists() {
+            if let Some(asset) = load_project_from_path(&demo_path) {
+                let handle = assets.add(asset);
+                editor_state.current_project = Some(handle);
+                editor_state.current_project_path = Some(demo_path);
+
+                // add demo to recent projects
+                editor_data.cache.add_recent_project(demo_file.to_string());
+                save_editor_data(&editor_data);
+                return;
+            }
+        }
+    }
+
+    // fallback: create a default empty project
+    let asset = bevy_starling::asset::ParticleSystemAsset {
+        name: "New project".to_string(),
+        dimension: bevy_starling::asset::ParticleSystemDimension::D3,
+        emitters: vec![bevy_starling::asset::EmitterData {
+            name: "Emitter 1".to_string(),
+            ..Default::default()
+        }],
+    };
+    let handle = assets.add(asset);
+    editor_state.current_project = Some(handle);
+}
+
+fn load_project_from_path(
+    path: &std::path::Path,
+) -> Option<bevy_starling::asset::ParticleSystemAsset> {
+    let contents = std::fs::read_to_string(path).ok()?;
+    ron::from_str(&contents).ok()
 }
