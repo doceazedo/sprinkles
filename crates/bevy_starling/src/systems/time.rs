@@ -6,6 +6,14 @@ use crate::{
     runtime::ParticleSystemRuntime,
 };
 
+pub fn clear_particle_clear_requests(mut query: Query<&mut ParticleSystemRuntime>) {
+    for mut runtime in query.iter_mut() {
+        if runtime.clear_requested {
+            runtime.clear_requested = false;
+        }
+    }
+}
+
 pub fn update_particle_time(
     time: Res<Time>,
     assets: Res<Assets<ParticleSystemAsset>>,
@@ -20,7 +28,7 @@ pub fn update_particle_time(
             continue;
         };
 
-        if !runtime.emitting {
+        if runtime.paused {
             continue;
         }
 

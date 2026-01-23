@@ -78,7 +78,7 @@ pub fn draw_topbar(
 
                     if icon_button(ui, icons::STOP_FILL).clicked() {
                         editor_state.is_playing = false;
-                        editor_state.current_frame = 0;
+                        editor_state.should_reset = true;
                     }
 
                     let play_pause_icon = if editor_state.is_playing {
@@ -89,13 +89,53 @@ pub fn draw_topbar(
                     if icon_button_colored(ui, play_pause_icon, colors::GREEN, colors::green_hover())
                         .clicked()
                     {
+                        if !editor_state.is_playing {
+                            editor_state.play_requested = true;
+                        }
                         editor_state.is_playing = !editor_state.is_playing;
                     }
 
-                    let progress_text = format!(
-                        "{}/{}",
-                        editor_state.current_frame, editor_state.total_frames
+                    // progress bar (right-to-left layout, so this appears on the right)
+                    let progress_width = 192.0;
+                    let progress_height = 8.0;
+                    let progress_ratio = if editor_state.duration_ms > 0.0 {
+                        (editor_state.elapsed_ms / editor_state.duration_ms).clamp(0.0, 1.0)
+                    } else {
+                        0.0
+                    };
+
+                    let (rect, _) = ui.allocate_exact_size(
+                        egui::vec2(progress_width, progress_height),
+                        egui::Sense::hover(),
                     );
+
+                    if ui.is_rect_visible(rect) {
+                        // background
+                        ui.painter().rect_filled(
+                            rect,
+                            egui::CornerRadius::same(4),
+                            colors::ZINC_600,
+                        );
+
+                        // progress fill (fill from left side)
+                        if progress_ratio > 0.0 {
+                            let fill_rect = egui::Rect::from_min_size(
+                                rect.min,
+                                egui::vec2(progress_width * progress_ratio, progress_height),
+                            );
+                            ui.painter().rect_filled(
+                                fill_rect,
+                                egui::CornerRadius::same(4),
+                                colors::ZINC_300,
+                            );
+                        }
+                    }
+
+                    ui.add_space(8.0);
+
+                    let elapsed_s = editor_state.elapsed_ms / 1000.0;
+                    let duration_s = editor_state.duration_ms / 1000.0;
+                    let progress_text = format!("{:.1}/{:.1}s", elapsed_s, duration_s);
                     ui.label(progress_text);
                 });
             });

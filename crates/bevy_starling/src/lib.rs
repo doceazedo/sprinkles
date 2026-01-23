@@ -18,8 +18,8 @@ use render::{
     sort::ParticleSortPlugin,
 };
 use systems::{
-    cleanup_particle_entities, setup_particle_systems, sync_particle_mesh, update_particle_time,
-    ParticleMaterial,
+    cleanup_particle_entities, clear_particle_clear_requests, setup_particle_systems,
+    sync_particle_mesh, update_particle_time, ParticleMaterial,
 };
 
 pub struct StarlingPlugin;
@@ -49,6 +49,10 @@ impl Plugin for StarlingPlugin {
                 cleanup_particle_entities,
             ),
         );
+
+        // clear the clear_requested flag at the start of the next frame
+        // (after render extract has consumed it in the previous frame)
+        app.add_systems(First, clear_particle_clear_requests);
 
         // render plugins
         app.add_plugins((ParticleComputePlugin, ParticleSortPlugin));

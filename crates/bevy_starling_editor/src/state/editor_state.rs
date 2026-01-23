@@ -9,8 +9,14 @@ pub struct EditorState {
     pub current_project_path: Option<PathBuf>,
     pub is_playing: bool,
     pub is_looping: bool,
-    pub current_frame: u32,
-    pub total_frames: u32,
+    /// elapsed time in milliseconds
+    pub elapsed_ms: f32,
+    /// duration based on the longest emitter lifetime, in milliseconds
+    pub duration_ms: f32,
+    /// set to true when stop button is clicked, cleared after reset
+    pub should_reset: bool,
+    /// set to true when play button is clicked, cleared after processed
+    pub play_requested: bool,
 }
 
 impl Default for EditorState {
@@ -20,8 +26,10 @@ impl Default for EditorState {
             current_project_path: None,
             is_playing: true,
             is_looping: true,
-            current_frame: 0,
-            total_frames: 300,
+            elapsed_ms: 0.0,
+            duration_ms: 1000.0,
+            should_reset: false,
+            play_requested: false,
         }
     }
 }

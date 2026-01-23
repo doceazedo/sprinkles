@@ -14,6 +14,10 @@ pub struct ParticleSystemRuntime {
     pub random_seed: u32,
     /// set to true when a one-shot emitter completes its emission cycle
     pub one_shot_completed: bool,
+    /// set to true when the simulation is paused (freezes physics)
+    pub paused: bool,
+    /// set to true to clear all particles on the next frame
+    pub clear_requested: bool,
 }
 
 impl Default for ParticleSystemRuntime {
@@ -26,6 +30,8 @@ impl Default for ParticleSystemRuntime {
             accumulated_delta: 0.0,
             random_seed: rand_seed(),
             one_shot_completed: false,
+            paused: false,
+            clear_requested: false,
         }
     }
 }
@@ -45,13 +51,35 @@ impl ParticleSystemRuntime {
         (self.prev_system_time % lifetime) / lifetime
     }
 
-    pub fn reset(&mut self) {
+    /// Start or resume playback
+    pub fn play(&mut self) {
+        self.emitting = true;
+        self.paused = false;
+        self.one_shot_completed = false;
+    }
+
+    /// Pause playback, freezing all particles in place
+    pub fn pause(&mut self) {
+        self.paused = true;
+    }
+
+    /// Stop playback, reset time, and clear all particles
+    pub fn stop(&mut self) {
+        self.emitting = false;
+        self.paused = false;
         self.system_time = 0.0;
         self.prev_system_time = 0.0;
         self.cycle = 0;
         self.accumulated_delta = 0.0;
         self.random_seed = rand_seed();
         self.one_shot_completed = false;
+        self.clear_requested = true;
+    }
+
+    /// Restart playback from the beginning
+    pub fn restart(&mut self) {
+        self.stop();
+        self.emitting = true;
     }
 }
 

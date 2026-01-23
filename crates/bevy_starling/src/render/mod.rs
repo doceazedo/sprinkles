@@ -33,5 +33,6 @@ pub struct EmitterUniforms {
     pub randomness: f32,
 
     pub draw_order: u32,
-    pub _pad3: [u32; 3],
+    pub clear_particles: u32,
+    pub _pad3: [u32; 2],
 }

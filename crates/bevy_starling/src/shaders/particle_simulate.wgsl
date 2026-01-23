@@ -32,9 +32,9 @@ struct EmitterParams {
     randomness: f32,
 
     draw_order: u32,
+    clear_particles: u32,
     _pad3_a: u32,
     _pad3_b: u32,
-    _pad3_c: u32,
 }
 
 const DRAW_ORDER_INDEX: u32 = 0u;
@@ -48,6 +48,14 @@ const PARTICLE_FLAG_ACTIVE: u32 = 1u;
 fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let idx = global_id.x;
     if (idx >= params.amount) {
+        return;
+    }
+
+    // handle clear request - deactivate all particles
+    if (params.clear_particles != 0u) {
+        var p = particles[idx];
+        p.custom.w = bitcast<f32>(0u);
+        particles[idx] = p;
         return;
     }
 

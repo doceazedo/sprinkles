@@ -210,36 +210,62 @@ pub fn sync_playback_state(
     mut query: Query<(&ParticleSystem3D, &mut ParticleSystemRuntime), With<EditorParticlePreview>>,
 ) {
     for (particle_system, mut runtime) in query.iter_mut() {
-        let has_started = runtime.system_time > 0.0 || runtime.one_shot_completed;
-
-        // handle stop (not pause) - reset only when stop button was clicked
-        // stop button sets current_frame = 0, pause does not
-        if !editor_state.is_playing && has_started && editor_state.current_frame == 0 {
-            runtime.reset();
-            continue;
-        }
-
         let Some(asset) = assets.get(&particle_system.handle) else {
             continue;
         };
+
+        // calculate duration from the longest emitter lifetime
+        let max_lifetime = asset
+            .emitters
+            .iter()
+            .map(|e| e.time.lifetime)
+            .fold(0.0_f32, |a, b| a.max(b));
+        editor_state.duration_ms = max_lifetime * 1000.0;
 
         let Some(emitter) = asset.emitters.first() else {
             continue;
         };
 
-        // handle one-shot completion
+        // handle stop button
+        if editor_state.should_reset {
+            runtime.stop();
+            editor_state.elapsed_ms = 0.0;
+            editor_state.should_reset = false;
+            continue;
+        }
+
+        // handle one-shot emitters
         if emitter.time.one_shot && runtime.one_shot_completed {
             if editor_state.is_looping {
-                runtime.reset();
-                runtime.emitting = true;
+                // looping mode: restart automatically
+                runtime.restart();
+            } else if editor_state.play_requested {
+                // user clicked play after one_shot finished - restart
+                runtime.restart();
+                editor_state.play_requested = false;
             } else {
+                // one_shot finished, not looping: stop and reset progress
+                editor_state.elapsed_ms = 0.0;
                 editor_state.is_playing = false;
             }
             continue;
         }
 
-        if runtime.emitting != editor_state.is_playing {
-            runtime.emitting = editor_state.is_playing;
+        // clear play_requested if we get here (normal playback)
+        editor_state.play_requested = false;
+
+        // sync playback state from editor
+        if editor_state.is_playing {
+            if runtime.paused || !runtime.emitting {
+                runtime.play();
+            }
+        } else {
+            if !runtime.paused {
+                runtime.pause();
+            }
         }
+
+        // sync elapsed time from runtime
+        editor_state.elapsed_ms = runtime.system_time * 1000.0;
     }
 }
