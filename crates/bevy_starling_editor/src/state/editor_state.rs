@@ -18,7 +18,7 @@ impl Default for EditorState {
         Self {
             current_project: None,
             current_project_path: None,
-            is_playing: false,
+            is_playing: true,
             is_looping: true,
             current_frame: 0,
             total_frames: 300,

@@ -58,8 +58,9 @@ pub fn update_particle_time(
         }
 
         // handle one-shot mode
-        if emitter.time.one_shot && runtime.cycle > 0 {
+        if emitter.time.one_shot && runtime.cycle > 0 && !runtime.one_shot_completed {
             runtime.emitting = false;
+            runtime.one_shot_completed = true;
         }
     }
 }

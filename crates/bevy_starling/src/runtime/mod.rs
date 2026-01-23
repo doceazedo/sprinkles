@@ -12,6 +12,8 @@ pub struct ParticleSystemRuntime {
     pub cycle: u32,
     pub accumulated_delta: f32,
     pub random_seed: u32,
+    /// set to true when a one-shot emitter completes its emission cycle
+    pub one_shot_completed: bool,
 }
 
 impl Default for ParticleSystemRuntime {
@@ -23,6 +25,7 @@ impl Default for ParticleSystemRuntime {
             cycle: 0,
             accumulated_delta: 0.0,
             random_seed: rand_seed(),
+            one_shot_completed: false,
         }
     }
 }
@@ -48,6 +51,7 @@ impl ParticleSystemRuntime {
         self.cycle = 0;
         self.accumulated_delta = 0.0;
         self.random_seed = rand_seed();
+        self.one_shot_completed = false;
     }
 }
 

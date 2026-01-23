@@ -205,16 +205,40 @@ pub fn despawn_preview_on_project_change(
 }
 
 pub fn sync_playback_state(
-    editor_state: Res<EditorState>,
-    mut query: Query<&mut ParticleSystemRuntime, With<EditorParticlePreview>>,
+    mut editor_state: ResMut<EditorState>,
+    assets: Res<Assets<ParticleSystemAsset>>,
+    mut query: Query<(&ParticleSystem3D, &mut ParticleSystemRuntime), With<EditorParticlePreview>>,
 ) {
-    for mut runtime in query.iter_mut() {
-        if runtime.emitting != editor_state.is_playing {
-            runtime.emitting = editor_state.is_playing;
+    for (particle_system, mut runtime) in query.iter_mut() {
+        let has_started = runtime.system_time > 0.0 || runtime.one_shot_completed;
+
+        // handle stop - reset the runtime when playback stops
+        if !editor_state.is_playing && has_started {
+            runtime.reset();
+            continue;
         }
 
-        if !editor_state.is_playing && runtime.system_time > 0.0 {
-            runtime.reset();
+        let Some(asset) = assets.get(&particle_system.handle) else {
+            continue;
+        };
+
+        let Some(emitter) = asset.emitters.first() else {
+            continue;
+        };
+
+        // handle one-shot completion
+        if emitter.time.one_shot && runtime.one_shot_completed {
+            if editor_state.is_looping {
+                runtime.reset();
+                runtime.emitting = true;
+            } else {
+                editor_state.is_playing = false;
+            }
+            continue;
+        }
+
+        if runtime.emitting != editor_state.is_playing {
+            runtime.emitting = editor_state.is_playing;
         }
     }
 }
