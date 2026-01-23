@@ -446,7 +446,7 @@ fn inspect_particle_mesh(ui: &mut egui::Ui, label: &str, value: &mut ParticleMes
                     .selectable_label(matches!(value, ParticleMesh::Sphere { .. }), "Sphere")
                     .clicked()
                 {
-                    *value = ParticleMesh::Sphere { radius: 0.5 };
+                    *value = ParticleMesh::Sphere { radius: 1.0 };
                     changed = true;
                 }
                 if ui
@@ -696,12 +696,6 @@ fn inspect_spawn_position(
 ) -> bool {
     let mut changed = false;
     inspector_category(ui, id, "Position", indent_level, |ui, indent| {
-        changed |= inspect_emission_shape(
-            ui,
-            &field_label("emission_shape"),
-            &mut position.emission_shape,
-            indent,
-        );
         changed |= inspect_vec3(
             ui,
             &field_label("emission_shape_offset"),
@@ -712,6 +706,12 @@ fn inspect_spawn_position(
             ui,
             &field_label("emission_shape_scale"),
             &mut position.emission_shape_scale,
+            indent,
+        );
+        changed |= inspect_emission_shape(
+            ui,
+            &field_label("emission_shape"),
+            &mut position.emission_shape,
             indent,
         );
     });
