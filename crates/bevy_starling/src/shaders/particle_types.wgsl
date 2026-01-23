@@ -60,9 +60,9 @@ struct EmitterParams {
     scale_max: f32,
 
     scale_curve: u32,
+    use_initial_color_gradient: u32,
     _pad7_a: u32,
     _pad7_b: u32,
-    _pad7_c: u32,
 
     initial_color: vec4<f32>,
 }

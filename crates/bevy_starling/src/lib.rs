@@ -8,13 +8,17 @@ use bevy::{
     asset::embedded_asset,
     pbr::MaterialPlugin,
     prelude::*,
-    render::{ExtractSchedule, RenderApp},
+    render::{extract_resource::ExtractResourcePlugin, ExtractSchedule, RenderApp},
 };
 
 use asset::{ParticleSystemAsset, ParticleSystemAssetLoader};
 use render::{
     compute::ParticleComputePlugin,
     extract::extract_particle_systems,
+    gradient_texture::{
+        create_fallback_gradient_texture, prepare_gradient_textures, FallbackGradientTexture,
+        GradientTextureCache,
+    },
     sort::ParticleSortPlugin,
 };
 use systems::{
@@ -36,6 +40,11 @@ impl Plugin for StarlingPlugin {
         app.init_asset::<ParticleSystemAsset>()
             .init_asset_loader::<ParticleSystemAssetLoader>();
 
+        // gradient texture caching
+        app.init_resource::<GradientTextureCache>()
+            .add_systems(Startup, create_fallback_gradient_texture)
+            .add_systems(PostUpdate, prepare_gradient_textures);
+
         // register the extended material for particle rendering
         app.add_plugins(MaterialPlugin::<runtime::ParticleMaterial>::default());
 
@@ -55,7 +64,11 @@ impl Plugin for StarlingPlugin {
         app.add_systems(First, clear_particle_clear_requests);
 
         // render plugins
-        app.add_plugins((ParticleComputePlugin, ParticleSortPlugin));
+        app.add_plugins((
+            ParticleComputePlugin,
+            ParticleSortPlugin,
+            ExtractResourcePlugin::<FallbackGradientTexture>::default(),
+        ));
 
         // extract systems
         if let Some(render_app) = app.get_sub_app_mut(RenderApp) {

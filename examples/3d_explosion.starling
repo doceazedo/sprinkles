@@ -57,7 +57,7 @@
                         curve: Some(LinearOut),
                     ),
                     color_curves: (
-                        initial_color: (1.0, 1.0, 1.0, 1.0),
+                        initial_color: (type: Solid, color: (1.0, 1.0, 1.0, 1.0)),
                     ),
                 ),
             ),

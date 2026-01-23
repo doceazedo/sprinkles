@@ -1,5 +1,6 @@
 pub mod compute;
 pub mod extract;
+pub mod gradient_texture;
 pub mod material;
 pub mod sort;
 
@@ -74,7 +75,8 @@ pub struct EmitterUniforms {
     pub scale_max: f32,
 
     pub scale_curve: u32,
-    pub _pad7: [u32; 3],
+    pub use_initial_color_gradient: u32,
+    pub _pad7: [u32; 2],
 
     pub initial_color: [f32; 4],
 }

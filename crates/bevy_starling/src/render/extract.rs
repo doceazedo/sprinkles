@@ -4,8 +4,9 @@ use bevy::{
 };
 
 use crate::{
-    asset::{DrawOrder, EmissionShape, ParticleSystemAsset},
+    asset::{DrawOrder, EmissionShape, ParticleSystemAsset, SolidOrGradientColor},
     core::ParticleSystem3D,
+    render::gradient_texture::GradientTextureCache,
     runtime::{ParticleBufferHandle, ParticleSystemRuntime},
 };
 
@@ -28,6 +29,7 @@ pub struct ExtractedEmitterData {
     pub draw_order: u32,
     pub camera_position: [f32; 3],
     pub emitter_transform: Mat4,
+    pub gradient_texture_handle: Option<Handle<Image>>,
 }
 
 pub fn extract_particle_systems(
@@ -43,6 +45,7 @@ pub fn extract_particle_systems(
     >,
     camera_query: Extract<Query<&GlobalTransform, With<Camera3d>>>,
     assets: Extract<Res<Assets<ParticleSystemAsset>>>,
+    gradient_cache: Extract<Res<GradientTextureCache>>,
     time: Extract<Res<Time>>,
 ) {
     let mut extracted = ExtractedParticleSystem::default();
@@ -162,9 +165,21 @@ pub fn extract_particle_systems(
             scale_max: display.scale.range.max,
 
             scale_curve: display.scale.curve.map(|c| c.to_gpu_constant()).unwrap_or(0),
-            _pad7: [0; 3],
+            use_initial_color_gradient: match &display.color_curves.initial_color {
+                SolidOrGradientColor::Solid { .. } => 0,
+                SolidOrGradientColor::Gradient { .. } => 1,
+            },
+            _pad7: [0; 2],
 
-            initial_color: display.color_curves.initial_color,
+            initial_color: match &display.color_curves.initial_color {
+                SolidOrGradientColor::Solid { color } => *color,
+                SolidOrGradientColor::Gradient { .. } => [1.0, 1.0, 1.0, 1.0],
+            },
+        };
+
+        let gradient_texture_handle = match &display.color_curves.initial_color {
+            SolidOrGradientColor::Gradient { gradient } => gradient_cache.get(gradient),
+            SolidOrGradientColor::Solid { .. } => None,
         };
 
         extracted.emitters.push((
@@ -178,6 +193,7 @@ pub fn extract_particle_systems(
                 draw_order,
                 camera_position: camera_position.into(),
                 emitter_transform: global_transform.to_matrix(),
+                gradient_texture_handle,
             },
         ));
     }

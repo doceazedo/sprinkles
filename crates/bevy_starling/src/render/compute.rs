@@ -4,19 +4,22 @@ use bevy::{
         render_asset::RenderAssets,
         render_graph::{self, RenderGraph, RenderLabel},
         render_resource::{
-            binding_types::{storage_buffer, uniform_buffer},
+            binding_types::{sampler, storage_buffer, texture_2d, uniform_buffer},
             BindGroup, BindGroupEntries, BindGroupLayoutDescriptor, BindGroupLayoutEntries,
             BufferUsages, CachedComputePipelineId, CachedPipelineState, ComputePassDescriptor,
-            ComputePipelineDescriptor, PipelineCache, ShaderStages,
+            ComputePipelineDescriptor, PipelineCache, SamplerBindingType, SamplerDescriptor,
+            ShaderStages, TextureSampleType,
         },
         renderer::{RenderContext, RenderDevice, RenderQueue},
         storage::GpuShaderStorageBuffer,
+        texture::GpuImage,
         Render, RenderApp, RenderStartup, RenderSystems,
     },
 };
 use std::borrow::Cow;
 
 use super::extract::ExtractedParticleSystem;
+use super::gradient_texture::FallbackGradientTexture;
 use super::EmitterUniforms;
 use crate::core::ParticleData;
 
@@ -36,6 +39,7 @@ pub fn init_particle_compute_pipeline(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     pipeline_cache: Res<PipelineCache>,
+    render_device: Res<RenderDevice>,
 ) {
     let bind_group_layout = BindGroupLayoutDescriptor::new(
         "ParticleComputeBindGroup",
@@ -44,6 +48,8 @@ pub fn init_particle_compute_pipeline(
             (
                 uniform_buffer::<EmitterUniforms>(false),
                 storage_buffer::<ParticleData>(false),
+                texture_2d(TextureSampleType::Float { filterable: true }),
+                sampler(SamplerBindingType::Filtering),
             ),
         ),
     );
@@ -57,11 +63,24 @@ pub fn init_particle_compute_pipeline(
         ..default()
     });
 
+    let gradient_sampler = render_device.create_sampler(&SamplerDescriptor {
+        label: Some("gradient_sampler"),
+        address_mode_u: bevy::render::render_resource::AddressMode::ClampToEdge,
+        address_mode_v: bevy::render::render_resource::AddressMode::ClampToEdge,
+        mag_filter: bevy::render::render_resource::FilterMode::Linear,
+        min_filter: bevy::render::render_resource::FilterMode::Linear,
+        ..default()
+    });
+
     commands.insert_resource(ParticleComputePipeline {
         bind_group_layout,
         simulate_pipeline,
     });
+    commands.insert_resource(GradientSampler(gradient_sampler));
 }
+
+#[derive(Resource)]
+pub struct GradientSampler(pub bevy::render::render_resource::Sampler);
 
 #[derive(Resource, Default)]
 pub struct ParticleComputeBindGroups {
@@ -76,12 +95,28 @@ pub fn prepare_particle_compute_bind_groups(
     _render_queue: Res<RenderQueue>,
     extracted_systems: Res<ExtractedParticleSystem>,
     gpu_storage_buffers: Res<RenderAssets<GpuShaderStorageBuffer>>,
+    gpu_images: Res<RenderAssets<GpuImage>>,
+    fallback_texture: Option<Res<FallbackGradientTexture>>,
+    gradient_sampler: Res<GradientSampler>,
 ) {
     let mut bind_groups = Vec::new();
 
+    let fallback_gpu_image = fallback_texture
+        .as_ref()
+        .and_then(|ft| gpu_images.get(&ft.handle));
+
     for (entity, emitter_data) in &extracted_systems.emitters {
-        // get the GPU buffer from the RenderAssets
         let Some(gpu_buffer) = gpu_storage_buffers.get(&emitter_data.particle_buffer_handle) else {
+            continue;
+        };
+
+        let gradient_gpu_image = emitter_data
+            .gradient_texture_handle
+            .as_ref()
+            .and_then(|h| gpu_images.get(h))
+            .or(fallback_gpu_image);
+
+        let Some(gradient_image) = gradient_gpu_image else {
             continue;
         };
 
@@ -99,6 +134,8 @@ pub fn prepare_particle_compute_bind_groups(
             &BindGroupEntries::sequential((
                 uniform_buffer.as_entire_binding(),
                 gpu_buffer.buffer.as_entire_binding(),
+                &gradient_image.texture_view,
+                &gradient_sampler.0,
             )),
         );
 

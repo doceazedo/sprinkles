@@ -2,9 +2,10 @@ use bevy::prelude::*;
 use bevy_egui::{egui, EguiContexts};
 use bevy_starling::asset::{
     DrawOrder, EasingCurve, EmissionShape, EmitterData, EmitterDrawPass, EmitterDrawing,
-    EmitterTime, ParticleMesh, ParticleProcessConfig, ParticleProcessDisplay,
-    ParticleProcessDisplayColor, ParticleProcessDisplayScale, ParticleProcessSpawnAccelerations,
-    ParticleProcessSpawnPosition, ParticleProcessSpawnVelocity, ParticleSystemAsset, Range,
+    EmitterTime, Gradient, GradientInterpolation, ParticleMesh, ParticleProcessConfig,
+    ParticleProcessDisplay, ParticleProcessDisplayColor, ParticleProcessDisplayScale,
+    ParticleProcessSpawnAccelerations, ParticleProcessSpawnPosition, ParticleProcessSpawnVelocity,
+    ParticleSystemAsset, Range, SolidOrGradientColor,
 };
 use egui_remixicon::icons;
 use inflector::Inflector;
@@ -805,6 +806,100 @@ fn inspect_color_rgba(
     changed
 }
 
+fn inspect_gradient_interpolation(
+    ui: &mut egui::Ui,
+    id: &str,
+    interpolation: &mut GradientInterpolation,
+    indent_level: u8,
+) -> bool {
+    let mut changed = false;
+    inspector_row(ui, "Interpolation", indent_level, |ui, width| {
+        egui::ComboBox::from_id_salt(id)
+            .selected_text(match interpolation {
+                GradientInterpolation::Steps => "Steps",
+                GradientInterpolation::Linear => "Linear",
+                GradientInterpolation::Smoothstep => "Smoothstep",
+            })
+            .width(width)
+            .show_ui(ui, |ui| {
+                if ui
+                    .selectable_value(interpolation, GradientInterpolation::Steps, "Steps")
+                    .changed()
+                {
+                    changed = true;
+                }
+                if ui
+                    .selectable_value(interpolation, GradientInterpolation::Linear, "Linear")
+                    .changed()
+                {
+                    changed = true;
+                }
+                if ui
+                    .selectable_value(interpolation, GradientInterpolation::Smoothstep, "Smoothstep")
+                    .changed()
+                {
+                    changed = true;
+                }
+            });
+    });
+    changed
+}
+
+fn inspect_solid_or_gradient_color(
+    ui: &mut egui::Ui,
+    id: &str,
+    value: &mut SolidOrGradientColor,
+    indent_level: u8,
+) -> bool {
+    let mut changed = false;
+
+    inspector_row(ui, "Initial color", indent_level, |ui, _width| {
+        let is_solid = value.is_solid();
+
+        ui.horizontal(|ui| {
+            if ui.selectable_label(is_solid, "Solid").clicked() && !is_solid {
+                let color = match value {
+                    SolidOrGradientColor::Gradient { gradient } => gradient
+                        .stops
+                        .first()
+                        .map(|s| s.color)
+                        .unwrap_or([1.0, 1.0, 1.0, 1.0]),
+                    SolidOrGradientColor::Solid { color } => *color,
+                };
+                *value = SolidOrGradientColor::Solid { color };
+                changed = true;
+            }
+
+            if ui.selectable_label(!is_solid, "Gradient").clicked() && is_solid {
+                *value = SolidOrGradientColor::Gradient {
+                    gradient: Gradient::default(),
+                };
+                changed = true;
+            }
+        });
+    });
+
+    match value {
+        SolidOrGradientColor::Solid { color } => {
+            changed |= inspect_color_rgba(ui, "Color", color, indent_level);
+        }
+        SolidOrGradientColor::Gradient { gradient } => {
+            inspector_row(ui, "Gradient", indent_level, |ui, _width| {
+                ui.label("// TODO: gradient editor");
+            });
+
+            changed |= inspect_gradient_interpolation(
+                ui,
+                &format!("{}_interp", id),
+                &mut gradient.interpolation,
+                indent_level,
+            );
+        }
+    }
+
+    changed
+}
+
 fn inspect_display_color(
     ui: &mut egui::Ui,
     id: &str,
@@ -813,9 +908,9 @@ fn inspect_display_color(
 ) -> bool {
     let mut changed = false;
     inspector_category(ui, id, "Color curves", indent_level, |ui, indent| {
-        changed |= inspect_color_rgba(
+        changed |= inspect_solid_or_gradient_color(
             ui,
-            &field_label("initial_color"),
+            &format!("{}_initial_color", id),
             &mut color_curves.initial_color,
             indent,
         );

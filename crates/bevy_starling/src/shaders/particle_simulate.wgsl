@@ -60,9 +60,9 @@ struct EmitterParams {
     scale_max: f32,
 
     scale_curve: u32,
+    use_initial_color_gradient: u32,
     _pad7_a: u32,
     _pad7_b: u32,
-    _pad7_c: u32,
 
     initial_color: vec4<f32>,
 }
@@ -86,6 +86,8 @@ const SCALE_CURVE_LINEAR_OUT: u32 = 2u;
 
 @group(0) @binding(0) var<uniform> params: EmitterParams;
 @group(0) @binding(1) var<storage, read_write> particles: array<Particle>;
+@group(0) @binding(2) var gradient_texture: texture_2d<f32>;
+@group(0) @binding(3) var gradient_sampler: sampler;
 
 @compute @workgroup_size(64)
 fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
@@ -311,7 +313,12 @@ fn spawn_particle(idx: u32) -> Particle {
     let lifetime = params.lifetime * (1.0 + random_range(seed + 4u, params.lifetime_randomness));
     p.velocity = vec4(vel, lifetime);
 
-    p.color = params.initial_color;
+    if (params.use_initial_color_gradient == 0u) {
+        p.color = params.initial_color;
+    } else {
+        let t = hash_to_float(seed + 30u);
+        p.color = textureSampleLevel(gradient_texture, gradient_sampler, vec2(t, 0.5), 0.0);
+    }
 
     // spawn_index tracks total spawns across all cycles for depth ordering
     // only set when draw_order is Index, otherwise use 0
