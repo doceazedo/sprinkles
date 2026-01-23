@@ -103,25 +103,32 @@ pub fn configure_style(ctx: &egui::Context) {
 
     style.visuals.override_text_color = Some(colors::TEXT_MUTED);
 
+    let widget_corner_radius = CornerRadius::same(2);
+
     style.visuals.widgets.inactive.bg_fill = Color32::TRANSPARENT;
     style.visuals.widgets.inactive.bg_stroke = Stroke::NONE;
     style.visuals.widgets.inactive.weak_bg_fill = Color32::TRANSPARENT;
     style.visuals.widgets.inactive.fg_stroke = Stroke::new(1.0, colors::TEXT_MUTED);
+    style.visuals.widgets.inactive.corner_radius = widget_corner_radius;
 
     style.visuals.widgets.hovered.bg_fill = colors::hover_bg();
     style.visuals.widgets.hovered.bg_stroke = Stroke::NONE;
     style.visuals.widgets.hovered.weak_bg_fill = colors::hover_bg();
     style.visuals.widgets.hovered.fg_stroke = Stroke::new(1.0, colors::TEXT_MUTED);
+    style.visuals.widgets.hovered.corner_radius = widget_corner_radius;
 
     style.visuals.widgets.active.bg_fill = colors::active_bg();
     style.visuals.widgets.active.bg_stroke = Stroke::NONE;
     style.visuals.widgets.active.weak_bg_fill = colors::active_bg();
     style.visuals.widgets.active.fg_stroke = Stroke::new(1.0, colors::TEXT_MUTED);
+    style.visuals.widgets.active.corner_radius = widget_corner_radius;
 
     style.visuals.widgets.inactive.bg_fill = colors::INPUT_BG;
     style.visuals.widgets.inactive.bg_stroke = Stroke::new(1.0, colors::BORDER);
     style.visuals.widgets.noninteractive.bg_stroke = Stroke::new(1.0, colors::BORDER);
     style.visuals.widgets.noninteractive.fg_stroke = Stroke::new(1.0, colors::placeholder_text());
+    style.visuals.widgets.noninteractive.corner_radius = widget_corner_radius;
+    style.visuals.widgets.open.corner_radius = widget_corner_radius;
     style.visuals.extreme_bg_color = colors::INPUT_BG;
 
     style.visuals.panel_fill = colors::PANEL_BG;
@@ -438,4 +445,213 @@ pub fn draw_modal_backdrop(ui: &mut egui::Ui) {
         CornerRadius::ZERO,
         Color32::from_black_alpha(180),
     );
+}
+
+const INPUT_CORNER_RADIUS: u8 = 2;
+
+pub fn styled_f32_input(
+    ui: &mut egui::Ui,
+    value: &mut f32,
+    width: f32,
+    height: f32,
+    min: Option<f32>,
+    max: Option<f32>,
+) -> bool {
+    styled_f32_input_with_rounding(
+        ui,
+        value,
+        width,
+        height,
+        min,
+        max,
+        CornerRadius::same(INPUT_CORNER_RADIUS),
+    )
+}
+
+fn styled_f32_input_with_rounding(
+    ui: &mut egui::Ui,
+    value: &mut f32,
+    width: f32,
+    height: f32,
+    min: Option<f32>,
+    max: Option<f32>,
+    corner_radius: CornerRadius,
+) -> bool {
+    let mut changed = false;
+    let (rect, _) = ui.allocate_exact_size(egui::vec2(width, height), egui::Sense::hover());
+
+    // draw background
+    ui.painter().rect_filled(rect, corner_radius, colors::INPUT_BG);
+
+    let mut text = format!("{:.2}", value);
+    let response = ui.put(
+        rect,
+        egui::TextEdit::singleline(&mut text)
+            .horizontal_align(egui::Align::Center)
+            .font(FontId::proportional(TEXT_BASE))
+            .text_color(colors::TEXT_MUTED)
+            .background_color(Color32::TRANSPARENT)
+            .frame(false),
+    );
+
+    // draw border after TextEdit so it's on top
+    ui.painter().rect_stroke(
+        rect,
+        corner_radius,
+        Stroke::new(1.0, colors::BORDER),
+        StrokeKind::Inside,
+    );
+
+    if response.changed() {
+        if let Ok(mut new_value) = text.parse::<f32>() {
+            if let Some(min_val) = min {
+                new_value = new_value.max(min_val);
+            }
+            if let Some(max_val) = max {
+                new_value = new_value.min(max_val);
+            }
+            *value = new_value;
+            changed = true;
+        }
+    }
+    changed
+}
+
+pub fn styled_labeled_f32_input(
+    ui: &mut egui::Ui,
+    label: &str,
+    label_color: Color32,
+    value: &mut f32,
+    input_width: f32,
+    height: f32,
+    min: Option<f32>,
+    max: Option<f32>,
+) -> bool {
+    let font_id = FontId::proportional(TEXT_SM);
+    let label_padding = 6.0;
+
+    // calculate label width
+    let label_galley = ui.painter().layout_no_wrap(
+        label.to_string(),
+        font_id.clone(),
+        label_color,
+    );
+    let label_box_width = label_galley.size().x + label_padding * 2.0;
+
+    // allocate space for both label box and input
+    let total_width = label_box_width + input_width;
+    let (total_rect, _) = ui.allocate_exact_size(egui::vec2(total_width, height), egui::Sense::hover());
+
+    let label_rect = egui::Rect::from_min_size(
+        total_rect.min,
+        egui::vec2(label_box_width, height),
+    );
+    let input_rect = egui::Rect::from_min_size(
+        egui::pos2(label_rect.right(), total_rect.top()),
+        egui::vec2(input_width, height),
+    );
+
+    let corner_radius = CornerRadius::same(INPUT_CORNER_RADIUS);
+
+    // draw label box background (rounded left only)
+    let label_corner_radius = CornerRadius {
+        nw: INPUT_CORNER_RADIUS,
+        ne: 0,
+        sw: INPUT_CORNER_RADIUS,
+        se: 0,
+    };
+    ui.painter().rect_filled(label_rect, label_corner_radius, colors::BORDER);
+
+    // draw input background (rounded right only)
+    let input_corner_radius = CornerRadius {
+        nw: 0,
+        ne: INPUT_CORNER_RADIUS,
+        sw: 0,
+        se: INPUT_CORNER_RADIUS,
+    };
+    ui.painter().rect_filled(input_rect, input_corner_radius, colors::INPUT_BG);
+
+    // draw label text
+    ui.painter().text(
+        label_rect.center(),
+        egui::Align2::CENTER_CENTER,
+        label,
+        font_id,
+        label_color,
+    );
+
+    let mut text = format!("{:.2}", value);
+    let response = ui.put(
+        input_rect,
+        egui::TextEdit::singleline(&mut text)
+            .horizontal_align(egui::Align::Center)
+            .font(FontId::proportional(TEXT_BASE))
+            .text_color(colors::TEXT_MUTED)
+            .background_color(Color32::TRANSPARENT)
+            .frame(false),
+    );
+
+    // draw outer border for the entire combined element (after TextEdit so it's on top)
+    ui.painter().rect_stroke(
+        total_rect,
+        corner_radius,
+        Stroke::new(1.0, colors::BORDER),
+        StrokeKind::Inside,
+    );
+
+    let mut changed = false;
+    if response.changed() {
+        if let Ok(mut new_value) = text.parse::<f32>() {
+            if let Some(min_val) = min {
+                new_value = new_value.max(min_val);
+            }
+            if let Some(max_val) = max {
+                new_value = new_value.min(max_val);
+            }
+            *value = new_value;
+            changed = true;
+        }
+    }
+    changed
+}
+
+pub fn styled_u32_input(
+    ui: &mut egui::Ui,
+    value: &mut u32,
+    width: f32,
+    height: f32,
+) -> bool {
+    let mut changed = false;
+    let (rect, _) = ui.allocate_exact_size(egui::vec2(width, height), egui::Sense::hover());
+
+    // draw background
+    let corner_radius = CornerRadius::same(INPUT_CORNER_RADIUS);
+    ui.painter().rect_filled(rect, corner_radius, colors::INPUT_BG);
+
+    let mut text = value.to_string();
+    let response = ui.put(
+        rect,
+        egui::TextEdit::singleline(&mut text)
+            .horizontal_align(egui::Align::Center)
+            .font(FontId::proportional(TEXT_BASE))
+            .text_color(colors::TEXT_MUTED)
+            .background_color(Color32::TRANSPARENT)
+            .frame(false),
+    );
+
+    // draw border after TextEdit so it's on top
+    ui.painter().rect_stroke(
+        rect,
+        corner_radius,
+        Stroke::new(1.0, colors::BORDER),
+        StrokeKind::Inside,
+    );
+
+    if response.changed() {
+        if let Ok(new_value) = text.parse::<u32>() {
+            *value = new_value;
+            changed = true;
+        }
+    }
+    changed
 }

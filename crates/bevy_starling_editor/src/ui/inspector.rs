@@ -11,7 +11,7 @@ use inflector::Inflector;
 
 use crate::state::{EditorState, InspectorState};
 use crate::ui::modals::ConfirmDeleteModal;
-use crate::ui::styles::{colors, icon_button, styled_checkbox, ICON_BUTTON_SIZE, TEXT_BASE, TEXT_SM};
+use crate::ui::styles::{colors, icon_button, styled_checkbox, styled_f32_input, styled_labeled_f32_input, styled_u32_input, ICON_BUTTON_SIZE, TEXT_BASE, TEXT_SM};
 use crate::viewport::ViewportLayout;
 
 const ROW_HEIGHT: f32 = 24.0;
@@ -240,11 +240,7 @@ fn emitter_collapsible_header(
 fn inspect_f32_positive(ui: &mut egui::Ui, label: &str, value: &mut f32, indent_level: u8) -> bool {
     let mut changed = false;
     inspector_row(ui, label, indent_level, |ui, width| {
-        let response = ui.add_sized(
-            egui::vec2(width, ROW_HEIGHT),
-            egui::DragValue::new(value).speed(0.01).range(0.0..=f32::MAX),
-        );
-        changed = response.changed();
+        changed = styled_f32_input(ui, value, width, ROW_HEIGHT, Some(0.0), None);
     });
     changed
 }
@@ -259,11 +255,7 @@ fn inspect_f32_clamped(
 ) -> bool {
     let mut changed = false;
     inspector_row(ui, label, indent_level, |ui, width| {
-        let response = ui.add_sized(
-            egui::vec2(width, ROW_HEIGHT),
-            egui::DragValue::new(value).speed(0.01).range(min..=max),
-        );
-        changed = response.changed();
+        changed = styled_f32_input(ui, value, width, ROW_HEIGHT, Some(min), Some(max));
     });
     changed
 }
@@ -271,11 +263,7 @@ fn inspect_f32_clamped(
 fn inspect_u32(ui: &mut egui::Ui, label: &str, value: &mut u32, indent_level: u8) -> bool {
     let mut changed = false;
     inspector_row(ui, label, indent_level, |ui, width| {
-        let response = ui.add_sized(
-            egui::vec2(width, ROW_HEIGHT),
-            egui::DragValue::new(value).speed(0.5).range(0..=u32::MAX),
-        );
-        changed = response.changed();
+        changed = styled_u32_input(ui, value, width, ROW_HEIGHT);
     });
     changed
 }
@@ -300,20 +288,19 @@ fn inspect_vector_fields<const N: usize>(
     let mut changed = false;
 
     let font_id = egui::FontId::proportional(TEXT_SM);
-    let label_input_spacing = 4.0;
-    let field_spacing = 8.0;
+    let label_padding = 6.0;
+    let field_spacing = 4.0;
 
     inspector_row(ui, label, indent_level, |ui, width| {
-        // calculate each label's width
-        let label_widths: [f32; N] = std::array::from_fn(|i| {
+        // calculate each label box width (text + padding)
+        let label_box_widths: [f32; N] = std::array::from_fn(|i| {
             let galley = ui.painter().layout_no_wrap(labels[i].to_string(), font_id.clone(), egui::Color32::WHITE);
-            galley.size().x
+            galley.size().x + label_padding * 2.0
         });
 
-        let total_label_width: f32 = label_widths.iter().sum();
-        let total_label_input_spacing = N as f32 * label_input_spacing;
+        let total_label_box_width: f32 = label_box_widths.iter().sum();
         let total_field_spacing = (N - 1) as f32 * field_spacing;
-        let total_input_width = width - total_label_width - total_label_input_spacing - total_field_spacing;
+        let total_input_width = width - total_label_box_width - total_field_spacing;
         let input_width = total_input_width / N as f32;
 
         ui.spacing_mut().item_spacing.x = 0.0;
@@ -321,42 +308,18 @@ fn inspect_vector_fields<const N: usize>(
         for i in 0..N {
             let color = DEFAULT_FIELD_COLORS.get(i).copied().unwrap_or(colors::TEXT_MUTED);
 
-            // paint label
-            let (label_rect, _) = ui.allocate_exact_size(
-                egui::vec2(label_widths[i], ROW_HEIGHT),
-                egui::Sense::hover(),
-            );
-            ui.painter().text(
-                label_rect.center(),
-                egui::Align2::CENTER_CENTER,
+            if styled_labeled_f32_input(
+                ui,
                 labels[i],
-                font_id.clone(),
                 color,
-            );
-
-            // spacing between label and input
-            ui.add_space(label_input_spacing);
-
-            // text input
-            ui.scope(|ui| {
-                ui.set_max_width(input_width);
-                let (rect, _) = ui.allocate_exact_size(
-                    egui::vec2(input_width, ROW_HEIGHT),
-                    egui::Sense::hover(),
-                );
-                let mut text = format!("{:.2}", values[i]);
-                let response = ui.put(
-                    rect,
-                    egui::TextEdit::singleline(&mut text)
-                        .horizontal_align(egui::Align::Center),
-                );
-                if response.changed() {
-                    if let Ok(new_value) = text.parse::<f32>() {
-                        values[i] = new_value;
-                        changed = true;
-                    }
-                }
-            });
+                &mut values[i],
+                input_width,
+                ROW_HEIGHT,
+                None,
+                None,
+            ) {
+                changed = true;
+            }
 
             // spacing between fields
             if i < N - 1 {
