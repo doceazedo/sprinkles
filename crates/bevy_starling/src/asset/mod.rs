@@ -4,8 +4,8 @@ mod loader;
 pub use format::{
     DrawOrder, EasingCurve, EmissionShape, EmitterData, EmitterDrawPass, EmitterDrawing,
     EmitterTime, ParticleMesh, ParticleProcessConfig, ParticleProcessDisplay,
-    ParticleProcessDisplayScale, ParticleProcessSpawn, ParticleProcessSpawnAccelerations,
-    ParticleProcessSpawnPosition, ParticleProcessSpawnVelocity, ParticleSystemAsset,
-    ParticleSystemDimension, Range,
+    ParticleProcessDisplayColor, ParticleProcessDisplayScale, ParticleProcessSpawn,
+    ParticleProcessSpawnAccelerations, ParticleProcessSpawnPosition, ParticleProcessSpawnVelocity,
+    ParticleSystemAsset, ParticleSystemDimension, Range,
 };
 pub use loader::{ParticleSystemAssetLoader, ParticleSystemAssetLoaderError};

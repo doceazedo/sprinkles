@@ -63,6 +63,8 @@ struct EmitterParams {
     _pad7_a: u32,
     _pad7_b: u32,
     _pad7_c: u32,
+
+    initial_color: vec4<f32>,
 }
 
 const EMISSION_SHAPE_POINT: u32 = 0u;
@@ -309,7 +311,7 @@ fn spawn_particle(idx: u32) -> Particle {
     let lifetime = params.lifetime * (1.0 + random_range(seed + 4u, params.lifetime_randomness));
     p.velocity = vec4(vel, lifetime);
 
-    p.color = vec4(1.0, 1.0, 1.0, 1.0);
+    p.color = params.initial_color;
 
     // spawn_index tracks total spawns across all cycles for depth ordering
     // only set when draw_order is Index, otherwise use 0

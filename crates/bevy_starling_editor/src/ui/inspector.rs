@@ -3,8 +3,8 @@ use bevy_egui::{egui, EguiContexts};
 use bevy_starling::asset::{
     DrawOrder, EasingCurve, EmissionShape, EmitterData, EmitterDrawPass, EmitterDrawing,
     EmitterTime, ParticleMesh, ParticleProcessConfig, ParticleProcessDisplay,
-    ParticleProcessDisplayScale, ParticleProcessSpawnAccelerations, ParticleProcessSpawnPosition,
-    ParticleProcessSpawnVelocity, ParticleSystemAsset, Range,
+    ParticleProcessDisplayColor, ParticleProcessDisplayScale, ParticleProcessSpawnAccelerations,
+    ParticleProcessSpawnPosition, ParticleProcessSpawnVelocity, ParticleSystemAsset, Range,
 };
 use egui_remixicon::icons;
 use inflector::Inflector;
@@ -826,6 +826,49 @@ fn inspect_easing_curve(
     changed
 }
 
+fn inspect_color_rgba(
+    ui: &mut egui::Ui,
+    label: &str,
+    value: &mut [f32; 4],
+    indent_level: u8,
+) -> bool {
+    let mut changed = false;
+    inspector_row(ui, label, indent_level, |ui, _width| {
+        let mut color = egui::Color32::from_rgba_unmultiplied(
+            (value[0] * 255.0) as u8,
+            (value[1] * 255.0) as u8,
+            (value[2] * 255.0) as u8,
+            (value[3] * 255.0) as u8,
+        );
+        if ui.color_edit_button_srgba(&mut color).changed() {
+            value[0] = color.r() as f32 / 255.0;
+            value[1] = color.g() as f32 / 255.0;
+            value[2] = color.b() as f32 / 255.0;
+            value[3] = color.a() as f32 / 255.0;
+            changed = true;
+        }
+    });
+    changed
+}
+
+fn inspect_display_color(
+    ui: &mut egui::Ui,
+    id: &str,
+    color_curves: &mut ParticleProcessDisplayColor,
+    indent_level: u8,
+) -> bool {
+    let mut changed = false;
+    inspector_category(ui, id, "Color curves", indent_level, |ui, indent| {
+        changed |= inspect_color_rgba(
+            ui,
+            &field_label("initial_color"),
+            &mut color_curves.initial_color,
+            indent,
+        );
+    });
+    changed
+}
+
 fn inspect_display_scale(
     ui: &mut egui::Ui,
     id: &str,
@@ -852,6 +895,12 @@ fn inspect_process_display(
             ui,
             &format!("{}_scale", id),
             &mut display.scale,
+            indent,
+        );
+        changed |= inspect_display_color(
+            ui,
+            &format!("{}_color", id),
+            &mut display.color_curves,
             indent,
         );
     });

@@ -163,6 +163,8 @@ pub fn extract_particle_systems(
 
             scale_curve: display.scale.curve.map(|c| c.to_gpu_constant()).unwrap_or(0),
             _pad7: [0; 3],
+
+            initial_color: display.color_curves.initial_color,
         };
 
         extracted.emitters.push((

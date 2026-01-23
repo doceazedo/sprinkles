@@ -63,6 +63,8 @@ struct EmitterParams {
     _pad7_a: u32,
     _pad7_b: u32,
     _pad7_c: u32,
+
+    initial_color: vec4<f32>,
 }
 
 const PARTICLE_FLAG_ACTIVE: u32 = 1u;

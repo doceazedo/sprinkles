@@ -75,4 +75,6 @@ pub struct EmitterUniforms {
 
     pub scale_curve: u32,
     pub _pad7: [u32; 3],
+
+    pub initial_color: [f32; 4],
 }

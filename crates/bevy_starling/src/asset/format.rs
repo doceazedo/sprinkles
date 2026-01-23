@@ -311,10 +311,30 @@ impl Default for ParticleProcessDisplayScale {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ParticleProcessDisplayColor {
+    #[serde(default = "default_initial_color")]
+    pub initial_color: [f32; 4],
+}
+
+fn default_initial_color() -> [f32; 4] {
+    [1.0, 1.0, 1.0, 1.0]
+}
+
+impl Default for ParticleProcessDisplayColor {
+    fn default() -> Self {
+        Self {
+            initial_color: [1.0, 1.0, 1.0, 1.0],
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ParticleProcessDisplay {
     #[serde(default)]
     pub scale: ParticleProcessDisplayScale,
+    #[serde(default)]
+    pub color_curves: ParticleProcessDisplayColor,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
