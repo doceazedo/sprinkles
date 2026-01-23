@@ -11,7 +11,7 @@ use inflector::Inflector;
 
 use crate::state::{EditorState, InspectorState};
 use crate::ui::modals::ConfirmDeleteModal;
-use crate::ui::styles::{colors, icon_button, styled_checkbox, ICON_BUTTON_SIZE};
+use crate::ui::styles::{colors, icon_button, styled_checkbox, ICON_BUTTON_SIZE, TEXT_BASE, TEXT_SM};
 use crate::viewport::ViewportLayout;
 
 const ROW_HEIGHT: f32 = 24.0;
@@ -130,7 +130,7 @@ fn inspector_category(
             chevron_pos,
             egui::Align2::CENTER_CENTER,
             chevron,
-            egui::FontId::proportional(16.0),
+            egui::FontId::proportional(TEXT_BASE),
             colors::TEXT_MUTED,
         );
 
@@ -139,7 +139,7 @@ fn inspector_category(
             text_pos,
             egui::Align2::LEFT_CENTER,
             label,
-            egui::FontId::proportional(14.0),
+            egui::FontId::proportional(TEXT_BASE),
             colors::TEXT_MUTED,
         );
     }
@@ -198,7 +198,7 @@ fn emitter_collapsible_header(
                 icon_pos,
                 egui::Align2::CENTER_CENTER,
                 icons::SHOWERS_FILL,
-                egui::FontId::proportional(16.0),
+                egui::FontId::proportional(TEXT_BASE),
                 colors::TEXT_MUTED,
             );
 
@@ -207,7 +207,7 @@ fn emitter_collapsible_header(
                 text_pos,
                 egui::Align2::LEFT_CENTER,
                 name,
-                egui::FontId::proportional(14.0),
+                egui::FontId::proportional(TEXT_BASE),
                 colors::TEXT_LIGHT,
             );
 
@@ -221,7 +221,7 @@ fn emitter_collapsible_header(
                 chevron_pos,
                 egui::Align2::CENTER_CENTER,
                 chevron,
-                egui::FontId::proportional(16.0),
+                egui::FontId::proportional(TEXT_BASE),
                 colors::TEXT_MUTED,
             );
         }
@@ -299,7 +299,7 @@ fn inspect_vector_fields<const N: usize>(
 ) -> bool {
     let mut changed = false;
 
-    let font_id = egui::FontId::proportional(11.0);
+    let font_id = egui::FontId::proportional(TEXT_SM);
     let label_input_spacing = 4.0;
     let field_spacing = 8.0;
 

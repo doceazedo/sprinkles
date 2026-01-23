@@ -18,7 +18,7 @@ use egui_remixicon::icons;
 
 use crate::ui::styles::{
     close_button, colors, draw_modal_backdrop, modal_frame, modal_title_frame, primary_button,
-    styled_radio, MODAL_FOOTER_PADDING,
+    styled_radio, MODAL_FOOTER_PADDING, TEXT_LG,
 };
 
 #[derive(Event)]
@@ -159,7 +159,7 @@ pub fn draw_new_project_modal(
                     ui.label(
                         RichText::new("New project")
                             .strong()
-                            .size(18.0)
+                            .size(TEXT_LG)
                             .color(colors::ZINC_200),
                     );
 

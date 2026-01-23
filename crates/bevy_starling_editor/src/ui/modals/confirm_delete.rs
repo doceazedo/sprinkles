@@ -6,7 +6,7 @@ use egui_remixicon::icons;
 use crate::ui::inspector::{RemoveDrawPassEvent, RemoveEmitterEvent};
 use crate::ui::styles::{
     close_button, colors, danger_button, draw_modal_backdrop, modal_frame, modal_title_frame,
-    MODAL_FOOTER_PADDING,
+    MODAL_FOOTER_PADDING, TEXT_LG,
 };
 
 #[derive(Default, Clone, Copy, PartialEq, Eq)]
@@ -117,7 +117,7 @@ pub fn draw_confirm_delete_modal(
                     ui.label(
                         RichText::new(title)
                             .strong()
-                            .size(18.0)
+                            .size(TEXT_LG)
                             .color(colors::ZINC_200),
                     );
 

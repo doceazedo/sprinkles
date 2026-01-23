@@ -8,7 +8,7 @@ use egui_remixicon::icons;
 
 use crate::state::{format_display_path, project_path, save_editor_data, EditorData, EditorState};
 use crate::ui::modals::{NewProjectModal, OpenFileDialogEvent, OpenProjectEvent, SaveProjectEvent};
-use crate::ui::styles::{self, colors, ghost_button_with_icon, icon_button, icon_button_colored, icon_toggle, ICON_BUTTON_SIZE};
+use crate::ui::styles::{self, colors, ghost_button_with_icon, icon_button, icon_button_colored, icon_toggle, ICON_BUTTON_SIZE, TEXT_BASE, TEXT_SM};
 
 const BADGE_SIZE: f32 = 8.0;
 const BADGE_OFFSET: f32 = 6.0;
@@ -70,7 +70,7 @@ pub fn draw_topbar(
 
                         ui.separator();
 
-                        ui.label(RichText::new("Recent projects").strong().size(12.0));
+                        ui.label(RichText::new("Recent projects").strong().size(TEXT_SM));
                         if editor_data.cache.recent_projects.is_empty() {
                             ui.weak("No recent projects");
                         } else {
@@ -222,7 +222,7 @@ fn draw_save_button(ui: &mut egui::Ui, editor_state: &EditorState, current_time:
     let saved_label_text = "Saved!";
     let label_galley = ui.painter().layout_no_wrap(
         saved_label_text.to_string(),
-        FontId::proportional(14.0),
+        FontId::proportional(TEXT_SM),
         colors::TEXT_MUTED,
     );
     let label_spacing = 4.0;
@@ -259,7 +259,7 @@ fn draw_save_button(ui: &mut egui::Ui, editor_state: &EditorState, current_time:
             let rotation = (current_time * 4.0) as f32;
             let _icon_galley = ui.painter().layout_no_wrap(
                 icons::LOADER_FILL.to_string(),
-                FontId::proportional(16.0),
+                FontId::proportional(TEXT_BASE),
                 colors::TEXT_MUTED,
             );
 
@@ -276,7 +276,7 @@ fn draw_save_button(ui: &mut egui::Ui, editor_state: &EditorState, current_time:
                 ),
                 egui::Align2::CENTER_CENTER,
                 icons::LOADER_FILL,
-                FontId::proportional(16.0),
+                FontId::proportional(TEXT_BASE),
                 colors::TEXT_MUTED,
             );
         } else {
@@ -284,7 +284,7 @@ fn draw_save_button(ui: &mut egui::Ui, editor_state: &EditorState, current_time:
                 icon_pos,
                 egui::Align2::CENTER_CENTER,
                 icons::SAVE_3_FILL,
-                FontId::proportional(16.0),
+                FontId::proportional(TEXT_BASE),
                 ui.visuals().text_color(),
             );
         }
@@ -318,7 +318,7 @@ fn draw_save_button(ui: &mut egui::Ui, editor_state: &EditorState, current_time:
                 label_pos,
                 egui::Align2::LEFT_CENTER,
                 saved_label_text,
-                FontId::proportional(14.0),
+                FontId::proportional(TEXT_SM),
                 label_color,
             );
         }

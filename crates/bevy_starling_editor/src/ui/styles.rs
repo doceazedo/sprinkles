@@ -9,6 +9,10 @@ pub const BUTTON_PADDING: f32 = 12.0;
 pub const ICON_BUTTON_SIZE: f32 = 24.0;
 pub const MODAL_FOOTER_PADDING: i8 = 8;
 
+pub const TEXT_SM: f32 = 12.0;
+pub const TEXT_BASE: f32 = 14.0;
+pub const TEXT_LG: f32 = 18.0;
+
 pub mod colors {
     use super::*;
 
@@ -85,15 +89,15 @@ pub fn configure_style(ctx: &egui::Context) {
     let mut style = Style::default();
 
     style.text_styles = [
-        (TextStyle::Small, FontId::proportional(14.0)),
-        (TextStyle::Body, FontId::proportional(16.0)),
-        (TextStyle::Monospace, FontId::monospace(16.0)),
-        (TextStyle::Button, FontId::proportional(16.0)),
-        (TextStyle::Heading, FontId::proportional(20.0)),
+        (TextStyle::Small, FontId::proportional(TEXT_SM)),
+        (TextStyle::Body, FontId::proportional(TEXT_BASE)),
+        (TextStyle::Monospace, FontId::monospace(TEXT_BASE)),
+        (TextStyle::Button, FontId::proportional(TEXT_BASE)),
+        (TextStyle::Heading, FontId::proportional(TEXT_BASE)),
     ]
     .into();
 
-    style.spacing.button_padding = Vec2::new(BUTTON_PADDING, (BUTTON_HEIGHT - 16.0) / 2.0);
+    style.spacing.button_padding = Vec2::new(BUTTON_PADDING, (BUTTON_HEIGHT - TEXT_BASE) / 2.0);
     style.spacing.interact_size.y = BUTTON_HEIGHT;
     style.spacing.interact_size.x = 200.0;
 
@@ -149,7 +153,7 @@ pub fn icon_button(ui: &mut egui::Ui, icon: &str) -> egui::Response {
             icon_pos,
             egui::Align2::CENTER_CENTER,
             icon,
-            FontId::proportional(16.0),
+            FontId::proportional(TEXT_BASE),
             ui.visuals().text_color(),
         );
     }
@@ -178,7 +182,7 @@ pub fn icon_button_colored(
             icon_pos,
             egui::Align2::CENTER_CENTER,
             icon,
-            FontId::proportional(16.0),
+            FontId::proportional(TEXT_BASE),
             color,
         );
     }
@@ -225,7 +229,7 @@ pub fn icon_toggle(
             icon_pos,
             egui::Align2::CENTER_CENTER,
             icon,
-            FontId::proportional(16.0),
+            FontId::proportional(TEXT_BASE),
             text_color,
         );
     }
@@ -254,12 +258,12 @@ pub fn ghost_button_with_icon(
 ) -> egui::Response {
     let text_galley = ui.painter().layout_no_wrap(
         text.to_string(),
-        FontId::proportional(16.0),
+        FontId::proportional(TEXT_BASE),
         ui.visuals().text_color(),
     );
     let icon_galley = ui.painter().layout_no_wrap(
         icon.to_string(),
-        FontId::proportional(16.0),
+        FontId::proportional(TEXT_BASE),
         colors::ZINC_400,
     );
 
@@ -309,7 +313,7 @@ pub fn close_button(ui: &mut egui::Ui, icon: &str) -> egui::Response {
             rect.center(),
             egui::Align2::CENTER_CENTER,
             icon,
-            FontId::proportional(14.0),
+            FontId::proportional(TEXT_BASE),
             ui.visuals().text_color(),
         );
     }
@@ -355,7 +359,7 @@ pub fn styled_radio(ui: &mut egui::Ui, selected: bool, text: &str) -> egui::Resp
             text_pos,
             egui::Align2::LEFT_CENTER,
             text,
-            FontId::proportional(16.0),
+            FontId::proportional(TEXT_BASE),
             ui.visuals().text_color(),
         );
     }
@@ -393,7 +397,7 @@ pub fn styled_checkbox(ui: &mut egui::Ui, checked: &mut bool) -> egui::Response 
                 rect.center(),
                 egui::Align2::CENTER_CENTER,
                 egui_remixicon::icons::CHECK_LINE,
-                FontId::proportional(14.0),
+                FontId::proportional(TEXT_BASE),
                 colors::BLUE,
             );
         }
