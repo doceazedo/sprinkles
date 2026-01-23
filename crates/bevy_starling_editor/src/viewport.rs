@@ -237,10 +237,13 @@ pub fn sync_playback_state(
         // handle one-shot emitters
         if emitter.time.one_shot && runtime.one_shot_completed {
             if editor_state.is_looping {
-                // looping mode: restart automatically
-                runtime.restart();
+                // looping mode: start new emission cycle without clearing particles
+                runtime.cycle = 0;
+                runtime.system_time = 0.0;
+                runtime.prev_system_time = 0.0;
+                runtime.play();
             } else if editor_state.play_requested {
-                // user clicked play after one_shot finished - restart
+                // user clicked play after one_shot finished - full restart
                 runtime.restart();
                 editor_state.play_requested = false;
             } else {
