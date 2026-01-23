@@ -5,7 +5,10 @@ use bevy_egui::{
 use bevy_starling::StarlingPlugin;
 
 use crate::state::{load_editor_data, project_path, EditorData, EditorState, InspectorState};
-use crate::ui::modals::{draw_new_project_modal, on_create_project_event, NewProjectModal};
+use crate::ui::modals::{
+    draw_confirm_delete_modal, draw_new_project_modal, on_create_project_event,
+    ConfirmDeleteModal, NewProjectModal,
+};
 use crate::ui::{
     configure_style, draw_inspector, draw_topbar, on_add_draw_pass, on_add_emitter,
     on_remove_draw_pass, on_remove_emitter,
@@ -29,6 +32,7 @@ impl Plugin for StarlingEditorPlugin {
             .init_resource::<CameraSettings>()
             .init_resource::<ViewportLayout>()
             .init_resource::<NewProjectModal>()
+            .init_resource::<ConfirmDeleteModal>()
             .insert_resource(editor_data)
             .insert_resource(EguiConfigured(false))
             .add_observer(on_create_project_event)
@@ -53,9 +57,9 @@ impl Plugin for StarlingEditorPlugin {
                 EguiPrimaryContextPass,
                 (
                     setup_egui.run_if(not(egui_configured)),
-                    draw_topbar,
-                    draw_inspector,
+                    (draw_topbar, draw_inspector).chain(),
                     draw_new_project_modal,
+                    draw_confirm_delete_modal,
                 ),
             );
     }

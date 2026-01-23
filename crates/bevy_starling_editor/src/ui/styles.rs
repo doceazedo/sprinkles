@@ -15,6 +15,8 @@ pub mod colors {
     pub const GREEN: Color32 = bevy_to_egui(tailwind::GREEN_500);
     pub const BLUE: Color32 = bevy_to_egui(tailwind::BLUE_500);
 
+    pub const RED_800: Color32 = bevy_to_egui(tailwind::RED_800);
+
     pub const AXIS_X: Color32 = bevy_to_egui(tailwind::RED_400);
     pub const AXIS_X_BG: Color32 = bevy_to_egui(tailwind::RED_950);
     pub const AXIS_Y: Color32 = bevy_to_egui(tailwind::GREEN_400);
@@ -233,6 +235,13 @@ pub fn icon_toggle(
 pub fn primary_button(ui: &mut egui::Ui, text: &str) -> egui::Response {
     let button = egui::Button::new(RichText::new(text).color(colors::TEXT_LIGHT))
         .fill(colors::BLUE)
+        .stroke(Stroke::NONE);
+    ui.add(button)
+}
+
+pub fn danger_button(ui: &mut egui::Ui, text: &str) -> egui::Response {
+    let button = egui::Button::new(RichText::new(text).color(colors::TEXT_LIGHT))
+        .fill(colors::RED_800)
         .stroke(Stroke::NONE);
     ui.add(button)
 }

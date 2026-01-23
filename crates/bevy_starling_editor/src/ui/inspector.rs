@@ -8,6 +8,7 @@ use egui_remixicon::icons;
 use inflector::Inflector;
 
 use crate::state::{EditorState, InspectorState};
+use crate::ui::modals::ConfirmDeleteModal;
 use crate::ui::styles::{colors, icon_button, styled_checkbox, ICON_BUTTON_SIZE};
 use crate::viewport::ViewportLayout;
 
@@ -576,6 +577,7 @@ pub fn draw_inspector(
     mut layout: ResMut<ViewportLayout>,
     editor_state: Res<EditorState>,
     mut inspector_state: ResMut<InspectorState>,
+    mut confirm_delete_modal: ResMut<ConfirmDeleteModal>,
     mut assets: ResMut<Assets<ParticleSystemAsset>>,
     mut commands: Commands,
 ) -> Result {
@@ -602,7 +604,7 @@ pub fn draw_inspector(
             };
 
             let mut should_add_emitter = false;
-            let mut should_remove_emitter: Option<usize> = None;
+            let mut should_remove_emitter: Option<(usize, String)> = None;
             let mut should_add_pass: Option<usize> = None;
             let mut should_remove_pass: Option<(usize, usize)> = None;
 
@@ -646,7 +648,7 @@ pub fn draw_inspector(
                                 start_editing_emitter = Some(idx);
                             }
                             if header_response.should_remove {
-                                should_remove_emitter = Some(idx);
+                                should_remove_emitter = Some((idx, emitter.name.clone()));
                             }
                         }
 
@@ -719,8 +721,8 @@ pub fn draw_inspector(
                 commands.trigger(AddEmitterEvent);
             }
 
-            if let Some(idx) = should_remove_emitter {
-                commands.trigger(RemoveEmitterEvent { index: idx });
+            if let Some((idx, name)) = should_remove_emitter {
+                confirm_delete_modal.open_for_emitter(idx, &name);
             }
 
             if let Some(emitter_idx) = should_add_pass {
@@ -730,10 +732,7 @@ pub fn draw_inspector(
             }
 
             if let Some((emitter_idx, pass_idx)) = should_remove_pass {
-                commands.trigger(RemoveDrawPassEvent {
-                    emitter_index: emitter_idx,
-                    pass_index: pass_idx,
-                });
+                confirm_delete_modal.open_for_draw_pass(emitter_idx, pass_idx);
             }
         });
 
