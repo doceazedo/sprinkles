@@ -1,9 +1,0 @@
-(
-    name: "Test Project",
-    dimension: D3,
-    emitters: [
-        (
-            name: "Emitter 1",
-        ),
-    ],
-)

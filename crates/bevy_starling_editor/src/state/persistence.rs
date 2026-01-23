@@ -14,23 +14,35 @@ pub struct EditorData {
 
 #[derive(Serialize, Deserialize, Default)]
 pub struct EditorCache {
-    pub last_opened_project: Option<PathBuf>,
-    pub recent_projects: Vec<PathBuf>,
+    pub last_opened_project: Option<String>,
+    pub recent_projects: Vec<String>,
 }
 
 impl EditorCache {
     const MAX_RECENT_PROJECTS: usize = 10;
 
-    pub fn add_recent_project(&mut self, path: PathBuf) {
-        self.recent_projects.retain(|p| p != &path);
-        self.recent_projects.insert(0, path.clone());
+    pub fn add_recent_project(&mut self, file_name: String) {
+        self.recent_projects.retain(|p| p != &file_name);
+        self.recent_projects.insert(0, file_name.clone());
         self.recent_projects.truncate(Self::MAX_RECENT_PROJECTS);
-        self.last_opened_project = Some(path);
+        self.last_opened_project = Some(file_name);
     }
 }
 
+pub fn editor_data_dir() -> PathBuf {
+    FileAssetReader::get_base_path()
+}
+
 pub fn editor_data_path() -> PathBuf {
-    FileAssetReader::get_base_path().join("editor.ron")
+    editor_data_dir().join("editor.ron")
+}
+
+pub fn assets_dir() -> PathBuf {
+    editor_data_dir().join("assets")
+}
+
+pub fn project_path(file_name: &str) -> PathBuf {
+    assets_dir().join(file_name)
 }
 
 pub fn load_editor_data() -> EditorData {

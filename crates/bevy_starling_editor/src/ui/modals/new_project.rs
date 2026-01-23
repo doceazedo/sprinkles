@@ -1,15 +1,13 @@
 use std::fs::File;
 use std::io::Write;
-use std::path::Path;
 
-use bevy::asset::io::file::FileAssetReader;
 use bevy::prelude::*;
 use bevy::tasks::IoTaskPool;
 use bevy_egui::egui::{self, RichText};
 use bevy_egui::EguiContexts;
 use bevy_starling::asset::{EmitterData, ParticleSystemAsset, ParticleSystemDimension};
 
-use crate::state::{save_editor_data, EditorData, EditorState};
+use crate::state::{project_path, save_editor_data, EditorData, EditorState};
 use egui_remixicon::icons;
 
 use crate::ui::styles::{
@@ -275,10 +273,7 @@ pub fn on_create_project_event(
         Err(_) => return,
     };
 
-    let path = Path::join(
-        &FileAssetReader::get_base_path(),
-        Path::join(Path::new("assets"), Path::new(&file_name)),
-    );
+    let path = project_path(&file_name);
 
     let write_path = path.clone();
     IoTaskPool::get()
@@ -289,10 +284,10 @@ pub fn on_create_project_event(
         })
         .detach();
 
-    editor_data.cache.add_recent_project(path.clone());
+    editor_data.cache.add_recent_project(file_name.clone());
     save_editor_data(&editor_data);
 
-    editor_state.current_project = Some(asset_server.load(file_name.clone()));
+    editor_state.current_project = Some(asset_server.load(&file_name));
     editor_state.current_project_path = Some(path);
 
     modal.untitled_counter += 1;

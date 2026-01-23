@@ -17,7 +17,10 @@ use render::{
     extract::extract_particle_systems,
     sort::ParticleSortPlugin,
 };
-use systems::{cleanup_particle_entities, setup_particle_systems, update_particle_time, ParticleMaterial};
+use systems::{
+    cleanup_particle_entities, setup_particle_systems, sync_particle_mesh, update_particle_time,
+    ParticleMaterial,
+};
 
 pub struct StarlingPlugin;
 
@@ -39,7 +42,12 @@ impl Plugin for StarlingPlugin {
         // main world systems
         app.add_systems(
             Update,
-            (setup_particle_systems, update_particle_time, cleanup_particle_entities),
+            (
+                setup_particle_systems,
+                sync_particle_mesh,
+                update_particle_time,
+                cleanup_particle_entities,
+            ),
         );
 
         // render plugins

@@ -1,5 +1,7 @@
 mod editor_state;
+mod inspector_state;
 mod persistence;
 
 pub use editor_state::EditorState;
-pub use persistence::{load_editor_data, save_editor_data, EditorData};
+pub use inspector_state::InspectorState;
+pub use persistence::{load_editor_data, project_path, save_editor_data, EditorData};

@@ -121,7 +121,7 @@ impl Default for EmitterDrawPass {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 pub enum ParticleMesh {
     #[default]
     Quad,
@@ -154,7 +154,7 @@ fn default_initial_scale() -> f32 {
 impl Default for ParticleProcessConfig {
     fn default() -> Self {
         Self {
-            gravity: Vec3::ZERO,
+            gravity: Vec3::new(0., -9.8, 0.),
             initial_velocity: Vec3::ZERO,
             initial_velocity_randomness: Vec3::ZERO,
             initial_scale: 1.0,

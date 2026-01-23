@@ -8,10 +8,23 @@ use crate::{
     asset::{DrawOrder, ParticleMesh, ParticleSystemAsset},
     core::{ParticleData, ParticleSystem3D},
     render::material::ParticleMaterialExtension,
-    runtime::{ParticleBufferHandle, ParticleEntity, ParticleSystemRef, ParticleSystemRuntime},
+    runtime::{
+        CurrentMeshConfig, ParticleBufferHandle, ParticleEntity, ParticleMeshHandle,
+        ParticleSystemRef, ParticleSystemRuntime,
+    },
 };
 
 pub type ParticleMaterial = ExtendedMaterial<StandardMaterial, ParticleMaterialExtension>;
+
+fn create_mesh_from_config(config: &ParticleMesh, meshes: &mut Assets<Mesh>) -> Handle<Mesh> {
+    match config {
+        ParticleMesh::Quad => meshes.add(Rectangle::new(1.0, 1.0)),
+        ParticleMesh::Sphere { radius } => meshes.add(Sphere::new(*radius)),
+        ParticleMesh::Cuboid { half_size } => {
+            meshes.add(Cuboid::new(half_size.x * 2.0, half_size.y * 2.0, half_size.z * 2.0))
+        }
+    }
+}
 
 pub fn setup_particle_systems(
     mut commands: Commands,
@@ -43,17 +56,13 @@ pub fn setup_particle_systems(
         let indices_buffer_handle = buffers.add(ShaderStorageBuffer::from(indices));
 
         // create mesh based on draw pass configuration
-        let mesh_handle = if let Some(draw_pass) = emitter.draw_passes.first() {
-            match &draw_pass.mesh {
-                ParticleMesh::Quad => meshes.add(Rectangle::new(1.0, 1.0)),
-                ParticleMesh::Sphere { radius } => meshes.add(Sphere::new(*radius)),
-                ParticleMesh::Cuboid { half_size } => {
-                    meshes.add(Cuboid::new(half_size.x * 2.0, half_size.y * 2.0, half_size.z * 2.0))
-                }
-            }
+        let current_mesh = if let Some(draw_pass) = emitter.draw_passes.first() {
+            draw_pass.mesh.clone()
         } else {
-            meshes.add(Rectangle::new(1.0, 1.0))
+            ParticleMesh::Quad
         };
+
+        let mesh_handle = create_mesh_from_config(&current_mesh, &mut meshes);
 
         let use_index_draw_order = emitter.drawing.draw_order == DrawOrder::Index;
 
@@ -65,6 +74,8 @@ pub fn setup_particle_systems(
                 indices_buffer: indices_buffer_handle.clone(),
                 max_particles: amount,
             },
+            CurrentMeshConfig(current_mesh),
+            ParticleMeshHandle(mesh_handle.clone()),
             Transform::default(),
             Visibility::default(),
         ));
@@ -110,6 +121,50 @@ pub fn cleanup_particle_entities(
             if system_ref.0 == removed_entity {
                 commands.entity(entity).despawn();
             }
+        }
+    }
+}
+
+/// sync particle mesh when asset configuration changes
+pub fn sync_particle_mesh(
+    mut particle_systems: Query<(
+        Entity,
+        &ParticleSystem3D,
+        &mut CurrentMeshConfig,
+        &mut ParticleMeshHandle,
+    )>,
+    mut particle_entities: Query<(&ParticleSystemRef, &mut Mesh3d), With<ParticleEntity>>,
+    assets: Res<Assets<ParticleSystemAsset>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+) {
+    for (system_entity, particle_system, mut current_config, mut mesh_handle) in
+        particle_systems.iter_mut()
+    {
+        let Some(asset) = assets.get(&particle_system.handle) else {
+            continue;
+        };
+
+        let Some(emitter) = asset.emitters.first() else {
+            continue;
+        };
+
+        let new_mesh = if let Some(draw_pass) = emitter.draw_passes.first() {
+            draw_pass.mesh.clone()
+        } else {
+            ParticleMesh::Quad
+        };
+
+        if current_config.0 != new_mesh {
+            let new_mesh_handle = create_mesh_from_config(&new_mesh, &mut meshes);
+
+            for (system_ref, mut mesh3d) in particle_entities.iter_mut() {
+                if system_ref.0 == system_entity {
+                    mesh3d.0 = new_mesh_handle.clone();
+                }
+            }
+
+            current_config.0 = new_mesh;
+            mesh_handle.0 = new_mesh_handle;
         }
     }
 }

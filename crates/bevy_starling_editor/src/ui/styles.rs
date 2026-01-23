@@ -15,6 +15,13 @@ pub mod colors {
     pub const GREEN: Color32 = bevy_to_egui(tailwind::GREEN_500);
     pub const BLUE: Color32 = bevy_to_egui(tailwind::BLUE_500);
 
+    pub const AXIS_X: Color32 = bevy_to_egui(tailwind::RED_400);
+    pub const AXIS_X_BG: Color32 = bevy_to_egui(tailwind::RED_950);
+    pub const AXIS_Y: Color32 = bevy_to_egui(tailwind::GREEN_400);
+    pub const AXIS_Y_BG: Color32 = bevy_to_egui(tailwind::GREEN_950);
+    pub const AXIS_Z: Color32 = bevy_to_egui(tailwind::BLUE_400);
+    pub const AXIS_Z_BG: Color32 = bevy_to_egui(tailwind::BLUE_950);
+
     pub const ZINC_950: Color32 = bevy_to_egui(tailwind::ZINC_950);
     pub const ZINC_900: Color32 = bevy_to_egui(tailwind::ZINC_900);
     pub const ZINC_800: Color32 = bevy_to_egui(tailwind::ZINC_800);
@@ -34,6 +41,9 @@ pub mod colors {
     pub const BORDER: Color32 = ZINC_700;
     pub const TEXT_MUTED: Color32 = ZINC_300;
     pub const TEXT_LIGHT: Color32 = ZINC_50;
+
+    pub const EMITTER_HEADER_BG: Color32 = ZINC_700;
+    pub const CATEGORY_HEADER_BG: Color32 = ZINC_800;
 
     const fn bevy_to_egui(color: bevy::color::Srgba) -> Color32 {
         Color32::from_rgb(
@@ -338,6 +348,45 @@ pub fn styled_radio(ui: &mut egui::Ui, selected: bool, text: &str) -> egui::Resp
             FontId::proportional(16.0),
             ui.visuals().text_color(),
         );
+    }
+
+    response
+}
+
+pub fn styled_checkbox(ui: &mut egui::Ui, checked: &mut bool) -> egui::Response {
+    let checkbox_size = 18.0;
+    let desired_size = Vec2::splat(checkbox_size);
+    let (rect, response) = ui.allocate_exact_size(desired_size, egui::Sense::click());
+
+    if response.clicked() {
+        *checked = !*checked;
+    }
+
+    if ui.is_rect_visible(rect) {
+        let (bg_color, stroke_color) = if *checked {
+            (colors::blue_semi(), colors::BLUE)
+        } else {
+            (Color32::TRANSPARENT, colors::ZINC_500)
+        };
+
+        ui.painter()
+            .rect_filled(rect, CornerRadius::same(4), bg_color);
+        ui.painter().rect_stroke(
+            rect,
+            CornerRadius::same(4),
+            Stroke::new(1.0, stroke_color),
+            StrokeKind::Inside,
+        );
+
+        if *checked {
+            ui.painter().text(
+                rect.center(),
+                egui::Align2::CENTER_CENTER,
+                egui_remixicon::icons::CHECK_LINE,
+                FontId::proportional(14.0),
+                colors::BLUE,
+            );
+        }
     }
 
     response

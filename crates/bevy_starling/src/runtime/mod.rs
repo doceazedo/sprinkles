@@ -2,6 +2,8 @@ use bevy::prelude::*;
 use bevy::render::render_resource::Buffer;
 use bevy::render::storage::ShaderStorageBuffer;
 
+use crate::asset::ParticleMesh;
+
 #[derive(Component)]
 pub struct ParticleSystemRuntime {
     pub emitting: bool,
@@ -80,3 +82,11 @@ pub struct ParticleEntity;
 /// stores the parent particle system entity for cleanup purposes
 #[derive(Component)]
 pub struct ParticleSystemRef(pub Entity);
+
+/// stores the current mesh configuration for change detection
+#[derive(Component)]
+pub struct CurrentMeshConfig(pub ParticleMesh);
+
+/// stores the mesh handle for particle entities
+#[derive(Component)]
+pub struct ParticleMeshHandle(pub Handle<Mesh>);

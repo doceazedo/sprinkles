@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use bevy::prelude::*;
 use bevy_egui::egui::{self, RichText};
 use bevy_egui::EguiContexts;
@@ -48,8 +50,8 @@ pub fn draw_topbar(
                         if editor_data.cache.recent_projects.is_empty() {
                             ui.weak("No recent projects");
                         } else {
-                            for path in &editor_data.cache.recent_projects {
-                                if let Some(name) = path.file_stem().and_then(|s| s.to_str()) {
+                            for file_name in &editor_data.cache.recent_projects {
+                                if let Some(name) = Path::new(file_name).file_stem().and_then(|s| s.to_str()) {
                                     if ui.button(name).clicked() {
                                         // TODO: load the project
                                     }
