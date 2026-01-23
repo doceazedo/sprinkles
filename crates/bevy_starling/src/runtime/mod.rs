@@ -1,8 +1,10 @@
+use bevy::pbr::ExtendedMaterial;
 use bevy::prelude::*;
 use bevy::render::render_resource::Buffer;
 use bevy::render::storage::ShaderStorageBuffer;
 
 use crate::asset::ParticleMesh;
+use crate::render::material::ParticleMaterialExtension;
 
 #[derive(Component)]
 pub struct ParticleSystemRuntime {
@@ -122,3 +124,9 @@ pub struct CurrentMeshConfig(pub ParticleMesh);
 /// stores the mesh handle for particle entities
 #[derive(Component)]
 pub struct ParticleMeshHandle(pub Handle<Mesh>);
+
+pub type ParticleMaterial = ExtendedMaterial<StandardMaterial, ParticleMaterialExtension>;
+
+/// stores the shared material handle for all particle entities in a system
+#[derive(Component)]
+pub struct ParticleMaterialHandle(pub Handle<ParticleMaterial>);

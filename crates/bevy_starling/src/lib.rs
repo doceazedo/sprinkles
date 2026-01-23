@@ -19,7 +19,7 @@ use render::{
 };
 use systems::{
     cleanup_particle_entities, clear_particle_clear_requests, setup_particle_systems,
-    sync_particle_mesh, update_particle_time, ParticleMaterial,
+    sync_particle_mesh, update_particle_time,
 };
 
 pub struct StarlingPlugin;
@@ -37,7 +37,7 @@ impl Plugin for StarlingPlugin {
             .init_asset_loader::<ParticleSystemAssetLoader>();
 
         // register the extended material for particle rendering
-        app.add_plugins(MaterialPlugin::<ParticleMaterial>::default());
+        app.add_plugins(MaterialPlugin::<runtime::ParticleMaterial>::default());
 
         // main world systems
         app.add_systems(
@@ -71,4 +71,7 @@ pub use asset::{
 };
 pub use core::{ParticleData, ParticleSystem2D, ParticleSystem3D};
 pub use render::material::ParticleMaterialExtension;
-pub use runtime::{ParticleBufferHandle, ParticleEntity, ParticleSystemRef, ParticleSystemRuntime};
+pub use runtime::{
+    ParticleBufferHandle, ParticleEntity, ParticleMaterial, ParticleMaterialHandle,
+    ParticleSystemRef, ParticleSystemRuntime,
+};

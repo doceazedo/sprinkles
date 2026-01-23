@@ -5,16 +5,14 @@ use bevy::{
 };
 
 use crate::{
-    asset::{DrawOrder, ParticleMesh, ParticleSystemAsset},
+    asset::{ParticleMesh, ParticleSystemAsset},
     core::{ParticleData, ParticleSystem3D},
     render::material::ParticleMaterialExtension,
     runtime::{
-        CurrentMeshConfig, ParticleBufferHandle, ParticleEntity, ParticleMeshHandle,
-        ParticleSystemRef, ParticleSystemRuntime,
+        CurrentMeshConfig, ParticleBufferHandle, ParticleEntity, ParticleMaterial,
+        ParticleMaterialHandle, ParticleMeshHandle, ParticleSystemRef, ParticleSystemRuntime,
     },
 };
-
-pub type ParticleMaterial = ExtendedMaterial<StandardMaterial, ParticleMaterialExtension>;
 
 fn create_mesh_from_config(config: &ParticleMesh, meshes: &mut Assets<Mesh>) -> Handle<Mesh> {
     match config {
@@ -64,6 +62,19 @@ pub fn setup_particle_systems(
 
         let mesh_handle = create_mesh_from_config(&current_mesh, &mut meshes);
 
+        // create a single shared material for all particles (enables automatic instancing)
+        let material_handle = materials.add(ExtendedMaterial {
+            base: StandardMaterial {
+                base_color: Color::WHITE,
+                alpha_mode: AlphaMode::Blend,
+                ..default()
+            },
+            extension: ParticleMaterialExtension {
+                particles: particle_buffer_handle.clone(),
+                indices: indices_buffer_handle.clone(),
+            },
+        });
+
         // add runtime components to the particle system entity
         commands.entity(entity).insert((
             ParticleSystemRuntime::default(),
@@ -74,28 +85,16 @@ pub fn setup_particle_systems(
             },
             CurrentMeshConfig(current_mesh),
             ParticleMeshHandle(mesh_handle.clone()),
+            ParticleMaterialHandle(material_handle.clone()),
             Transform::default(),
             Visibility::default(),
         ));
 
-        // spawn individual particle entities
+        // spawn individual particle entities with shared mesh and material (automatic instancing)
         for i in 0..amount {
-            let material_handle = materials.add(ExtendedMaterial {
-                base: StandardMaterial {
-                    base_color: Color::WHITE,
-                    alpha_mode: AlphaMode::Blend,
-                    depth_bias: i as f32,
-                    ..default()
-                },
-                extension: ParticleMaterialExtension {
-                    particles: particle_buffer_handle.clone(),
-                    indices: indices_buffer_handle.clone(),
-                },
-            });
-
             commands.spawn((
                 Mesh3d(mesh_handle.clone()),
-                MeshMaterial3d(material_handle),
+                MeshMaterial3d(material_handle.clone()),
                 bevy::mesh::MeshTag(i),
                 Transform::default(),
                 Visibility::default(),
