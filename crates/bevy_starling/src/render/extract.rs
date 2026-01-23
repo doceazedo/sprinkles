@@ -64,9 +64,13 @@ pub fn extract_particle_systems(
         }
 
         let lifetime = emitter.time.lifetime;
-        // always use actual frame delta for physics simulation
+        // use actual frame delta for physics simulation, but freeze when not emitting (paused)
         // fixed_fps only affects emission timing via system_phase
-        let delta_time = time.delta_secs();
+        let delta_time = if runtime.emitting {
+            time.delta_secs()
+        } else {
+            0.0
+        };
 
         let draw_order = match emitter.drawing.draw_order {
             DrawOrder::Index => 0,

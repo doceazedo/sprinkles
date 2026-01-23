@@ -212,8 +212,9 @@ pub fn sync_playback_state(
     for (particle_system, mut runtime) in query.iter_mut() {
         let has_started = runtime.system_time > 0.0 || runtime.one_shot_completed;
 
-        // handle stop - reset the runtime when playback stops
-        if !editor_state.is_playing && has_started {
+        // handle stop (not pause) - reset only when stop button was clicked
+        // stop button sets current_frame = 0, pause does not
+        if !editor_state.is_playing && has_started && editor_state.current_frame == 0 {
             runtime.reset();
             continue;
         }
