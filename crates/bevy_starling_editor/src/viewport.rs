@@ -77,7 +77,7 @@ pub fn orbit_camera(
         return;
     }
 
-    let delta = mouse_motion.delta;
+    let delta = -mouse_motion.delta;
     let delta_pitch = delta.y * camera_settings.pitch_speed;
     let delta_yaw = delta.x * camera_settings.yaw_speed;
 
