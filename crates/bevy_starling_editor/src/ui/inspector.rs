@@ -2,15 +2,16 @@ use bevy::prelude::*;
 use bevy_egui::{egui, EguiContexts};
 use bevy_starling::asset::{
     DrawOrder, EmissionShape, EmitterData, EmitterDrawPass, EmitterDrawing, EmitterTime,
-    ParticleMesh, ParticleProcessConfig, ParticleProcessDisplay, ParticleProcessDisplayColor,
-    ParticleProcessDisplayScale, ParticleProcessSpawnAccelerations, ParticleProcessSpawnPosition,
-    ParticleProcessSpawnVelocity, ParticleSystemAsset, Range, SolidOrGradientColor, SplineCurve,
+    Gradient, GradientInterpolation, GradientStop, ParticleMesh, ParticleProcessConfig,
+    ParticleProcessDisplay, ParticleProcessDisplayColor, ParticleProcessDisplayScale,
+    ParticleProcessSpawnAccelerations, ParticleProcessSpawnPosition, ParticleProcessSpawnVelocity,
+    ParticleSystemAsset, Range, SolidOrGradientColor, SplineCurve,
 };
 use egui_remixicon::icons;
 use inflector::Inflector;
 
 use crate::state::{EditorState, InspectorState};
-use crate::ui::color_picker::solid_or_gradient_color_picker;
+use crate::ui::color_picker::{color_picker, gradient_picker};
 use crate::ui::curve_picker::spline_curve_picker;
 use crate::ui::modals::ConfirmDeleteModal;
 use crate::ui::styles::{
@@ -90,6 +91,59 @@ fn inspector_row(
 
             ui.end_row();
         });
+}
+
+const MORE_BUTTON_SPACING: f32 = 4.0;
+
+/// Renders a row for instantiable fields: Label | [ComboBox] [More button]
+/// Returns the width available for content inside the combobox dropdown.
+fn instantiable_row(
+    ui: &mut egui::Ui,
+    label: &str,
+    indent_level: u8,
+    selected_text: &str,
+    add_combobox_contents: impl FnOnce(&mut egui::Ui) -> bool,
+) -> bool {
+    let mut changed = false;
+    let available_width = ui.available_width();
+    let indent_compensation = indent_level as f32 * INDENT_WIDTH;
+    let label_width = (available_width - indent_compensation) / 2.0;
+    let value_width = available_width - label_width;
+    let combobox_width = value_width - ICON_BUTTON_SIZE - MORE_BUTTON_SPACING;
+
+    egui::Grid::new(label)
+        .num_columns(2)
+        .spacing([0.0, 0.0])
+        .min_col_width(label_width)
+        .max_col_width(label_width)
+        .show(ui, |ui| {
+            ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                ui.set_height(ROW_HEIGHT);
+                ui.label(egui::RichText::new(label).color(colors::TEXT_MUTED));
+            });
+
+            ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                ui.set_height(ROW_HEIGHT);
+                ui.set_max_width(value_width);
+                ui.spacing_mut().item_spacing.x = MORE_BUTTON_SPACING;
+
+                egui::ComboBox::from_id_salt(label)
+                    .selected_text(selected_text)
+                    .width(combobox_width)
+                    .show_ui(ui, |ui| {
+                        if add_combobox_contents(ui) {
+                            changed = true;
+                        }
+                    });
+
+                // more button (does nothing for now)
+                icon_button(ui, icons::MORE_2_FILL);
+            });
+
+            ui.end_row();
+        });
+
+    changed
 }
 
 fn inspector_category(
@@ -390,7 +444,12 @@ fn inspect_draw_order(ui: &mut egui::Ui, label: &str, value: &mut DrawOrder, ind
     changed
 }
 
-fn inspect_particle_mesh(ui: &mut egui::Ui, label: &str, value: &mut ParticleMesh, indent_level: u8) -> bool {
+fn inspect_particle_mesh(
+    ui: &mut egui::Ui,
+    label: &str,
+    value: &mut ParticleMesh,
+    indent_level: u8,
+) -> bool {
     let mut changed = false;
 
     let current_variant = match value {
@@ -399,49 +458,49 @@ fn inspect_particle_mesh(ui: &mut egui::Ui, label: &str, value: &mut ParticleMes
         ParticleMesh::Cuboid { .. } => "Cuboid",
     };
 
-    inspector_row(ui, label, indent_level, |ui, width| {
-        egui::ComboBox::from_id_salt(label)
-            .selected_text(current_variant)
-            .width(width)
-            .show_ui(ui, |ui| {
-                if ui
-                    .selectable_label(matches!(value, ParticleMesh::Quad), "Quad")
-                    .clicked()
-                {
-                    *value = ParticleMesh::Quad;
-                    changed = true;
-                }
-                if ui
-                    .selectable_label(matches!(value, ParticleMesh::Sphere { .. }), "Sphere")
-                    .clicked()
-                {
-                    *value = ParticleMesh::Sphere { radius: 1.0 };
-                    changed = true;
-                }
-                if ui
-                    .selectable_label(matches!(value, ParticleMesh::Cuboid { .. }), "Cuboid")
-                    .clicked()
-                {
-                    *value = ParticleMesh::Cuboid {
-                        half_size: Vec3::splat(0.5),
-                    };
-                    changed = true;
-                }
-            });
+    changed |= instantiable_row(ui, label, indent_level, current_variant, |ui| {
+        let mut inner_changed = false;
+        if ui
+            .selectable_label(matches!(value, ParticleMesh::Quad), "Quad")
+            .clicked()
+        {
+            *value = ParticleMesh::Quad;
+            inner_changed = true;
+        }
+        if ui
+            .selectable_label(matches!(value, ParticleMesh::Sphere { .. }), "Sphere")
+            .clicked()
+        {
+            *value = ParticleMesh::Sphere { radius: 1.0 };
+            inner_changed = true;
+        }
+        if ui
+            .selectable_label(matches!(value, ParticleMesh::Cuboid { .. }), "Cuboid")
+            .clicked()
+        {
+            *value = ParticleMesh::Cuboid {
+                half_size: Vec3::splat(0.5),
+            };
+            inner_changed = true;
+        }
+        inner_changed
     });
 
-    match value {
-        ParticleMesh::Quad => {}
-        ParticleMesh::Sphere { radius } => {
-            if inspect_f32_positive(ui, &field_label("radius"), radius, indent_level) {
-                changed = true;
+    let has_extra_settings = !matches!(value, ParticleMesh::Quad);
+    if has_extra_settings {
+        let inner_indent = indent_level + 1;
+        ui.spacing_mut().indent = INDENT_WIDTH;
+        ui.indent(label, |ui| match value {
+            ParticleMesh::Quad => {}
+            ParticleMesh::Sphere { radius } => {
+                changed |=
+                    inspect_f32_positive(ui, &field_label("radius"), radius, inner_indent);
             }
-        }
-        ParticleMesh::Cuboid { half_size } => {
-            if inspect_vec3(ui, &field_label("half_size"), half_size, indent_level) {
-                changed = true;
+            ParticleMesh::Cuboid { half_size } => {
+                changed |=
+                    inspect_vec3(ui, &field_label("half_size"), half_size, inner_indent);
             }
-        }
+        });
     }
 
     changed
@@ -568,91 +627,87 @@ fn inspect_emission_shape(
         EmissionShape::Ring { .. } => "Ring",
     };
 
-    inspector_row(ui, label, indent_level, |ui, width| {
-        egui::ComboBox::from_id_salt(label)
-            .selected_text(current_variant)
-            .width(width)
-            .show_ui(ui, |ui| {
-                if ui
-                    .selectable_label(matches!(value, EmissionShape::Point), "Point")
-                    .clicked()
-                {
-                    *value = EmissionShape::Point;
-                    changed = true;
-                }
-                if ui
-                    .selectable_label(matches!(value, EmissionShape::Sphere { .. }), "Sphere")
-                    .clicked()
-                {
-                    *value = EmissionShape::Sphere { radius: 1.0 };
-                    changed = true;
-                }
-                if ui
-                    .selectable_label(
-                        matches!(value, EmissionShape::SphereSurface { .. }),
-                        "Sphere surface",
-                    )
-                    .clicked()
-                {
-                    *value = EmissionShape::SphereSurface { radius: 1.0 };
-                    changed = true;
-                }
-                if ui
-                    .selectable_label(matches!(value, EmissionShape::Box { .. }), "Box")
-                    .clicked()
-                {
-                    *value = EmissionShape::Box {
-                        extents: Vec3::ONE,
-                    };
-                    changed = true;
-                }
-                if ui
-                    .selectable_label(matches!(value, EmissionShape::Ring { .. }), "Ring")
-                    .clicked()
-                {
-                    *value = EmissionShape::Ring {
-                        axis: Vec3::Z,
-                        height: 1.0,
-                        radius: 2.0,
-                        inner_radius: 0.0,
-                    };
-                    changed = true;
-                }
-            });
+    changed |= instantiable_row(ui, label, indent_level, current_variant, |ui| {
+        let mut inner_changed = false;
+        if ui
+            .selectable_label(matches!(value, EmissionShape::Point), "Point")
+            .clicked()
+        {
+            *value = EmissionShape::Point;
+            inner_changed = true;
+        }
+        if ui
+            .selectable_label(matches!(value, EmissionShape::Sphere { .. }), "Sphere")
+            .clicked()
+        {
+            *value = EmissionShape::Sphere { radius: 1.0 };
+            inner_changed = true;
+        }
+        if ui
+            .selectable_label(
+                matches!(value, EmissionShape::SphereSurface { .. }),
+                "Sphere surface",
+            )
+            .clicked()
+        {
+            *value = EmissionShape::SphereSurface { radius: 1.0 };
+            inner_changed = true;
+        }
+        if ui
+            .selectable_label(matches!(value, EmissionShape::Box { .. }), "Box")
+            .clicked()
+        {
+            *value = EmissionShape::Box {
+                extents: Vec3::ONE,
+            };
+            inner_changed = true;
+        }
+        if ui
+            .selectable_label(matches!(value, EmissionShape::Ring { .. }), "Ring")
+            .clicked()
+        {
+            *value = EmissionShape::Ring {
+                axis: Vec3::Z,
+                height: 1.0,
+                radius: 2.0,
+                inner_radius: 0.0,
+            };
+            inner_changed = true;
+        }
+        inner_changed
     });
 
-    // show shape-specific fields
-    match value {
-        EmissionShape::Point => {}
-        EmissionShape::Sphere { radius } | EmissionShape::SphereSurface { radius } => {
-            if inspect_f32_positive(ui, &field_label("radius"), radius, indent_level) {
-                changed = true;
+    let has_extra_settings = !matches!(value, EmissionShape::Point);
+    if has_extra_settings {
+        let inner_indent = indent_level + 1;
+        ui.spacing_mut().indent = INDENT_WIDTH;
+        ui.indent(label, |ui| match value {
+            EmissionShape::Point => {}
+            EmissionShape::Sphere { radius } | EmissionShape::SphereSurface { radius } => {
+                changed |=
+                    inspect_f32_positive(ui, &field_label("radius"), radius, inner_indent);
             }
-        }
-        EmissionShape::Box { extents } => {
-            if inspect_vec3(ui, &field_label("extents"), extents, indent_level) {
-                changed = true;
+            EmissionShape::Box { extents } => {
+                changed |= inspect_vec3(ui, &field_label("extents"), extents, inner_indent);
             }
-        }
-        EmissionShape::Ring {
-            axis,
-            height,
-            radius,
-            inner_radius,
-        } => {
-            if inspect_vec3(ui, &field_label("axis"), axis, indent_level) {
-                changed = true;
+            EmissionShape::Ring {
+                axis,
+                height,
+                radius,
+                inner_radius,
+            } => {
+                changed |= inspect_vec3(ui, &field_label("axis"), axis, inner_indent);
+                changed |= inspect_f32_positive(ui, &field_label("height"), height, inner_indent);
+                changed |=
+                    inspect_f32_positive(ui, &field_label("radius"), radius, inner_indent);
+                changed |= inspect_f32_positive(
+                    ui,
+                    &field_label("inner_radius"),
+                    inner_radius,
+                    inner_indent,
+                );
             }
-            if inspect_f32_positive(ui, &field_label("height"), height, indent_level) {
-                changed = true;
-            }
-            if inspect_f32_positive(ui, &field_label("radius"), radius, indent_level) {
-                changed = true;
-            }
-            if inspect_f32_positive(ui, &field_label("inner_radius"), inner_radius, indent_level) {
-                changed = true;
-            }
-        }
+        });
     }
 
     changed
@@ -757,27 +812,184 @@ fn inspect_spline_curve(
     indent_level: u8,
 ) -> bool {
     let mut changed = false;
-    inspector_row(ui, label, indent_level, |ui, width| {
-        if spline_curve_picker(ui, label, value, width) {
-            changed = true;
-        }
-    });
+    let available_width = ui.available_width();
+    let indent_compensation = indent_level as f32 * INDENT_WIDTH;
+    let label_width = (available_width - indent_compensation) / 2.0;
+    let value_width = available_width - label_width;
+    let combobox_width = value_width - ICON_BUTTON_SIZE - MORE_BUTTON_SPACING;
+
+    egui::Grid::new(label)
+        .num_columns(2)
+        .spacing([0.0, 0.0])
+        .min_col_width(label_width)
+        .max_col_width(label_width)
+        .show(ui, |ui| {
+            ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                ui.set_height(ROW_HEIGHT);
+                ui.label(egui::RichText::new(label).color(colors::TEXT_MUTED));
+            });
+
+            ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                ui.set_height(ROW_HEIGHT);
+                ui.set_max_width(value_width);
+                ui.spacing_mut().item_spacing.x = MORE_BUTTON_SPACING;
+
+                // the spline curve picker uses its own combobox with submenus,
+                // so we pass the reduced width to it
+                if spline_curve_picker(ui, label, value, combobox_width) {
+                    changed = true;
+                }
+
+                // more button (does nothing for now)
+                icon_button(ui, icons::MORE_2_FILL);
+            });
+
+            ui.end_row();
+        });
+
     changed
 }
 
 fn inspect_solid_or_gradient_color(
     ui: &mut egui::Ui,
-    _id: &str,
+    id: &str,
     value: &mut SolidOrGradientColor,
     indent_level: u8,
     panel_right_edge: Option<f32>,
 ) -> bool {
     let mut changed = false;
 
-    inspector_row(ui, "Initial color", indent_level, |ui, width| {
-        if solid_or_gradient_color_picker(ui, value, width, panel_right_edge).changed() {
-            changed = true;
+    let current_variant = match value {
+        SolidOrGradientColor::Solid { .. } => "Solid",
+        SolidOrGradientColor::Gradient { .. } => "Gradient",
+    };
+
+    changed |= instantiable_row(ui, "Initial color", indent_level, current_variant, |ui| {
+        let mut inner_changed = false;
+
+        if ui
+            .selectable_label(matches!(value, SolidOrGradientColor::Solid { .. }), "Solid")
+            .clicked()
+        {
+            if !matches!(value, SolidOrGradientColor::Solid { .. }) {
+                let color = match value {
+                    SolidOrGradientColor::Gradient { gradient } => gradient
+                        .stops
+                        .first()
+                        .map(|s| s.color)
+                        .unwrap_or([1.0, 1.0, 1.0, 1.0]),
+                    SolidOrGradientColor::Solid { color } => *color,
+                };
+                *value = SolidOrGradientColor::Solid { color };
+                inner_changed = true;
+            }
         }
+
+        if ui
+            .selectable_label(
+                matches!(value, SolidOrGradientColor::Gradient { .. }),
+                "Gradient",
+            )
+            .clicked()
+        {
+            if !matches!(value, SolidOrGradientColor::Gradient { .. }) {
+                let color = match value {
+                    SolidOrGradientColor::Solid { color } => *color,
+                    SolidOrGradientColor::Gradient { gradient } => gradient
+                        .stops
+                        .first()
+                        .map(|s| s.color)
+                        .unwrap_or([1.0, 1.0, 1.0, 1.0]),
+                };
+                let inverted_color = [1.0 - color[0], 1.0 - color[1], 1.0 - color[2], color[3]];
+                *value = SolidOrGradientColor::Gradient {
+                    gradient: Gradient {
+                        stops: vec![
+                            GradientStop {
+                                color,
+                                position: 0.0,
+                            },
+                            GradientStop {
+                                color: inverted_color,
+                                position: 1.0,
+                            },
+                        ],
+                        interpolation: GradientInterpolation::Linear,
+                    },
+                };
+                inner_changed = true;
+            }
+        }
+
+        inner_changed
+    });
+
+    let inner_indent = indent_level + 1;
+    ui.spacing_mut().indent = INDENT_WIDTH;
+    ui.indent(id, |ui| match value {
+        SolidOrGradientColor::Solid { color } => {
+            inspector_row(ui, "Color", inner_indent, |ui, width| {
+                if color_picker(ui, color, width, panel_right_edge).changed() {
+                    changed = true;
+                }
+            });
+        }
+        SolidOrGradientColor::Gradient { gradient } => {
+            inspector_row(ui, "Gradient", inner_indent, |ui, width| {
+                if gradient_picker(ui, gradient, width, panel_right_edge).changed() {
+                    changed = true;
+                }
+            });
+            changed |= inspect_gradient_interpolation(
+                ui,
+                &field_label("interpolation"),
+                &mut gradient.interpolation,
+                inner_indent,
+            );
+        }
+    });
+
+    changed
+}
+
+fn inspect_gradient_interpolation(
+    ui: &mut egui::Ui,
+    label: &str,
+    value: &mut GradientInterpolation,
+    indent_level: u8,
+) -> bool {
+    let mut changed = false;
+
+    let current_text = match value {
+        GradientInterpolation::Steps => "Steps",
+        GradientInterpolation::Linear => "Linear",
+        GradientInterpolation::Smoothstep => "Smoothstep",
+    };
+
+    inspector_row(ui, label, indent_level, |ui, width| {
+        egui::ComboBox::from_id_salt(label)
+            .selected_text(current_text)
+            .width(width)
+            .show_ui(ui, |ui| {
+                if ui
+                    .selectable_value(value, GradientInterpolation::Steps, "Steps")
+                    .changed()
+                {
+                    changed = true;
+                }
+                if ui
+                    .selectable_value(value, GradientInterpolation::Linear, "Linear")
+                    .changed()
+                {
+                    changed = true;
+                }
+                if ui
+                    .selectable_value(value, GradientInterpolation::Smoothstep, "Smoothstep")
+                    .changed()
+                {
+                    changed = true;
+                }
+            });
     });
 
     changed

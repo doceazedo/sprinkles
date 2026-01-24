@@ -1,5 +1,5 @@
 use bevy_egui::egui::{self, Color32, CornerRadius, FontId, Pos2, Rect, Response, Sense, Stroke, Vec2};
-use bevy_starling::asset::{Gradient, GradientInterpolation, GradientStop, SolidOrGradientColor};
+use bevy_starling::asset::{Gradient, GradientInterpolation, GradientStop};
 use egui_remixicon::icons;
 
 use super::styles::{colors, TEXT_BASE, TEXT_SM};
@@ -15,9 +15,9 @@ const CHECKER_SIZE: f32 = 4.0;
 const CORNER_RADIUS: f32 = 2.0;
 const VALUE_INPUT_WIDTH: f32 = 36.0;
 
-const GRADIENT_STOP_SIZE: f32 = 24.0;
-const GRADIENT_STOP_PADDING: f32 = 4.0;
-const GRADIENT_STOP_ARROW_SIZE: f32 = 6.0;
+const GRADIENT_STOP_SIZE: f32 = 16.0;
+const GRADIENT_STOP_PADDING: f32 = 2.0;
+const GRADIENT_STOP_ARROW_SIZE: f32 = 4.0;
 const GRADIENT_BAR_HEIGHT: f32 = 24.0;
 const GRADIENT_BAR_PADDING: f32 = 4.0;
 
@@ -711,6 +711,196 @@ pub fn color_picker(ui: &mut egui::Ui, rgba: &mut [f32; 4], width: f32, panel_ri
     button_response
 }
 
+/// A gradient picker widget that shows a gradient bar with editable stops.
+/// Handles all popup interactions internally.
+pub fn gradient_picker(
+    ui: &mut egui::Ui,
+    gradient: &mut Gradient,
+    width: f32,
+    panel_right_edge: Option<f32>,
+) -> Response {
+    let base_id = ui.make_persistent_id("gradient_picker");
+    let stop_popup_id = base_id.with("stop_popup");
+
+    let tooltip_height = GRADIENT_STOP_SIZE + GRADIENT_STOP_PADDING * 2.0 + GRADIENT_STOP_ARROW_SIZE;
+    let total_height = (GRADIENT_BAR_HEIGHT / 2.) + tooltip_height;
+
+    // note: gradient_picker_internal allocates the space, so we just need to track the rect
+    let start_pos = ui.cursor().min;
+
+    let mut changed = false;
+
+    let result = gradient_picker_internal(ui, gradient, width, base_id);
+
+    let total_rect = Rect::from_min_size(start_pos, Vec2::new(width, total_height));
+    if result.changed {
+        changed = true;
+    }
+
+    // handle opening color picker for a stop
+    if let Some(stop_idx) = result.stop_to_open {
+        let is_stop_open = ui.data(|d| d.get_temp::<Option<usize>>(stop_popup_id).unwrap_or(None));
+        if is_stop_open == Some(stop_idx) {
+            ui.data_mut(|d| d.insert_temp::<Option<usize>>(stop_popup_id, None));
+        } else {
+            ui.data_mut(|d| d.insert_temp(stop_popup_id, Some(stop_idx)));
+            let initial_color = gradient.stops[stop_idx].color;
+            ui.data_mut(|d| d.insert_temp(stop_popup_id.with("initial"), initial_color));
+        }
+    }
+
+    // show stop color picker popup if open
+    let open_stop_idx: Option<usize> = ui.data(|d| d.get_temp(stop_popup_id).unwrap_or(None));
+    let mut stop_to_remove: Option<usize> = None;
+
+    if let Some(stop_idx) = open_stop_idx {
+        if stop_idx < gradient.stops.len() {
+            let popup_pos = if let Some(panel_right) = panel_right_edge {
+                Pos2::new(panel_right + SPACING, total_rect.min.y)
+            } else {
+                let inner_left = total_rect.min.x + GRADIENT_BAR_PADDING;
+                let inner_width = width - GRADIENT_BAR_PADDING * 2.0;
+                let stop_x = inner_left + gradient.stops[stop_idx].position * inner_width;
+                Pos2::new(stop_x - POPOVER_WIDTH / 2.0, total_rect.max.y + SPACING)
+            };
+
+            let initial_color = ui.data(|d| {
+                d.get_temp::<[f32; 4]>(stop_popup_id.with("initial"))
+                    .unwrap_or(gradient.stops[stop_idx].color)
+            });
+            let can_remove = gradient.stops.len() > 1;
+
+            let area_response = egui::Area::new(stop_popup_id.with("area"))
+                .order(egui::Order::Foreground)
+                .fixed_pos(popup_pos)
+                .show(ui.ctx(), |ui| {
+                    egui::Frame::popup(ui.style()).show(ui, |ui| {
+                        if color_picker_popover_content(
+                            ui,
+                            &mut gradient.stops[stop_idx].color,
+                            initial_color,
+                        ) {
+                            changed = true;
+                        }
+
+                        ui.add_space(SPACING);
+                        let button_height = 24.0;
+                        let confirm_width = POPOVER_WIDTH - button_height - SPACING;
+
+                        let (row_rect, _) = ui.allocate_exact_size(
+                            Vec2::new(POPOVER_WIDTH, button_height),
+                            Sense::hover(),
+                        );
+
+                        let row_min_x = row_rect.min.x.round();
+                        let row_min_y = row_rect.min.y.round();
+
+                        // remove button
+                        let remove_rect = Rect::from_min_size(
+                            Pos2::new(row_min_x, row_min_y),
+                            Vec2::splat(button_height),
+                        );
+                        let remove_response =
+                            ui.interact(remove_rect, stop_popup_id.with("remove_btn"), Sense::click());
+
+                        if ui.is_rect_visible(remove_rect) {
+                            let visuals = if !can_remove {
+                                ui.style().visuals.widgets.inactive
+                            } else if remove_response.hovered() {
+                                ui.style().visuals.widgets.hovered
+                            } else {
+                                ui.style().visuals.widgets.inactive
+                            };
+                            ui.painter()
+                                .rect_filled(remove_rect, visuals.corner_radius, visuals.bg_fill);
+                            ui.painter().rect_stroke(
+                                remove_rect,
+                                visuals.corner_radius,
+                                visuals.bg_stroke,
+                                egui::StrokeKind::Inside,
+                            );
+                            let text_color = if can_remove {
+                                visuals.text_color()
+                            } else {
+                                ui.style().visuals.widgets.noninteractive.text_color()
+                            };
+                            ui.painter().text(
+                                remove_rect.center(),
+                                egui::Align2::CENTER_CENTER,
+                                icons::SUBTRACT_FILL,
+                                FontId::proportional(TEXT_BASE),
+                                text_color,
+                            );
+                        }
+
+                        if can_remove && remove_response.clicked() {
+                            stop_to_remove = Some(stop_idx);
+                            ui.data_mut(|d| d.insert_temp::<Option<usize>>(stop_popup_id, None));
+                        }
+
+                        // confirm button
+                        let confirm_rect = Rect::from_min_size(
+                            Pos2::new(row_min_x + button_height + SPACING, row_min_y),
+                            Vec2::new(confirm_width, button_height),
+                        );
+                        let confirm_response =
+                            ui.interact(confirm_rect, stop_popup_id.with("confirm_btn"), Sense::click());
+
+                        if ui.is_rect_visible(confirm_rect) {
+                            let visuals = if confirm_response.hovered() {
+                                ui.style().visuals.widgets.hovered
+                            } else {
+                                ui.style().visuals.widgets.inactive
+                            };
+                            ui.painter()
+                                .rect_filled(confirm_rect, visuals.corner_radius, visuals.bg_fill);
+                            ui.painter().rect_stroke(
+                                confirm_rect,
+                                visuals.corner_radius,
+                                visuals.bg_stroke,
+                                egui::StrokeKind::Inside,
+                            );
+                            ui.painter().text(
+                                confirm_rect.center(),
+                                egui::Align2::CENTER_CENTER,
+                                format!("{} Confirm", icons::CHECK_FILL),
+                                FontId::proportional(TEXT_BASE),
+                                visuals.text_color(),
+                            );
+                        }
+
+                        if confirm_response.clicked() {
+                            ui.data_mut(|d| d.insert_temp::<Option<usize>>(stop_popup_id, None));
+                        }
+                    });
+                });
+
+            // close on click outside
+            let dominated = ui.input(|i| i.pointer.any_pressed());
+            if dominated {
+                if let Some(pos) = ui.input(|i| i.pointer.press_origin()) {
+                    let popup_rect = area_response.response.rect;
+                    if !popup_rect.contains(pos) {
+                        ui.data_mut(|d| d.insert_temp::<Option<usize>>(stop_popup_id, None));
+                    }
+                }
+            }
+        }
+    }
+
+    if let Some(idx) = stop_to_remove {
+        gradient.stops.remove(idx);
+        changed = true;
+    }
+
+    let mut response = ui.interact(total_rect, base_id.with("response"), Sense::hover());
+    if changed {
+        response.mark_changed();
+    }
+
+    response
+}
+
 fn lerp_color(a: [f32; 4], b: [f32; 4], t: f32) -> [f32; 4] {
     [
         a[0] + (b[0] - a[0]) * t,
@@ -921,7 +1111,7 @@ struct GradientPickerResult {
     stop_to_open: Option<usize>,
 }
 
-fn gradient_picker(
+fn gradient_picker_internal(
     ui: &mut egui::Ui,
     gradient: &mut Gradient,
     width: f32,
@@ -935,7 +1125,7 @@ fn gradient_picker(
     // calculate total height needed for bar + tooltip
     // tooltip arrow starts 4px up from bar bottom
     let tooltip_height = GRADIENT_STOP_SIZE + GRADIENT_STOP_PADDING * 2.0 + GRADIENT_STOP_ARROW_SIZE;
-    let total_height = (GRADIENT_BAR_HEIGHT - GRADIENT_BAR_PADDING) + tooltip_height;
+    let total_height = (GRADIENT_BAR_HEIGHT / 2.) + tooltip_height;
 
     let (total_rect, _) = ui.allocate_exact_size(Vec2::new(width, total_height), Sense::hover());
 
@@ -992,7 +1182,7 @@ fn gradient_picker(
 
     for (i, stop) in gradient.stops.iter_mut().enumerate() {
         let stop_x = position_to_x(stop.position);
-        let tooltip_anchor_y = bar_rect.max.y - GRADIENT_BAR_PADDING;
+        let tooltip_anchor_y = bar_rect.max.y - GRADIENT_BAR_HEIGHT / 2.;
 
         let tooltip_rect = draw_stop_tooltip(ui, stop_x, tooltip_anchor_y, stop.color, i, base_id);
 
@@ -1037,435 +1227,4 @@ fn gradient_picker(
     }
 
     result
-}
-
-fn fill_type_popover_option(
-    ui: &mut egui::Ui,
-    label: &str,
-    is_selected: bool,
-) -> bool {
-    let height = 24.0;
-    let width = ui.available_width();
-    let (rect, response) = ui.allocate_exact_size(Vec2::new(width, height), Sense::click());
-
-    if ui.is_rect_visible(rect) {
-        if response.hovered() {
-            ui.painter().rect_filled(rect, CornerRadius::same(2), colors::hover_bg());
-        }
-
-        let text_x = rect.left() + 8.0;
-        if is_selected {
-            ui.painter().text(
-                Pos2::new(text_x, rect.center().y),
-                egui::Align2::LEFT_CENTER,
-                icons::CHECK_LINE,
-                FontId::proportional(TEXT_SM),
-                colors::TEXT_MUTED,
-            );
-        }
-
-        ui.painter().text(
-            Pos2::new(text_x + 20.0, rect.center().y),
-            egui::Align2::LEFT_CENTER,
-            label,
-            FontId::proportional(TEXT_BASE),
-            colors::TEXT_MUTED,
-        );
-    }
-
-    response.clicked()
-}
-
-fn fill_type_popover_option_enabled(
-    ui: &mut egui::Ui,
-    label: &str,
-    is_selected: bool,
-    enabled: bool,
-) -> bool {
-    let height = 24.0;
-    let width = ui.available_width();
-    let sense = if enabled { Sense::click() } else { Sense::hover() };
-    let (rect, response) = ui.allocate_exact_size(Vec2::new(width, height), sense);
-
-    if ui.is_rect_visible(rect) {
-        if enabled && response.hovered() {
-            ui.painter().rect_filled(rect, CornerRadius::same(2), colors::hover_bg());
-        }
-
-        let text_color = if enabled { colors::TEXT_MUTED } else { colors::TEXT_MUTED.gamma_multiply(0.4) };
-
-        let text_x = rect.left() + 8.0;
-        if is_selected {
-            ui.painter().text(
-                Pos2::new(text_x, rect.center().y),
-                egui::Align2::LEFT_CENTER,
-                icons::CHECK_LINE,
-                FontId::proportional(TEXT_SM),
-                text_color,
-            );
-        }
-
-        ui.painter().text(
-            Pos2::new(text_x + 20.0, rect.center().y),
-            egui::Align2::LEFT_CENTER,
-            label,
-            FontId::proportional(TEXT_BASE),
-            text_color,
-        );
-    }
-
-    enabled && response.clicked()
-}
-
-pub fn solid_or_gradient_color_picker(
-    ui: &mut egui::Ui,
-    value: &mut SolidOrGradientColor,
-    width: f32,
-    panel_right_edge: Option<f32>,
-) -> Response {
-    let base_id = ui.make_persistent_id("solid_or_gradient_picker");
-    let fill_popup_id = base_id.with("fill_popup");
-    let stop_popup_id = base_id.with("stop_popup");
-
-    let icon_button_width = 24.0;
-    let picker_width = width - icon_button_width - SPACING;
-
-    let mut changed = false;
-
-    // calculate the total height needed (gradient mode is taller)
-    let total_height = if value.is_gradient() {
-        let tooltip_height = GRADIENT_STOP_SIZE + GRADIENT_STOP_PADDING * 2.0 + GRADIENT_STOP_ARROW_SIZE;
-        (GRADIENT_BAR_HEIGHT - GRADIENT_BAR_PADDING) + tooltip_height
-    } else {
-        24.0
-    };
-
-    let (total_rect, _) = ui.allocate_exact_size(Vec2::new(width, total_height), Sense::hover());
-
-    // create child ui for the picker area
-    let picker_rect = Rect::from_min_size(total_rect.min, Vec2::new(picker_width, total_height));
-    let mut child_ui = ui.new_child(egui::UiBuilder::new().max_rect(picker_rect));
-
-    // draw color or gradient picker in child ui
-    {
-        let ui = &mut child_ui;
-        match value {
-            SolidOrGradientColor::Solid { color } => {
-                if color_picker(ui, color, picker_width, panel_right_edge).changed() {
-                    changed = true;
-                }
-            }
-            SolidOrGradientColor::Gradient { gradient } => {
-                let result = gradient_picker(ui, gradient, picker_width, base_id);
-                if result.changed {
-                    changed = true;
-                }
-
-                // handle opening color picker for a stop
-                if let Some(stop_idx) = result.stop_to_open {
-                    let is_stop_open = ui.data(|d| d.get_temp::<Option<usize>>(stop_popup_id).unwrap_or(None));
-                    if is_stop_open == Some(stop_idx) {
-                        ui.data_mut(|d| d.insert_temp::<Option<usize>>(stop_popup_id, None));
-                    } else {
-                        ui.data_mut(|d| d.insert_temp(stop_popup_id, Some(stop_idx)));
-                        // store initial color for the stop
-                        let initial_color = gradient.stops[stop_idx].color;
-                        ui.data_mut(|d| d.insert_temp(stop_popup_id.with("initial"), initial_color));
-                    }
-                }
-
-                // show stop color picker popup if open
-                let open_stop_idx: Option<usize> = ui.data(|d| d.get_temp(stop_popup_id).unwrap_or(None));
-                let mut stop_to_remove: Option<usize> = None;
-                if let Some(stop_idx) = open_stop_idx {
-                    if stop_idx < gradient.stops.len() {
-                        // position popup to the right of the panel if specified, otherwise below the gradient
-                        let popup_pos = if let Some(panel_right) = panel_right_edge {
-                            Pos2::new(panel_right + SPACING, total_rect.min.y)
-                        } else {
-                            let inner_left = total_rect.min.x + GRADIENT_BAR_PADDING;
-                            let inner_width = picker_width - GRADIENT_BAR_PADDING * 2.0;
-                            let stop_x = inner_left + gradient.stops[stop_idx].position * inner_width;
-                            Pos2::new(stop_x - POPOVER_WIDTH / 2.0, total_rect.max.y + SPACING)
-                        };
-
-                        let initial_color = ui.data(|d| d.get_temp::<[f32; 4]>(stop_popup_id.with("initial")).unwrap_or(gradient.stops[stop_idx].color));
-                        let can_remove = gradient.stops.len() > 1;
-
-                        let area_response = egui::Area::new(stop_popup_id.with("area"))
-                            .order(egui::Order::Foreground)
-                            .fixed_pos(popup_pos)
-                            .show(ui.ctx(), |ui| {
-                                egui::Frame::popup(ui.style()).show(ui, |ui| {
-                                    if color_picker_popover_content(ui, &mut gradient.stops[stop_idx].color, initial_color) {
-                                        changed = true;
-                                    }
-
-                                    // buttons row
-                                    ui.add_space(SPACING);
-                                    let button_height = 24.0;
-                                    let confirm_width = POPOVER_WIDTH - button_height - SPACING;
-
-                                    // allocate the full row height first
-                                    let (row_rect, _) = ui.allocate_exact_size(Vec2::new(POPOVER_WIDTH, button_height), Sense::hover());
-
-                                    // round to pixel boundaries
-                                    let row_min_x = row_rect.min.x.round();
-                                    let row_min_y = row_rect.min.y.round();
-
-                                    // remove button (always visible, disabled if only 1 stop)
-                                    let remove_rect = Rect::from_min_size(
-                                        Pos2::new(row_min_x, row_min_y),
-                                        Vec2::splat(button_height)
-                                    );
-                                    let remove_response = ui.interact(remove_rect, stop_popup_id.with("remove_btn"), Sense::click());
-
-                                    if ui.is_rect_visible(remove_rect) {
-                                        let visuals = if !can_remove {
-                                            ui.style().visuals.widgets.inactive
-                                        } else if remove_response.hovered() {
-                                            ui.style().visuals.widgets.hovered
-                                        } else {
-                                            ui.style().visuals.widgets.inactive
-                                        };
-                                        ui.painter().rect_filled(remove_rect, visuals.corner_radius, visuals.bg_fill);
-                                        ui.painter().rect_stroke(remove_rect, visuals.corner_radius, visuals.bg_stroke, egui::StrokeKind::Inside);
-                                        let text_color = if can_remove { visuals.text_color() } else { ui.style().visuals.widgets.noninteractive.text_color() };
-                                        ui.painter().text(
-                                            remove_rect.center(),
-                                            egui::Align2::CENTER_CENTER,
-                                            icons::SUBTRACT_FILL,
-                                            FontId::proportional(TEXT_BASE),
-                                            text_color,
-                                        );
-                                    }
-
-                                    if can_remove && remove_response.clicked() {
-                                        stop_to_remove = Some(stop_idx);
-                                        ui.data_mut(|d| d.insert_temp::<Option<usize>>(stop_popup_id, None));
-                                    }
-
-                                    // confirm button
-                                    let confirm_rect = Rect::from_min_size(
-                                        Pos2::new(row_min_x + button_height + SPACING, row_min_y),
-                                        Vec2::new(confirm_width, button_height)
-                                    );
-                                    let confirm_response = ui.interact(confirm_rect, stop_popup_id.with("confirm_btn"), Sense::click());
-
-                                    if ui.is_rect_visible(confirm_rect) {
-                                        let visuals = if confirm_response.hovered() {
-                                            ui.style().visuals.widgets.hovered
-                                        } else {
-                                            ui.style().visuals.widgets.inactive
-                                        };
-                                        ui.painter().rect_filled(confirm_rect, visuals.corner_radius, visuals.bg_fill);
-                                        ui.painter().rect_stroke(confirm_rect, visuals.corner_radius, visuals.bg_stroke, egui::StrokeKind::Inside);
-                                        ui.painter().text(
-                                            confirm_rect.center(),
-                                            egui::Align2::CENTER_CENTER,
-                                            format!("{} Confirm", icons::CHECK_FILL),
-                                            FontId::proportional(TEXT_BASE),
-                                            visuals.text_color(),
-                                        );
-                                    }
-
-                                    if confirm_response.clicked() {
-                                        ui.data_mut(|d| d.insert_temp::<Option<usize>>(stop_popup_id, None));
-                                    }
-                                });
-                            });
-
-                        // close on click outside
-                        let dominated = ui.input(|i| i.pointer.any_pressed());
-                        if dominated {
-                            if let Some(pos) = ui.input(|i| i.pointer.press_origin()) {
-                                let popup_rect = area_response.response.rect;
-                                if !popup_rect.contains(pos) {
-                                    ui.data_mut(|d| d.insert_temp::<Option<usize>>(stop_popup_id, None));
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // remove stop if requested
-                if let Some(idx) = stop_to_remove {
-                    gradient.stops.remove(idx);
-                    changed = true;
-                }
-            }
-        }
-    }
-
-    // draw icon button for fill type
-    let button_rect = Rect::from_min_size(
-        Pos2::new(total_rect.max.x - icon_button_width, total_rect.min.y),
-        Vec2::new(icon_button_width, 24.0),
-    );
-
-    let button_response = ui.interact(button_rect, base_id.with("menu_button"), Sense::click());
-
-    if ui.is_rect_visible(button_rect) {
-        let bg_color = if button_response.hovered() {
-            colors::hover_bg()
-        } else {
-            colors::INPUT_BG
-        };
-
-        ui.painter().rect_filled(button_rect, CornerRadius::same(CORNER_RADIUS as u8), bg_color);
-        ui.painter().rect_stroke(
-            button_rect,
-            CornerRadius::same(CORNER_RADIUS as u8),
-            Stroke::new(1.0, colors::BORDER),
-            egui::StrokeKind::Inside,
-        );
-
-        ui.painter().text(
-            button_rect.center() + Vec2::new(0.0, 1.0),
-            egui::Align2::CENTER_CENTER,
-            icons::MORE_2_FILL,
-            FontId::proportional(TEXT_BASE),
-            colors::TEXT_MUTED,
-        );
-    }
-
-    // handle fill type popup
-    let mut is_popup_open = ui.data(|d| d.get_temp::<bool>(fill_popup_id).unwrap_or(false));
-
-    if button_response.clicked() {
-        is_popup_open = !is_popup_open;
-        ui.data_mut(|d| d.insert_temp(fill_popup_id, is_popup_open));
-    }
-
-    if is_popup_open {
-        let popup_pos = button_rect.left_bottom() + Vec2::new(0.0, 4.0);
-
-        let area_response = egui::Area::new(fill_popup_id)
-            .order(egui::Order::Foreground)
-            .fixed_pos(popup_pos)
-            .show(ui.ctx(), |ui| {
-                egui::Frame::popup(ui.style()).show(ui, |ui| {
-                    ui.set_max_width(150.0);
-                    ui.spacing_mut().item_spacing = Vec2::new(0.0, 2.0);
-
-                    // label
-                    ui.horizontal(|ui| {
-                        ui.add_space(8.0);
-                        ui.label(egui::RichText::new("Fill").size(TEXT_SM).color(colors::TEXT_MUTED));
-                    });
-
-                    let is_solid = value.is_solid();
-
-                    if fill_type_popover_option(ui, "Solid", is_solid) {
-                        if !is_solid {
-                            let color = match value {
-                                SolidOrGradientColor::Gradient { gradient } => gradient
-                                    .stops
-                                    .first()
-                                    .map(|s| s.color)
-                                    .unwrap_or([1.0, 1.0, 1.0, 1.0]),
-                                SolidOrGradientColor::Solid { color } => *color,
-                            };
-                            *value = SolidOrGradientColor::Solid { color };
-                            changed = true;
-                        }
-                        ui.data_mut(|d| d.insert_temp(fill_popup_id, false));
-                    }
-
-                    if fill_type_popover_option(ui, "Gradient", !is_solid) {
-                        if is_solid {
-                            let color = match value {
-                                SolidOrGradientColor::Solid { color } => *color,
-                                SolidOrGradientColor::Gradient { gradient } => gradient
-                                    .stops
-                                    .first()
-                                    .map(|s| s.color)
-                                    .unwrap_or([1.0, 1.0, 1.0, 1.0]),
-                            };
-                            // create inverted color for second stop (invert RGB, keep alpha)
-                            let inverted_color = [
-                                1.0 - color[0],
-                                1.0 - color[1],
-                                1.0 - color[2],
-                                color[3],
-                            ];
-                            *value = SolidOrGradientColor::Gradient {
-                                gradient: Gradient {
-                                    stops: vec![
-                                        GradientStop { color, position: 0.0 },
-                                        GradientStop { color: inverted_color, position: 1.0 },
-                                    ],
-                                    ..Default::default()
-                                },
-                            };
-                            changed = true;
-                        }
-                        ui.data_mut(|d| d.insert_temp(fill_popup_id, false));
-                    }
-
-                    // separator
-                    ui.add_space(4.0);
-                    let sep_rect = ui.available_rect_before_wrap();
-                    ui.painter().line_segment(
-                        [Pos2::new(sep_rect.left(), sep_rect.top()), Pos2::new(sep_rect.right(), sep_rect.top())],
-                        Stroke::new(1.0, colors::BORDER),
-                    );
-                    ui.add_space(4.0);
-
-                    // interpolation label
-                    ui.horizontal(|ui| {
-                        ui.add_space(8.0);
-                        ui.label(egui::RichText::new("Interpolation").size(TEXT_SM).color(colors::TEXT_MUTED));
-                    });
-
-                    // interpolation options (always shown, disabled if not gradient)
-                    let is_gradient = !is_solid;
-                    let current_interp = match value {
-                        SolidOrGradientColor::Gradient { gradient } => Some(gradient.interpolation),
-                        _ => None,
-                    };
-
-                    if fill_type_popover_option_enabled(ui, "Steps", current_interp == Some(GradientInterpolation::Steps), is_gradient) {
-                        if let SolidOrGradientColor::Gradient { gradient } = value {
-                            gradient.interpolation = GradientInterpolation::Steps;
-                            changed = true;
-                        }
-                    }
-
-                    if fill_type_popover_option_enabled(ui, "Linear", current_interp == Some(GradientInterpolation::Linear), is_gradient) {
-                        if let SolidOrGradientColor::Gradient { gradient } = value {
-                            gradient.interpolation = GradientInterpolation::Linear;
-                            changed = true;
-                        }
-                    }
-
-                    if fill_type_popover_option_enabled(ui, "Smoothstep", current_interp == Some(GradientInterpolation::Smoothstep), is_gradient) {
-                        if let SolidOrGradientColor::Gradient { gradient } = value {
-                            gradient.interpolation = GradientInterpolation::Smoothstep;
-                            changed = true;
-                        }
-                    }
-
-                    ui.add_space(4.0);
-                });
-            });
-
-        // close on click outside
-        let dominated = ui.input(|i| i.pointer.any_pressed());
-        if dominated {
-            if let Some(pos) = ui.input(|i| i.pointer.press_origin()) {
-                let popup_rect = area_response.response.rect;
-                if !popup_rect.contains(pos) && !button_rect.contains(pos) {
-                    ui.data_mut(|d| d.insert_temp(fill_popup_id, false));
-                }
-            }
-        }
-    }
-
-    let mut response = ui.interact(total_rect, base_id.with("response"), Sense::hover());
-    if changed {
-        response.mark_changed();
-    }
-
-    response
 }
