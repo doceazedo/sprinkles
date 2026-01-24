@@ -59,9 +59,9 @@ impl Plugin for StarlingPlugin {
             ),
         );
 
-        // clear the clear_requested flag at the start of the next frame
-        // (after render extract has consumed it in the previous frame)
-        app.add_systems(First, clear_particle_clear_requests);
+        // clear the clear_requested flag immediately after extraction consumes it
+        // this prevents the flag from persisting across multiple frames
+        app.add_systems(Last, clear_particle_clear_requests);
 
         // render plugins
         app.add_plugins((
@@ -85,6 +85,6 @@ pub use asset::{
 pub use core::{ParticleData, ParticleSystem2D, ParticleSystem3D};
 pub use render::material::ParticleMaterialExtension;
 pub use runtime::{
-    ParticleBufferHandle, ParticleEntity, ParticleMaterial, ParticleMaterialHandle,
-    ParticleSystemRef, ParticleSystemRuntime,
+    EmitterEntity, EmitterRuntime, ParticleBufferHandle, ParticleEntity, ParticleMaterial,
+    ParticleMaterialHandle, ParticleSystemRef, ParticleSystemRuntime,
 };

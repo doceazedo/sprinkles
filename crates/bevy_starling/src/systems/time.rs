@@ -3,10 +3,10 @@ use bevy::prelude::*;
 use crate::{
     asset::ParticleSystemAsset,
     core::ParticleSystem3D,
-    runtime::ParticleSystemRuntime,
+    runtime::{EmitterEntity, EmitterRuntime, ParticleSystemRuntime},
 };
 
-pub fn clear_particle_clear_requests(mut query: Query<&mut ParticleSystemRuntime>) {
+pub fn clear_particle_clear_requests(mut query: Query<&mut EmitterRuntime>) {
     for mut runtime in query.iter_mut() {
         if runtime.clear_requested {
             runtime.clear_requested = false;
@@ -17,23 +17,28 @@ pub fn clear_particle_clear_requests(mut query: Query<&mut ParticleSystemRuntime
 pub fn update_particle_time(
     time: Res<Time>,
     assets: Res<Assets<ParticleSystemAsset>>,
-    mut query: Query<(&ParticleSystem3D, &mut ParticleSystemRuntime)>,
+    system_query: Query<(&ParticleSystem3D, &ParticleSystemRuntime)>,
+    mut emitter_query: Query<(&EmitterEntity, &mut EmitterRuntime)>,
 ) {
-    for (particle_system, mut runtime) in query.iter_mut() {
+    for (emitter, mut runtime) in emitter_query.iter_mut() {
+        let Ok((particle_system, system_runtime)) = system_query.get(emitter.parent_system) else {
+            continue;
+        };
+
+        if system_runtime.paused {
+            continue;
+        }
+
         let Some(asset) = assets.get(&particle_system.handle) else {
             continue;
         };
 
-        let Some(emitter) = asset.emitters.first() else {
+        let Some(emitter_data) = asset.emitters.get(runtime.emitter_index) else {
             continue;
         };
 
-        if runtime.paused {
-            continue;
-        }
-
-        let lifetime = emitter.time.lifetime;
-        let fixed_fps = emitter.time.fixed_fps;
+        let lifetime = emitter_data.time.lifetime;
+        let fixed_fps = emitter_data.time.fixed_fps;
 
         // store previous time for phase calculation
         runtime.prev_system_time = runtime.system_time;
@@ -66,7 +71,7 @@ pub fn update_particle_time(
         }
 
         // handle one-shot mode
-        if emitter.time.one_shot && runtime.cycle > 0 && !runtime.one_shot_completed {
+        if emitter_data.time.one_shot && runtime.cycle > 0 && !runtime.one_shot_completed {
             runtime.emitting = false;
             runtime.one_shot_completed = true;
         }

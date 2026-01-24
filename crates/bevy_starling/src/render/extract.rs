@@ -7,7 +7,7 @@ use crate::{
     asset::{DrawOrder, EmissionShape, ParticleSystemAsset, SolidOrGradientColor},
     core::ParticleSystem3D,
     render::gradient_texture::GradientTextureCache,
-    runtime::{ParticleBufferHandle, ParticleSystemRuntime},
+    runtime::{EmitterEntity, EmitterRuntime, ParticleBufferHandle, ParticleSystemRuntime},
 };
 
 use super::{
@@ -34,15 +34,16 @@ pub struct ExtractedEmitterData {
 
 pub fn extract_particle_systems(
     mut commands: Commands,
-    query: Extract<
+    emitter_query: Extract<
         Query<(
             Entity,
-            &ParticleSystemRuntime,
+            &EmitterEntity,
+            &EmitterRuntime,
             &ParticleBufferHandle,
-            &ParticleSystem3D,
             &GlobalTransform,
         )>,
     >,
+    system_query: Extract<Query<(&ParticleSystem3D, &ParticleSystemRuntime)>>,
     camera_query: Extract<Query<&GlobalTransform, With<Camera3d>>>,
     assets: Extract<Res<Assets<ParticleSystemAsset>>>,
     gradient_cache: Extract<Res<GradientTextureCache>>,
@@ -57,12 +58,17 @@ pub fn extract_particle_systems(
         .map(|t| t.translation())
         .unwrap_or(Vec3::ZERO);
 
-    for (entity, runtime, buffer_handle, particle_system, global_transform) in query.iter() {
+    for (entity, emitter_entity, runtime, buffer_handle, global_transform) in emitter_query.iter() {
+        let Ok((particle_system, system_runtime)) = system_query.get(emitter_entity.parent_system)
+        else {
+            continue;
+        };
+
         let Some(asset) = assets.get(&particle_system.handle) else {
             continue;
         };
 
-        let Some(emitter) = asset.emitters.first() else {
+        let Some(emitter) = asset.emitters.get(runtime.emitter_index) else {
             continue;
         };
 
@@ -73,7 +79,7 @@ pub fn extract_particle_systems(
         let lifetime = emitter.time.lifetime;
         // use actual frame delta for physics simulation, but freeze when paused
         // fixed_fps only affects emission timing via system_phase
-        let delta_time = if runtime.paused {
+        let delta_time = if system_runtime.paused {
             0.0
         } else {
             time.delta_secs()

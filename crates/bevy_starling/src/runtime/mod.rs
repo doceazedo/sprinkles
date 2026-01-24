@@ -6,8 +6,38 @@ use bevy::render::storage::ShaderStorageBuffer;
 use crate::asset::ParticleMesh;
 use crate::render::material::ParticleMaterialExtension;
 
+/// system-wide runtime state for a particle system
 #[derive(Component)]
 pub struct ParticleSystemRuntime {
+    /// set to true when the simulation is paused (freezes physics)
+    pub paused: bool,
+    pub global_seed: u32,
+}
+
+impl Default for ParticleSystemRuntime {
+    fn default() -> Self {
+        Self {
+            paused: false,
+            global_seed: rand_seed(),
+        }
+    }
+}
+
+impl ParticleSystemRuntime {
+    /// Pause playback, freezing all particles in place
+    pub fn pause(&mut self) {
+        self.paused = true;
+    }
+
+    /// Resume playback
+    pub fn resume(&mut self) {
+        self.paused = false;
+    }
+}
+
+/// per-emitter runtime state
+#[derive(Component)]
+pub struct EmitterRuntime {
     pub emitting: bool,
     pub system_time: f32,
     pub prev_system_time: f32,
@@ -16,14 +46,14 @@ pub struct ParticleSystemRuntime {
     pub random_seed: u32,
     /// set to true when a one-shot emitter completes its emission cycle
     pub one_shot_completed: bool,
-    /// set to true when the simulation is paused (freezes physics)
-    pub paused: bool,
     /// set to true to clear all particles on the next frame
     pub clear_requested: bool,
+    /// index into the asset's emitters array
+    pub emitter_index: usize,
 }
 
-impl Default for ParticleSystemRuntime {
-    fn default() -> Self {
+impl EmitterRuntime {
+    pub fn new(emitter_index: usize) -> Self {
         Self {
             emitting: true,
             system_time: 0.0,
@@ -32,13 +62,11 @@ impl Default for ParticleSystemRuntime {
             accumulated_delta: 0.0,
             random_seed: rand_seed(),
             one_shot_completed: false,
-            paused: false,
             clear_requested: false,
+            emitter_index,
         }
     }
-}
 
-impl ParticleSystemRuntime {
     pub fn system_phase(&self, lifetime: f32) -> f32 {
         if lifetime <= 0.0 {
             return 0.0;
@@ -56,19 +84,12 @@ impl ParticleSystemRuntime {
     /// Start or resume playback
     pub fn play(&mut self) {
         self.emitting = true;
-        self.paused = false;
         self.one_shot_completed = false;
-    }
-
-    /// Pause playback, freezing all particles in place
-    pub fn pause(&mut self) {
-        self.paused = true;
     }
 
     /// Stop playback, reset time, and clear all particles
     pub fn stop(&mut self) {
         self.emitting = false;
-        self.paused = false;
         self.system_time = 0.0;
         self.prev_system_time = 0.0;
         self.cycle = 0;
@@ -83,6 +104,12 @@ impl ParticleSystemRuntime {
         self.stop();
         self.emitting = true;
     }
+}
+
+/// marker component for emitter child entities
+#[derive(Component)]
+pub struct EmitterEntity {
+    pub parent_system: Entity,
 }
 
 fn rand_seed() -> u32 {
@@ -115,9 +142,12 @@ pub struct ParticleGpuBuffers {
 #[derive(Component)]
 pub struct ParticleEntity;
 
-/// stores the parent particle system entity for cleanup purposes
+/// stores references to parent entities for cleanup purposes
 #[derive(Component)]
-pub struct ParticleSystemRef(pub Entity);
+pub struct ParticleSystemRef {
+    pub system_entity: Entity,
+    pub emitter_entity: Entity,
+}
 
 /// stores the current mesh configuration for change detection
 #[derive(Component)]
