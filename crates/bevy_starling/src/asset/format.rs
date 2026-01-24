@@ -943,12 +943,15 @@ impl Default for ParticleProcessDisplayScale {
 pub struct ParticleProcessDisplayColor {
     #[serde(default)]
     pub initial_color: SolidOrGradientColor,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub alpha_curve: Option<SplineCurve>,
 }
 
 impl Default for ParticleProcessDisplayColor {
     fn default() -> Self {
         Self {
             initial_color: SolidOrGradientColor::default(),
+            alpha_curve: None,
         }
     }
 }

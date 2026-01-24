@@ -131,6 +131,9 @@ fn fragment(
     // alpha discard
     pbr_input.material.base_color = alpha_discard(pbr_input.material, pbr_input.material.base_color);
 
+    // store the alpha before PBR lighting (which may overwrite it)
+    let particle_alpha = pbr_input.material.base_color.a;
+
     var out: FragmentOutput;
 
     // apply PBR lighting
@@ -138,6 +141,9 @@ fn fragment(
 
     // apply post-processing (fog, tonemapping, etc.)
     out.color = main_pass_post_lighting_processing(pbr_input, out.color);
+
+    // restore particle alpha for proper blending
+    out.color.a = particle_alpha;
 #endif
 
     return out;

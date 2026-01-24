@@ -1011,6 +1011,12 @@ fn inspect_display_color(
             indent,
             panel_right_edge,
         );
+        changed |= inspect_spline_curve(
+            ui,
+            &field_label("alpha over lifetime"),
+            &mut color_curves.alpha_curve,
+            indent,
+        );
     });
     changed
 }

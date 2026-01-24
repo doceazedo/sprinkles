@@ -148,6 +148,7 @@
                                 interpolation: Linear,
                             ),
                         ),
+                        alpha_curve: Some(SineInOutReverse),
                     ),
                 ),
             ),

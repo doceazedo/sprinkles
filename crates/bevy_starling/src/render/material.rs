@@ -4,7 +4,8 @@ use bevy::{
     prelude::*,
     render::{
         render_resource::{
-            AsBindGroup, CompareFunction, RenderPipelineDescriptor, SpecializedMeshPipelineError,
+            AsBindGroup, BlendState, CompareFunction, RenderPipelineDescriptor,
+            SpecializedMeshPipelineError,
         },
         storage::ShaderStorageBuffer,
     },
@@ -47,6 +48,16 @@ impl MaterialExtension for ParticleMaterialExtension {
             depth_stencil.depth_write_enabled = true;
             depth_stencil.depth_compare = CompareFunction::GreaterEqual;
         }
+
+        // enable alpha blending for particle transparency
+        if let Some(fragment) = &mut descriptor.fragment {
+            for target in &mut fragment.targets {
+                if let Some(target) = target {
+                    target.blend = Some(BlendState::ALPHA_BLENDING);
+                }
+            }
+        }
+
         Ok(())
     }
 }

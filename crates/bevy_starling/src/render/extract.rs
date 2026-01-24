@@ -32,6 +32,7 @@ pub struct ExtractedEmitterData {
     pub emitter_transform: Mat4,
     pub gradient_texture_handle: Option<Handle<Image>>,
     pub curve_texture_handle: Option<Handle<Image>>,
+    pub alpha_curve_texture_handle: Option<Handle<Image>>,
 }
 
 pub fn extract_particle_systems(
@@ -185,7 +186,11 @@ pub fn extract_particle_systems(
                 SolidOrGradientColor::Solid { .. } => 0,
                 SolidOrGradientColor::Gradient { .. } => 1,
             },
-            _pad7: [0; 2],
+            use_alpha_curve: match &display.color_curves.alpha_curve {
+                Some(c) if !c.is_constant() => 1,
+                _ => 0,
+            },
+            _pad7: 0,
 
             initial_color: match &display.color_curves.initial_color {
                 SolidOrGradientColor::Solid { color } => *color,
@@ -205,6 +210,13 @@ pub fn extract_particle_systems(
             .filter(|c| !c.is_constant())
             .and_then(|c| curve_cache.get(c));
 
+        let alpha_curve_texture_handle = display
+            .color_curves
+            .alpha_curve
+            .as_ref()
+            .filter(|c| !c.is_constant())
+            .and_then(|c| curve_cache.get(c));
+
         extracted.emitters.push((
             entity,
             ExtractedEmitterData {
@@ -219,6 +231,7 @@ pub fn extract_particle_systems(
                 emitter_transform: global_transform.to_matrix(),
                 gradient_texture_handle,
                 curve_texture_handle,
+                alpha_curve_texture_handle,
             },
         ));
     }

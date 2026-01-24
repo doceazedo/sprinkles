@@ -61,8 +61,8 @@ struct EmitterParams {
 
     use_scale_curve: u32,
     use_initial_color_gradient: u32,
-    _pad7_a: u32,
-    _pad7_b: u32,
+    use_alpha_curve: u32,
+    _pad7: u32,
 
     initial_color: vec4<f32>,
 }
@@ -84,6 +84,8 @@ const PARTICLE_FLAG_ACTIVE: u32 = 1u;
 @group(0) @binding(3) var gradient_sampler: sampler;
 @group(0) @binding(4) var curve_texture: texture_2d<f32>;
 @group(0) @binding(5) var curve_sampler: sampler;
+@group(0) @binding(6) var alpha_curve_texture: texture_2d<f32>;
+@group(0) @binding(7) var alpha_curve_sampler: sampler;
 
 @compute @workgroup_size(64)
 fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
@@ -286,6 +288,24 @@ fn get_scale_at_lifetime(initial_scale: f32, age: f32, lifetime: f32) -> f32 {
     return initial_scale * curve_value;
 }
 
+fn get_initial_alpha(seed: u32) -> f32 {
+    if (params.use_initial_color_gradient == 0u) {
+        return params.initial_color.a;
+    } else {
+        let t = hash_to_float(seed + 30u);
+        return textureSampleLevel(gradient_texture, gradient_sampler, vec2(t, 0.5), 0.0).a;
+    }
+}
+
+fn get_alpha_at_lifetime(initial_alpha: f32, age: f32, lifetime: f32) -> f32 {
+    if (params.use_alpha_curve == 0u) {
+        return initial_alpha;
+    }
+    let t = clamp(age / lifetime, 0.0, 1.0);
+    let curve_value = textureSampleLevel(alpha_curve_texture, alpha_curve_sampler, vec2(t, 0.5), 0.0).r;
+    return initial_alpha * curve_value;
+}
+
 fn spawn_particle(idx: u32) -> Particle {
     var p: Particle;
     let seed = hash(params.random_seed + idx + params.cycle * 1000u);
@@ -306,6 +326,10 @@ fn spawn_particle(idx: u32) -> Particle {
         let t = hash_to_float(seed + 30u);
         p.color = textureSampleLevel(gradient_texture, gradient_sampler, vec2(t, 0.5), 0.0);
     }
+
+    // apply alpha curve at spawn (t=0)
+    let initial_alpha = p.color.a;
+    p.color.a = get_alpha_at_lifetime(initial_alpha, 0.0, 1.0);
 
     // spawn_index tracks total spawns across all cycles for depth ordering
     // only set when draw_order is Index, otherwise use 0
@@ -347,6 +371,10 @@ fn update_particle(p_in: Particle) -> Particle {
     let scale = get_scale_at_lifetime(initial_scale, age, lifetime);
 
     p.position = vec4(new_position, scale);
+
+    // update alpha based on lifetime progress
+    let initial_alpha = get_initial_alpha(seed);
+    p.color.a = get_alpha_at_lifetime(initial_alpha, age, lifetime);
 
     return p;
 }
