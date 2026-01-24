@@ -24,6 +24,8 @@ pub struct EmitterTime {
     #[serde(default)]
     pub lifetime_randomness: f32,
     #[serde(default)]
+    pub delay: f32,
+    #[serde(default)]
     pub one_shot: bool,
     #[serde(default)]
     pub explosiveness: f32,
@@ -42,6 +44,7 @@ impl Default for EmitterTime {
         Self {
             lifetime: 1.0,
             lifetime_randomness: 0.0,
+            delay: 0.0,
             one_shot: false,
             explosiveness: 0.0,
             randomness: 0.0,

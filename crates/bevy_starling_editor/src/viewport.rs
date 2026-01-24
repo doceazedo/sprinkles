@@ -225,13 +225,13 @@ pub fn sync_playback_state(
             continue;
         };
 
-        // calculate duration from the longest emitter lifetime
-        let max_lifetime = asset
+        // calculate duration from the longest emitter total duration (delay + lifetime)
+        let max_duration = asset
             .emitters
             .iter()
-            .map(|e| e.time.lifetime)
+            .map(|e| e.time.delay + e.time.lifetime)
             .fold(0.0_f32, |a, b| a.max(b));
-        editor_state.duration_ms = max_lifetime * 1000.0;
+        editor_state.duration_ms = max_duration * 1000.0;
 
         // handle stop button - apply to all emitters
         if editor_state.should_reset {
@@ -296,9 +296,13 @@ pub fn sync_playback_state(
             if system_runtime.paused {
                 system_runtime.resume();
             }
-            // ensure all emitters are emitting
+            // ensure non-completed emitters are emitting
+            // (don't restart one-shot emitters that have already completed)
             for (emitter, mut runtime) in emitter_query.iter_mut() {
-                if emitter.parent_system == system_entity && !runtime.emitting {
+                if emitter.parent_system == system_entity
+                    && !runtime.emitting
+                    && !runtime.one_shot_completed
+                {
                     runtime.play();
                 }
             }
@@ -308,12 +312,14 @@ pub fn sync_playback_state(
             }
         }
 
-        // sync elapsed time from the first emitter's runtime
+        // track elapsed time as the maximum system_time across all emitters
+        // this prevents the progress bar from resetting when shorter emitters wrap
+        let mut max_elapsed = 0.0_f32;
         for (emitter, runtime) in emitter_query.iter() {
             if emitter.parent_system == system_entity {
-                editor_state.elapsed_ms = runtime.system_time * 1000.0;
-                break;
+                max_elapsed = max_elapsed.max(runtime.system_time);
             }
         }
+        editor_state.elapsed_ms = max_elapsed * 1000.0;
     }
 }

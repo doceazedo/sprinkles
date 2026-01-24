@@ -456,6 +456,7 @@ fn inspect_emitter_time(ui: &mut egui::Ui, id: &str, time: &mut EmitterTime, ind
             1.0,
             indent,
         );
+        changed |= inspect_f32_positive(ui, &field_label("delay"), &mut time.delay, indent);
         changed |= inspect_bool(ui, &field_label("one_shot"), &mut time.one_shot, indent);
         changed |= inspect_f32_clamped(
             ui,

@@ -38,7 +38,9 @@ pub fn update_particle_time(
         };
 
         let lifetime = emitter_data.time.lifetime;
+        let delay = emitter_data.time.delay;
         let fixed_fps = emitter_data.time.fixed_fps;
+        let total_duration = delay + lifetime;
 
         // store previous time for phase calculation
         runtime.prev_system_time = runtime.system_time;
@@ -53,9 +55,9 @@ pub fn update_particle_time(
                 runtime.accumulated_delta -= fixed_delta;
                 runtime.system_time += fixed_delta;
 
-                // check for cycle wrap
-                if runtime.system_time >= lifetime && lifetime > 0.0 {
-                    runtime.system_time = runtime.system_time % lifetime;
+                // check for cycle wrap (accounts for delay + lifetime)
+                if runtime.system_time >= total_duration && total_duration > 0.0 {
+                    runtime.system_time = runtime.system_time % total_duration;
                     runtime.cycle += 1;
                 }
             }
@@ -63,9 +65,9 @@ pub fn update_particle_time(
             // variable timestep mode
             runtime.system_time += time.delta_secs();
 
-            // check for cycle wrap
-            if runtime.system_time >= lifetime && lifetime > 0.0 {
-                runtime.system_time = runtime.system_time % lifetime;
+            // check for cycle wrap (accounts for delay + lifetime)
+            if runtime.system_time >= total_duration && total_duration > 0.0 {
+                runtime.system_time = runtime.system_time % total_duration;
                 runtime.cycle += 1;
             }
         }

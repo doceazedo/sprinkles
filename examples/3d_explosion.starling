@@ -9,7 +9,8 @@
             time: (
                 lifetime: 1.0,
                 lifetime_randomness: 0.0,
-                one_shot: false,
+                delay: 0.0,
+                one_shot: true,
                 explosiveness: 0.9,
                 randomness: 0.0,
                 fixed_fps: 30,
@@ -83,7 +84,8 @@
             time: (
                 lifetime: 2.0,
                 lifetime_randomness: 0.0,
-                one_shot: false,
+                delay: 0.0,
+                one_shot: true,
                 explosiveness: 0.9,
                 randomness: 0.0,
                 fixed_fps: 30,

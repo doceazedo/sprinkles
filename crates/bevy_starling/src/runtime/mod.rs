@@ -67,18 +67,46 @@ impl EmitterRuntime {
         }
     }
 
-    pub fn system_phase(&self, lifetime: f32) -> f32 {
+    pub fn system_phase(&self, lifetime: f32, delay: f32) -> f32 {
         if lifetime <= 0.0 {
             return 0.0;
         }
-        (self.system_time % lifetime) / lifetime
+        let total_duration = delay + lifetime;
+        if total_duration <= 0.0 {
+            return 0.0;
+        }
+        // during delay period, phase is 0
+        let time_in_cycle = self.system_time % total_duration;
+        if time_in_cycle < delay {
+            return 0.0;
+        }
+        (time_in_cycle - delay) / lifetime
     }
 
-    pub fn prev_system_phase(&self, lifetime: f32) -> f32 {
+    pub fn prev_system_phase(&self, lifetime: f32, delay: f32) -> f32 {
         if lifetime <= 0.0 {
             return 0.0;
         }
-        (self.prev_system_time % lifetime) / lifetime
+        let total_duration = delay + lifetime;
+        if total_duration <= 0.0 {
+            return 0.0;
+        }
+        // during delay period, phase is 0
+        let time_in_cycle = self.prev_system_time % total_duration;
+        if time_in_cycle < delay {
+            return 0.0;
+        }
+        (time_in_cycle - delay) / lifetime
+    }
+
+    /// returns true if the emitter is currently past its delay period and should spawn particles
+    pub fn is_past_delay(&self, lifetime: f32, delay: f32) -> bool {
+        let total_duration = delay + lifetime;
+        if total_duration <= 0.0 {
+            return true;
+        }
+        let time_in_cycle = self.system_time % total_duration;
+        time_in_cycle >= delay
     }
 
     /// Start or resume playback

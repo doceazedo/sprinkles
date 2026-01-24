@@ -59,9 +59,9 @@ impl Plugin for StarlingPlugin {
             ),
         );
 
-        // clear the clear_requested flag immediately after extraction consumes it
-        // this prevents the flag from persisting across multiple frames
-        app.add_systems(Last, clear_particle_clear_requests);
+        // clear the clear_requested flag at the start of each frame
+        // flags set in the previous frame will have been extracted by the render app
+        app.add_systems(First, clear_particle_clear_requests);
 
         // render plugins
         app.add_plugins((

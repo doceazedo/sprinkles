@@ -78,6 +78,7 @@ pub fn extract_particle_systems(
         }
 
         let lifetime = emitter.time.lifetime;
+        let delay = emitter.time.delay;
         // use actual frame delta for physics simulation, but freeze when paused
         // fixed_fps only affects emission timing via system_phase
         let delta_time = if system_runtime.paused {
@@ -85,6 +86,9 @@ pub fn extract_particle_systems(
         } else {
             time.delta_secs()
         };
+
+        // only emit when past the delay period
+        let should_emit = runtime.emitting && runtime.is_past_delay(lifetime, delay);
 
         let draw_order = match emitter.drawing.draw_order {
             DrawOrder::Index => 0,
@@ -121,14 +125,14 @@ pub fn extract_particle_systems(
 
         let uniforms = EmitterUniforms {
             delta_time,
-            system_phase: runtime.system_phase(lifetime),
-            prev_system_phase: runtime.prev_system_phase(lifetime),
+            system_phase: runtime.system_phase(lifetime, delay),
+            prev_system_phase: runtime.prev_system_phase(lifetime, delay),
             cycle: runtime.cycle,
 
             amount: emitter.amount,
             lifetime: emitter.time.lifetime,
             lifetime_randomness: emitter.time.lifetime_randomness,
-            emitting: if runtime.emitting { 1 } else { 0 },
+            emitting: if should_emit { 1 } else { 0 },
 
             gravity: accelerations.gravity.into(),
             random_seed: runtime.random_seed,
