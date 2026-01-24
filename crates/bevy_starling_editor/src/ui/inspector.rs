@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy_egui::{egui, EguiContexts};
 use bevy_starling::asset::{
     DrawOrder, EasingCurve, EmissionShape, EmitterData, EmitterDrawPass, EmitterDrawing,
-    EmitterTime, Gradient, GradientInterpolation, ParticleMesh, ParticleProcessConfig,
+    EmitterTime, ParticleMesh, ParticleProcessConfig,
     ParticleProcessDisplay, ParticleProcessDisplayColor, ParticleProcessDisplayScale,
     ParticleProcessSpawnAccelerations, ParticleProcessSpawnPosition, ParticleProcessSpawnVelocity,
     ParticleSystemAsset, Range, SolidOrGradientColor,
@@ -11,7 +11,7 @@ use egui_remixicon::icons;
 use inflector::Inflector;
 
 use crate::state::{EditorState, InspectorState};
-use crate::ui::color_picker::color_picker;
+use crate::ui::color_picker::solid_or_gradient_color_picker;
 use crate::ui::modals::ConfirmDeleteModal;
 use crate::ui::styles::{colors, icon_button, styled_checkbox, styled_f32_input, styled_labeled_f32_input, styled_u32_input, ICON_BUTTON_SIZE, TEXT_BASE, TEXT_SM};
 use crate::viewport::ViewportLayout;
@@ -791,111 +791,20 @@ fn inspect_easing_curve(
     changed
 }
 
-fn inspect_color_rgba(
+fn inspect_solid_or_gradient_color(
     ui: &mut egui::Ui,
-    label: &str,
-    value: &mut [f32; 4],
+    _id: &str,
+    value: &mut SolidOrGradientColor,
     indent_level: u8,
+    panel_right_edge: Option<f32>,
 ) -> bool {
     let mut changed = false;
-    inspector_row(ui, label, indent_level, |ui, width| {
-        if color_picker(ui, value, width).changed() {
+
+    inspector_row(ui, "Initial color", indent_level, |ui, width| {
+        if solid_or_gradient_color_picker(ui, value, width, panel_right_edge).changed() {
             changed = true;
         }
     });
-    changed
-}
-
-fn inspect_gradient_interpolation(
-    ui: &mut egui::Ui,
-    id: &str,
-    interpolation: &mut GradientInterpolation,
-    indent_level: u8,
-) -> bool {
-    let mut changed = false;
-    inspector_row(ui, "Interpolation", indent_level, |ui, width| {
-        egui::ComboBox::from_id_salt(id)
-            .selected_text(match interpolation {
-                GradientInterpolation::Steps => "Steps",
-                GradientInterpolation::Linear => "Linear",
-                GradientInterpolation::Smoothstep => "Smoothstep",
-            })
-            .width(width)
-            .show_ui(ui, |ui| {
-                if ui
-                    .selectable_value(interpolation, GradientInterpolation::Steps, "Steps")
-                    .changed()
-                {
-                    changed = true;
-                }
-                if ui
-                    .selectable_value(interpolation, GradientInterpolation::Linear, "Linear")
-                    .changed()
-                {
-                    changed = true;
-                }
-                if ui
-                    .selectable_value(interpolation, GradientInterpolation::Smoothstep, "Smoothstep")
-                    .changed()
-                {
-                    changed = true;
-                }
-            });
-    });
-    changed
-}
-
-fn inspect_solid_or_gradient_color(
-    ui: &mut egui::Ui,
-    id: &str,
-    value: &mut SolidOrGradientColor,
-    indent_level: u8,
-) -> bool {
-    let mut changed = false;
-
-    inspector_row(ui, "Initial color", indent_level, |ui, _width| {
-        let is_solid = value.is_solid();
-
-        ui.horizontal(|ui| {
-            if ui.selectable_label(is_solid, "Solid").clicked() && !is_solid {
-                let color = match value {
-                    SolidOrGradientColor::Gradient { gradient } => gradient
-                        .stops
-                        .first()
-                        .map(|s| s.color)
-                        .unwrap_or([1.0, 1.0, 1.0, 1.0]),
-                    SolidOrGradientColor::Solid { color } => *color,
-                };
-                *value = SolidOrGradientColor::Solid { color };
-                changed = true;
-            }
-
-            if ui.selectable_label(!is_solid, "Gradient").clicked() && is_solid {
-                *value = SolidOrGradientColor::Gradient {
-                    gradient: Gradient::default(),
-                };
-                changed = true;
-            }
-        });
-    });
-
-    match value {
-        SolidOrGradientColor::Solid { color } => {
-            changed |= inspect_color_rgba(ui, "Color", color, indent_level);
-        }
-        SolidOrGradientColor::Gradient { gradient } => {
-            inspector_row(ui, "Gradient", indent_level, |ui, _width| {
-                ui.label("// TODO: gradient editor");
-            });
-
-            changed |= inspect_gradient_interpolation(
-                ui,
-                &format!("{}_interp", id),
-                &mut gradient.interpolation,
-                indent_level,
-            );
-        }
-    }
 
     changed
 }
@@ -905,6 +814,7 @@ fn inspect_display_color(
     id: &str,
     color_curves: &mut ParticleProcessDisplayColor,
     indent_level: u8,
+    panel_right_edge: Option<f32>,
 ) -> bool {
     let mut changed = false;
     inspector_category(ui, id, "Color curves", indent_level, |ui, indent| {
@@ -913,6 +823,7 @@ fn inspect_display_color(
             &format!("{}_initial_color", id),
             &mut color_curves.initial_color,
             indent,
+            panel_right_edge,
         );
     });
     changed
@@ -937,6 +848,7 @@ fn inspect_process_display(
     id: &str,
     display: &mut ParticleProcessDisplay,
     indent_level: u8,
+    panel_right_edge: Option<f32>,
 ) -> bool {
     let mut changed = false;
     inspector_category(ui, id, "Display", indent_level, |ui, indent| {
@@ -951,6 +863,7 @@ fn inspect_process_display(
             &format!("{}_color", id),
             &mut display.color_curves,
             indent,
+            panel_right_edge,
         );
     });
     changed
@@ -961,6 +874,7 @@ fn inspect_process_config(
     id: &str,
     config: &mut ParticleProcessConfig,
     indent_level: u8,
+    panel_right_edge: Option<f32>,
 ) -> bool {
     let mut changed = false;
     inspector_category(ui, id, "Process", indent_level, |ui, indent| {
@@ -987,6 +901,7 @@ fn inspect_process_config(
             &format!("{}_display", id),
             &mut config.display,
             indent,
+            panel_right_edge,
         );
     });
     changed
@@ -1032,6 +947,10 @@ pub fn draw_inspector(
             let mut toggle_emitter: Option<usize> = None;
             let mut start_editing_emitter: Option<usize> = None;
             let mut any_changed = false;
+
+            // calculate panel right edge for color picker positioning
+            let panel_rect = ui.max_rect();
+            let panel_right_edge = Some(panel_rect.right());
 
             egui::ScrollArea::vertical()
                 .auto_shrink([false, false])
@@ -1117,6 +1036,7 @@ pub fn draw_inspector(
                                     &format!("{}_process", emitter_id),
                                     &mut emitter.process,
                                     base_indent,
+                                    panel_right_edge,
                                 );
                             });
                         }

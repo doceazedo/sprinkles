@@ -1,4 +1,5 @@
 use bevy_egui::egui::{self, Color32, CornerRadius, FontId, Pos2, Rect, Response, Sense, Stroke, Vec2};
+use bevy_starling::asset::{Gradient, GradientInterpolation, GradientStop, SolidOrGradientColor};
 use egui_remixicon::icons;
 
 use super::styles::{colors, TEXT_BASE, TEXT_SM};
@@ -13,6 +14,12 @@ const SELECTOR_RECT_OVERFLOW: f32 = 2.0;
 const CHECKER_SIZE: f32 = 4.0;
 const CORNER_RADIUS: f32 = 2.0;
 const VALUE_INPUT_WIDTH: f32 = 36.0;
+
+const GRADIENT_STOP_SIZE: f32 = 24.0;
+const GRADIENT_STOP_PADDING: f32 = 4.0;
+const GRADIENT_STOP_ARROW_SIZE: f32 = 6.0;
+const GRADIENT_BAR_HEIGHT: f32 = 24.0;
+const GRADIENT_BAR_PADDING: f32 = 4.0;
 
 fn rgb_to_hsv(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
     let max = r.max(g).max(b);
@@ -103,6 +110,15 @@ fn draw_selector_rect_vertical(ui: &mut egui::Ui, center_x: f32, rect: Rect, col
     painter.rect_stroke(selector_rect, corner_radius, Stroke::new(1.0, Color32::WHITE), egui::StrokeKind::Outside);
     // inner black border
     painter.rect_stroke(selector_rect, corner_radius, Stroke::new(1.0, Color32::BLACK), egui::StrokeKind::Inside);
+}
+
+pub fn rgba_to_color32(rgba: [f32; 4]) -> Color32 {
+    Color32::from_rgba_unmultiplied(
+        (rgba[0] * 255.0) as u8,
+        (rgba[1] * 255.0) as u8,
+        (rgba[2] * 255.0) as u8,
+        (rgba[3] * 255.0) as u8,
+    )
 }
 
 fn draw_checkerboard(ui: &mut egui::Ui, rect: Rect) {
@@ -431,54 +447,205 @@ fn channel_value_input(ui: &mut egui::Ui, value: &mut f32) -> bool {
     changed
 }
 
-pub fn color_picker(ui: &mut egui::Ui, rgba: &mut [f32; 4], width: f32) -> Response {
-    let color = Color32::from_rgba_unmultiplied(
-        (rgba[0] * 255.0) as u8,
-        (rgba[1] * 255.0) as u8,
-        (rgba[2] * 255.0) as u8,
-        (rgba[3] * 255.0) as u8,
+fn color_picker_popover_content(ui: &mut egui::Ui, rgba: &mut [f32; 4], initial_rgba: [f32; 4]) -> bool {
+    let mut changed = false;
+    ui.set_width(POPOVER_WIDTH);
+    ui.spacing_mut().item_spacing = Vec2::splat(SPACING);
+
+    // convert to HSV for editing
+    let (mut hue, mut saturation, mut value) = rgb_to_hsv(rgba[0], rgba[1], rgba[2]);
+
+    let square_size = POPOVER_WIDTH - HUE_BAR_WIDTH - SPACING;
+
+    // HSV square and hue bar
+    ui.horizontal(|ui| {
+        ui.spacing_mut().item_spacing.x = SPACING;
+
+        if hsv_square(ui, hue, &mut saturation, &mut value, square_size) {
+            let (r, g, b) = hsv_to_rgb(hue, saturation, value);
+            rgba[0] = r;
+            rgba[1] = g;
+            rgba[2] = b;
+            changed = true;
+        }
+
+        if hue_bar(ui, &mut hue, square_size) {
+            let (r, g, b) = hsv_to_rgb(hue, saturation, value);
+            rgba[0] = r;
+            rgba[1] = g;
+            rgba[2] = b;
+            changed = true;
+        }
+    });
+
+    // previous/new color comparison
+    let color_box_height = 24.0;
+    let color_box_width = POPOVER_WIDTH / 2.0;
+    ui.horizontal(|ui| {
+        ui.spacing_mut().item_spacing.x = 0.0;
+
+        // previous color (left, rounded on left)
+        let (prev_rect, _) = ui.allocate_exact_size(Vec2::new(color_box_width, color_box_height), Sense::hover());
+        let prev_color = rgba_to_color32(initial_rgba);
+        let left_radius = CornerRadius { nw: CORNER_RADIUS as u8, sw: CORNER_RADIUS as u8, ne: 0, se: 0 };
+        draw_checkerboard(ui, prev_rect);
+        ui.painter().rect_filled(prev_rect, left_radius, prev_color);
+
+        // new color (right, rounded on right)
+        let (new_rect, _) = ui.allocate_exact_size(Vec2::new(color_box_width, color_box_height), Sense::hover());
+        let new_color = rgba_to_color32(*rgba);
+        let right_radius = CornerRadius { nw: 0, sw: 0, ne: CORNER_RADIUS as u8, se: CORNER_RADIUS as u8 };
+        draw_checkerboard(ui, new_rect);
+        ui.painter().rect_filled(new_rect, right_radius, new_color);
+    });
+
+    let label_width = 12.0;
+    let bar_width = POPOVER_WIDTH - label_width - SPACING - VALUE_INPUT_WIDTH - SPACING;
+
+    // R channel
+    ui.horizontal(|ui| {
+        ui.spacing_mut().item_spacing.x = SPACING;
+        ui.add_sized(Vec2::new(label_width, CHANNEL_BAR_HEIGHT), egui::Label::new(
+            egui::RichText::new("R").size(TEXT_SM).color(colors::AXIS_X)
+        ));
+        let base_g = rgba[1];
+        let base_b = rgba[2];
+        let base_a = rgba[3];
+        if channel_bar(ui, &mut rgba[0], bar_width, |t| {
+            Color32::from_rgba_unmultiplied(
+                (t * 255.0) as u8,
+                (base_g * 255.0) as u8,
+                (base_b * 255.0) as u8,
+                (base_a * 255.0) as u8,
+            )
+        }, false) {
+            changed = true;
+        }
+        if channel_value_input(ui, &mut rgba[0]) {
+            changed = true;
+        }
+    });
+
+    // G channel
+    ui.horizontal(|ui| {
+        ui.spacing_mut().item_spacing.x = SPACING;
+        ui.add_sized(Vec2::new(label_width, CHANNEL_BAR_HEIGHT), egui::Label::new(
+            egui::RichText::new("G").size(TEXT_SM).color(colors::AXIS_Y)
+        ));
+        let base_r = rgba[0];
+        let base_b = rgba[2];
+        let base_a = rgba[3];
+        if channel_bar(ui, &mut rgba[1], bar_width, |t| {
+            Color32::from_rgba_unmultiplied(
+                (base_r * 255.0) as u8,
+                (t * 255.0) as u8,
+                (base_b * 255.0) as u8,
+                (base_a * 255.0) as u8,
+            )
+        }, false) {
+            changed = true;
+        }
+        if channel_value_input(ui, &mut rgba[1]) {
+            changed = true;
+        }
+    });
+
+    // B channel
+    ui.horizontal(|ui| {
+        ui.spacing_mut().item_spacing.x = SPACING;
+        ui.add_sized(Vec2::new(label_width, CHANNEL_BAR_HEIGHT), egui::Label::new(
+            egui::RichText::new("B").size(TEXT_SM).color(colors::AXIS_Z)
+        ));
+        let base_r = rgba[0];
+        let base_g = rgba[1];
+        let base_a = rgba[3];
+        if channel_bar(ui, &mut rgba[2], bar_width, |t| {
+            Color32::from_rgba_unmultiplied(
+                (base_r * 255.0) as u8,
+                (base_g * 255.0) as u8,
+                (t * 255.0) as u8,
+                (base_a * 255.0) as u8,
+            )
+        }, false) {
+            changed = true;
+        }
+        if channel_value_input(ui, &mut rgba[2]) {
+            changed = true;
+        }
+    });
+
+    // A channel
+    ui.horizontal(|ui| {
+        ui.spacing_mut().item_spacing.x = SPACING;
+        ui.add_sized(Vec2::new(label_width, CHANNEL_BAR_HEIGHT), egui::Label::new(
+            egui::RichText::new("A").size(TEXT_SM).color(colors::TEXT_MUTED)
+        ));
+        let base_r = rgba[0];
+        let base_g = rgba[1];
+        let base_b = rgba[2];
+        if channel_bar(ui, &mut rgba[3], bar_width, |t| {
+            Color32::from_rgba_unmultiplied(
+                (base_r * 255.0) as u8,
+                (base_g * 255.0) as u8,
+                (base_b * 255.0) as u8,
+                (t * 255.0) as u8,
+            )
+        }, true) {
+            changed = true;
+        }
+        if channel_value_input(ui, &mut rgba[3]) {
+            changed = true;
+        }
+    });
+
+    changed
+}
+
+fn draw_color_preview_button(ui: &mut egui::Ui, rect: Rect, color: Color32) {
+    let corner_radius = CornerRadius::same(CORNER_RADIUS as u8);
+    let mask_r = CORNER_RADIUS + 1.0;
+    let bg = colors::PANEL_BG;
+
+    ui.painter().rect_filled(rect, corner_radius, bg);
+    draw_checkerboard(ui, rect);
+    ui.painter().rect_filled(rect, corner_radius, color);
+
+    // draw corner masks
+    let corner_rects = [
+        Rect::from_min_size(rect.min, Vec2::splat(mask_r)),
+        Rect::from_min_size(Pos2::new(rect.max.x - mask_r, rect.min.y), Vec2::splat(mask_r)),
+        Rect::from_min_size(Pos2::new(rect.min.x, rect.max.y - mask_r), Vec2::splat(mask_r)),
+        Rect::from_min_size(Pos2::new(rect.max.x - mask_r, rect.max.y - mask_r), Vec2::splat(mask_r)),
+    ];
+
+    let corner_centers = [
+        Pos2::new(rect.min.x + mask_r, rect.min.y + mask_r),
+        Pos2::new(rect.max.x - mask_r, rect.min.y + mask_r),
+        Pos2::new(rect.min.x + mask_r, rect.max.y - mask_r),
+        Pos2::new(rect.max.x - mask_r, rect.max.y - mask_r),
+    ];
+
+    for i in 0..4 {
+        ui.painter().rect_filled(corner_rects[i], CornerRadius::ZERO, bg);
+        ui.painter().circle_filled(corner_centers[i], mask_r, color);
+    }
+
+    ui.painter().rect_stroke(
+        rect,
+        corner_radius,
+        Stroke::new(1.0, colors::BORDER),
+        egui::StrokeKind::Inside,
     );
+}
+
+pub fn color_picker(ui: &mut egui::Ui, rgba: &mut [f32; 4], width: f32, panel_right_edge: Option<f32>) -> Response {
+    let color = rgba_to_color32(*rgba);
 
     let button_height = 24.0;
     let (button_rect, mut button_response) = ui.allocate_exact_size(Vec2::new(width, button_height), Sense::click());
-    let corner_radius = CornerRadius::same(CORNER_RADIUS as u8);
 
-    // draw button with checkerboard background and color
     if ui.is_rect_visible(button_rect) {
-        let r = CORNER_RADIUS;
-        let mask_r = r + 1.0;
-        let bg = colors::PANEL_BG;
-
-        ui.painter().rect_filled(button_rect, corner_radius, bg);
-        draw_checkerboard(ui, button_rect);
-        ui.painter().rect_filled(button_rect, corner_radius, color);
-
-        // draw corner masks
-        let corner_rects = [
-            Rect::from_min_size(button_rect.min, Vec2::splat(mask_r)),
-            Rect::from_min_size(Pos2::new(button_rect.max.x - mask_r, button_rect.min.y), Vec2::splat(mask_r)),
-            Rect::from_min_size(Pos2::new(button_rect.min.x, button_rect.max.y - mask_r), Vec2::splat(mask_r)),
-            Rect::from_min_size(Pos2::new(button_rect.max.x - mask_r, button_rect.max.y - mask_r), Vec2::splat(mask_r)),
-        ];
-
-        let corner_centers = [
-            Pos2::new(button_rect.min.x + mask_r, button_rect.min.y + mask_r),
-            Pos2::new(button_rect.max.x - mask_r, button_rect.min.y + mask_r),
-            Pos2::new(button_rect.min.x + mask_r, button_rect.max.y - mask_r),
-            Pos2::new(button_rect.max.x - mask_r, button_rect.max.y - mask_r),
-        ];
-
-        for i in 0..4 {
-            ui.painter().rect_filled(corner_rects[i], CornerRadius::ZERO, bg);
-            ui.painter().circle_filled(corner_centers[i], mask_r, color);
-        }
-
-        ui.painter().rect_stroke(
-            button_rect,
-            corner_radius,
-            Stroke::new(1.0, colors::BORDER),
-            egui::StrokeKind::Inside,
-        );
+        draw_color_preview_button(ui, button_rect, color);
     }
 
     let popup_id = ui.make_persistent_id("color_picker_popup");
@@ -498,173 +665,23 @@ pub fn color_picker(ui: &mut egui::Ui, rgba: &mut [f32; 4], width: f32) -> Respo
     let mut changed = false;
 
     if is_open {
-        let popup_pos = button_rect.left_bottom() + Vec2::new(0.0, 4.0);
+        // position popup to the right of the panel if specified, otherwise below the button
+        let popup_pos = if let Some(panel_right) = panel_right_edge {
+            Pos2::new(panel_right + SPACING, button_rect.min.y)
+        } else {
+            button_rect.left_bottom() + Vec2::new(0.0, 4.0)
+        };
 
         let area_response = egui::Area::new(popup_id)
             .order(egui::Order::Foreground)
             .fixed_pos(popup_pos)
             .show(ui.ctx(), |ui| {
                 egui::Frame::popup(ui.style()).show(ui, |ui| {
-                    ui.set_width(POPOVER_WIDTH);
-                    ui.spacing_mut().item_spacing = Vec2::splat(SPACING);
+                    if color_picker_popover_content(ui, rgba, initial_rgba) {
+                        changed = true;
+                    }
 
-                    // convert to HSV for editing
-                    let (mut hue, mut saturation, mut value) = rgb_to_hsv(rgba[0], rgba[1], rgba[2]);
-
-                    let square_size = POPOVER_WIDTH - HUE_BAR_WIDTH - SPACING;
-
-                    // HSV square and hue bar
-                    ui.horizontal(|ui| {
-                        ui.spacing_mut().item_spacing.x = SPACING;
-
-                        if hsv_square(ui, hue, &mut saturation, &mut value, square_size) {
-                            let (r, g, b) = hsv_to_rgb(hue, saturation, value);
-                            rgba[0] = r;
-                            rgba[1] = g;
-                            rgba[2] = b;
-                            changed = true;
-                        }
-
-                        if hue_bar(ui, &mut hue, square_size) {
-                            let (r, g, b) = hsv_to_rgb(hue, saturation, value);
-                            rgba[0] = r;
-                            rgba[1] = g;
-                            rgba[2] = b;
-                            changed = true;
-                        }
-                    });
-
-                    // Previous/new color comparison
-                    let color_box_height = 24.0;
-                    let color_box_width = POPOVER_WIDTH / 2.0;
-                    ui.horizontal(|ui| {
-                        ui.spacing_mut().item_spacing.x = 0.0;
-
-                        // Previous color (left, rounded on left)
-                        let (prev_rect, _) = ui.allocate_exact_size(Vec2::new(color_box_width, color_box_height), Sense::hover());
-                        let prev_color = Color32::from_rgba_unmultiplied(
-                            (initial_rgba[0] * 255.0) as u8,
-                            (initial_rgba[1] * 255.0) as u8,
-                            (initial_rgba[2] * 255.0) as u8,
-                            (initial_rgba[3] * 255.0) as u8,
-                        );
-                        let left_radius = CornerRadius { nw: CORNER_RADIUS as u8, sw: CORNER_RADIUS as u8, ne: 0, se: 0 };
-                        draw_checkerboard(ui, prev_rect);
-                        ui.painter().rect_filled(prev_rect, left_radius, prev_color);
-
-                        // New color (right, rounded on right)
-                        let (new_rect, _) = ui.allocate_exact_size(Vec2::new(color_box_width, color_box_height), Sense::hover());
-                        let new_color = Color32::from_rgba_unmultiplied(
-                            (rgba[0] * 255.0) as u8,
-                            (rgba[1] * 255.0) as u8,
-                            (rgba[2] * 255.0) as u8,
-                            (rgba[3] * 255.0) as u8,
-                        );
-                        let right_radius = CornerRadius { nw: 0, sw: 0, ne: CORNER_RADIUS as u8, se: CORNER_RADIUS as u8 };
-                        draw_checkerboard(ui, new_rect);
-                        ui.painter().rect_filled(new_rect, right_radius, new_color);
-                    });
-
-                    let label_width = 12.0;
-                    let bar_width = POPOVER_WIDTH - label_width - SPACING - VALUE_INPUT_WIDTH - SPACING;
-
-                    // R channel
-                    ui.horizontal(|ui| {
-                        ui.spacing_mut().item_spacing.x = SPACING;
-                        ui.add_sized(Vec2::new(label_width, CHANNEL_BAR_HEIGHT), egui::Label::new(
-                            egui::RichText::new("R").size(TEXT_SM).color(colors::AXIS_X)
-                        ));
-                        let base_g = rgba[1];
-                        let base_b = rgba[2];
-                        let base_a = rgba[3];
-                        if channel_bar(ui, &mut rgba[0], bar_width, |t| {
-                            Color32::from_rgba_unmultiplied(
-                                (t * 255.0) as u8,
-                                (base_g * 255.0) as u8,
-                                (base_b * 255.0) as u8,
-                                (base_a * 255.0) as u8,
-                            )
-                        }, false) {
-                            changed = true;
-                        }
-                        if channel_value_input(ui, &mut rgba[0]) {
-                            changed = true;
-                        }
-                    });
-
-                    // G channel
-                    ui.horizontal(|ui| {
-                        ui.spacing_mut().item_spacing.x = SPACING;
-                        ui.add_sized(Vec2::new(label_width, CHANNEL_BAR_HEIGHT), egui::Label::new(
-                            egui::RichText::new("G").size(TEXT_SM).color(colors::AXIS_Y)
-                        ));
-                        let base_r = rgba[0];
-                        let base_b = rgba[2];
-                        let base_a = rgba[3];
-                        if channel_bar(ui, &mut rgba[1], bar_width, |t| {
-                            Color32::from_rgba_unmultiplied(
-                                (base_r * 255.0) as u8,
-                                (t * 255.0) as u8,
-                                (base_b * 255.0) as u8,
-                                (base_a * 255.0) as u8,
-                            )
-                        }, false) {
-                            changed = true;
-                        }
-                        if channel_value_input(ui, &mut rgba[1]) {
-                            changed = true;
-                        }
-                    });
-
-                    // B channel
-                    ui.horizontal(|ui| {
-                        ui.spacing_mut().item_spacing.x = SPACING;
-                        ui.add_sized(Vec2::new(label_width, CHANNEL_BAR_HEIGHT), egui::Label::new(
-                            egui::RichText::new("B").size(TEXT_SM).color(colors::AXIS_Z)
-                        ));
-                        let base_r = rgba[0];
-                        let base_g = rgba[1];
-                        let base_a = rgba[3];
-                        if channel_bar(ui, &mut rgba[2], bar_width, |t| {
-                            Color32::from_rgba_unmultiplied(
-                                (base_r * 255.0) as u8,
-                                (base_g * 255.0) as u8,
-                                (t * 255.0) as u8,
-                                (base_a * 255.0) as u8,
-                            )
-                        }, false) {
-                            changed = true;
-                        }
-                        if channel_value_input(ui, &mut rgba[2]) {
-                            changed = true;
-                        }
-                    });
-
-                    // A channel
-                    ui.horizontal(|ui| {
-                        ui.spacing_mut().item_spacing.x = SPACING;
-                        ui.add_sized(Vec2::new(label_width, CHANNEL_BAR_HEIGHT), egui::Label::new(
-                            egui::RichText::new("A").size(TEXT_SM).color(colors::TEXT_MUTED)
-                        ));
-                        let base_r = rgba[0];
-                        let base_g = rgba[1];
-                        let base_b = rgba[2];
-                        if channel_bar(ui, &mut rgba[3], bar_width, |t| {
-                            Color32::from_rgba_unmultiplied(
-                                (base_r * 255.0) as u8,
-                                (base_g * 255.0) as u8,
-                                (base_b * 255.0) as u8,
-                                (t * 255.0) as u8,
-                            )
-                        }, true) {
-                            changed = true;
-                        }
-                        if channel_value_input(ui, &mut rgba[3]) {
-                            changed = true;
-                        }
-                    });
-
-                    // Confirm button
+                    // confirm button
                     ui.add_space(SPACING);
                     if ui.add_sized(
                         Vec2::new(POPOVER_WIDTH, 24.0),
@@ -675,7 +692,7 @@ pub fn color_picker(ui: &mut egui::Ui, rgba: &mut [f32; 4], width: f32) -> Respo
                 });
             });
 
-        // Close on click outside (check for new press, not release)
+        // close on click outside (check for new press, not release)
         let dominated = ui.input(|i| i.pointer.any_pressed());
         if dominated {
             if let Some(pos) = ui.input(|i| i.pointer.press_origin()) {
@@ -692,4 +709,763 @@ pub fn color_picker(ui: &mut egui::Ui, rgba: &mut [f32; 4], width: f32) -> Respo
     }
 
     button_response
+}
+
+fn lerp_color(a: [f32; 4], b: [f32; 4], t: f32) -> [f32; 4] {
+    [
+        a[0] + (b[0] - a[0]) * t,
+        a[1] + (b[1] - a[1]) * t,
+        a[2] + (b[2] - a[2]) * t,
+        a[3] + (b[3] - a[3]) * t,
+    ]
+}
+
+fn sample_gradient_at(gradient: &Gradient, position: f32) -> [f32; 4] {
+    if gradient.stops.is_empty() {
+        return [1.0, 1.0, 1.0, 1.0];
+    }
+
+    let mut sorted_stops: Vec<&GradientStop> = gradient.stops.iter().collect();
+    sorted_stops.sort_by(|a, b| a.position.partial_cmp(&b.position).unwrap());
+
+    // find surrounding stops
+    let mut left: Option<&GradientStop> = None;
+    let mut right: Option<&GradientStop> = None;
+
+    for stop in &sorted_stops {
+        if stop.position <= position {
+            left = Some(stop);
+        }
+        if stop.position >= position && right.is_none() {
+            right = Some(stop);
+        }
+    }
+
+    let left = left.unwrap_or(sorted_stops.first().unwrap());
+    let right = right.unwrap_or(sorted_stops.last().unwrap());
+
+    if left.position == right.position {
+        return left.color;
+    }
+
+    let local_t = (position - left.position) / (right.position - left.position);
+
+    match gradient.interpolation {
+        GradientInterpolation::Steps => left.color,
+        GradientInterpolation::Linear => lerp_color(left.color, right.color, local_t),
+        GradientInterpolation::Smoothstep => {
+            let smooth_t = local_t * local_t * (3.0 - 2.0 * local_t);
+            lerp_color(left.color, right.color, smooth_t)
+        }
+    }
+}
+
+fn draw_gradient_bar(ui: &mut egui::Ui, rect: Rect, gradient: &Gradient) {
+    let corner_radius = CornerRadius::same(CORNER_RADIUS as u8);
+    let bg = colors::PANEL_BG;
+    let mask_r = CORNER_RADIUS + 1.0;
+
+    ui.painter().rect_filled(rect, corner_radius, bg);
+    draw_checkerboard(ui, rect);
+
+    if gradient.stops.is_empty() {
+        return;
+    }
+
+    // build gradient mesh by sampling at regular intervals
+    let mut mesh = egui::Mesh::default();
+    let num_samples = 64;
+
+    for i in 0..num_samples {
+        let t0 = i as f32 / num_samples as f32;
+        let t1 = (i + 1) as f32 / num_samples as f32;
+
+        let x0 = rect.min.x + t0 * rect.width();
+        let x1 = rect.min.x + t1 * rect.width();
+
+        let c0 = rgba_to_color32(sample_gradient_at(gradient, t0));
+        let c1 = rgba_to_color32(sample_gradient_at(gradient, t1));
+
+        let idx = mesh.vertices.len() as u32;
+        mesh.vertices.push(egui::epaint::Vertex { pos: Pos2::new(x0, rect.min.y), uv: egui::epaint::WHITE_UV, color: c0 });
+        mesh.vertices.push(egui::epaint::Vertex { pos: Pos2::new(x1, rect.min.y), uv: egui::epaint::WHITE_UV, color: c1 });
+        mesh.vertices.push(egui::epaint::Vertex { pos: Pos2::new(x0, rect.max.y), uv: egui::epaint::WHITE_UV, color: c0 });
+        mesh.vertices.push(egui::epaint::Vertex { pos: Pos2::new(x1, rect.max.y), uv: egui::epaint::WHITE_UV, color: c1 });
+        mesh.indices.extend_from_slice(&[idx, idx + 1, idx + 2, idx + 1, idx + 3, idx + 2]);
+    }
+
+    // draw corner covers
+    let first_color = rgba_to_color32(sample_gradient_at(gradient, 0.0));
+    let last_color = rgba_to_color32(sample_gradient_at(gradient, 1.0));
+
+    let corners = [
+        (Pos2::new(rect.min.x + mask_r, rect.min.y + mask_r), first_color),
+        (Pos2::new(rect.max.x - mask_r, rect.min.y + mask_r), last_color),
+        (Pos2::new(rect.min.x + mask_r, rect.max.y - mask_r), first_color),
+        (Pos2::new(rect.max.x - mask_r, rect.max.y - mask_r), last_color),
+    ];
+
+    let corner_rects = [
+        Rect::from_min_size(rect.min, Vec2::splat(mask_r)),
+        Rect::from_min_size(Pos2::new(rect.max.x - mask_r, rect.min.y), Vec2::splat(mask_r)),
+        Rect::from_min_size(Pos2::new(rect.min.x, rect.max.y - mask_r), Vec2::splat(mask_r)),
+        Rect::from_min_size(Pos2::new(rect.max.x - mask_r, rect.max.y - mask_r), Vec2::splat(mask_r)),
+    ];
+
+    let painter = ui.painter();
+    painter.add(egui::Shape::mesh(mesh));
+    for i in 0..4 {
+        painter.rect_filled(corner_rects[i], CornerRadius::ZERO, bg);
+        painter.circle_filled(corners[i].0, mask_r, corners[i].1);
+    }
+    painter.rect_stroke(rect, corner_radius, Stroke::new(1.0, colors::BORDER), egui::StrokeKind::Inside);
+}
+
+fn draw_stop_tooltip(
+    ui: &mut egui::Ui,
+    center_x: f32,
+    bar_center_y: f32,
+    color: [f32; 4],
+    stop_index: usize,
+    base_id: egui::Id,
+) -> Rect {
+    let tooltip_width = GRADIENT_STOP_SIZE + GRADIENT_STOP_PADDING * 2.0;
+    let body_height = GRADIENT_STOP_SIZE + GRADIENT_STOP_PADDING * 2.0;
+    let tooltip_height = body_height + GRADIENT_STOP_ARROW_SIZE;
+
+    // position tooltip so arrow tip touches bar center
+    let arrow_tip_y = bar_center_y;
+    let tooltip_rect = Rect::from_min_size(
+        Pos2::new(center_x - tooltip_width / 2.0, arrow_tip_y),
+        Vec2::new(tooltip_width, tooltip_height),
+    );
+
+    let corner_radius = CornerRadius::same(CORNER_RADIUS as u8);
+    let color_corner_radius = CornerRadius::same(CORNER_RADIUS as u8);
+    let bg = colors::PANEL_BG;
+
+    // arrow at top pointing up
+    let arrow_tip = Pos2::new(center_x, arrow_tip_y);
+    let arrow_left = Pos2::new(center_x - GRADIENT_STOP_ARROW_SIZE, arrow_tip_y + GRADIENT_STOP_ARROW_SIZE);
+    let arrow_right = Pos2::new(center_x + GRADIENT_STOP_ARROW_SIZE, arrow_tip_y + GRADIENT_STOP_ARROW_SIZE);
+
+    // body rect below arrow
+    let body_rect = Rect::from_min_size(
+        Pos2::new(tooltip_rect.min.x, arrow_tip_y + GRADIENT_STOP_ARROW_SIZE),
+        Vec2::new(tooltip_width, body_height),
+    );
+
+    // draw color preview square inside body
+    let square_rect = Rect::from_center_size(
+        body_rect.center(),
+        Vec2::splat(GRADIENT_STOP_SIZE),
+    );
+
+    // full alpha color for border and left half
+    let full_alpha_color = Color32::from_rgba_unmultiplied(
+        (color[0] * 255.0) as u8,
+        (color[1] * 255.0) as u8,
+        (color[2] * 255.0) as u8,
+        255,
+    );
+    let actual_color = rgba_to_color32(color);
+
+    // split into left and right halves
+    let right_half = Rect::from_min_max(
+        Pos2::new(square_rect.center().x, square_rect.min.y),
+        square_rect.max,
+    );
+    let left_half = Rect::from_min_max(
+        square_rect.min,
+        Pos2::new(square_rect.center().x, square_rect.max.y),
+    );
+
+    // draw checkerboard behind both halves for transparency
+    draw_checkerboard(ui, square_rect);
+
+    // use middle layer so tooltips render above the icon button but below popovers
+    let layer_id = egui::LayerId::new(egui::Order::Middle, base_id.with(("tooltip_layer", stop_index)));
+    let painter = ui.ctx().layer_painter(layer_id);
+
+    // draw body with stroke first
+    painter.rect_filled(body_rect, corner_radius, bg);
+    painter.rect_stroke(body_rect, corner_radius, Stroke::new(1.0, colors::BORDER), egui::StrokeKind::Inside);
+
+    // draw arrow on top to cover the body's top stroke where they connect
+    painter.add(egui::Shape::convex_polygon(
+        vec![arrow_left, arrow_tip, arrow_right],
+        bg,
+        Stroke::NONE,
+    ));
+
+    // draw arrow border (left and right edges only)
+    painter.line_segment([arrow_left, arrow_tip], Stroke::new(1.0, colors::BORDER));
+    painter.line_segment([arrow_tip, arrow_right], Stroke::new(1.0, colors::BORDER));
+
+    // draw left half (full alpha) with left corner radius
+    let left_corner_radius = CornerRadius { nw: color_corner_radius.nw, sw: color_corner_radius.sw, ne: 0, se: 0 };
+    painter.rect_filled(left_half, left_corner_radius, full_alpha_color);
+
+    // draw right half (actual alpha) with right corner radius
+    let right_corner_radius = CornerRadius { nw: 0, sw: 0, ne: color_corner_radius.ne, se: color_corner_radius.se };
+    painter.rect_filled(right_half, right_corner_radius, actual_color);
+
+    // draw border around square with corner radius
+    painter.rect_stroke(square_rect, color_corner_radius, Stroke::new(1.0, full_alpha_color), egui::StrokeKind::Inside);
+
+    tooltip_rect
+}
+
+struct GradientPickerResult {
+    changed: bool,
+    stop_to_open: Option<usize>,
+}
+
+fn gradient_picker(
+    ui: &mut egui::Ui,
+    gradient: &mut Gradient,
+    width: f32,
+    base_id: egui::Id,
+) -> GradientPickerResult {
+    let mut result = GradientPickerResult {
+        changed: false,
+        stop_to_open: None,
+    };
+
+    // calculate total height needed for bar + tooltip
+    // tooltip arrow starts 4px up from bar bottom
+    let tooltip_height = GRADIENT_STOP_SIZE + GRADIENT_STOP_PADDING * 2.0 + GRADIENT_STOP_ARROW_SIZE;
+    let total_height = (GRADIENT_BAR_HEIGHT - GRADIENT_BAR_PADDING) + tooltip_height;
+
+    let (total_rect, _) = ui.allocate_exact_size(Vec2::new(width, total_height), Sense::hover());
+
+    // bar at top
+    let bar_rect = Rect::from_min_size(
+        total_rect.min,
+        Vec2::new(width, GRADIENT_BAR_HEIGHT),
+    );
+
+    // draw gradient bar
+    if ui.is_rect_visible(bar_rect) {
+        draw_gradient_bar(ui, bar_rect, gradient);
+    }
+
+    // calculate the inner area for stop positioning (with padding)
+    let inner_left = bar_rect.min.x + GRADIENT_BAR_PADDING;
+    let inner_width = bar_rect.width() - GRADIENT_BAR_PADDING * 2.0;
+
+    // helper to convert position (0.0-1.0) to screen x
+    let position_to_x = |pos: f32| -> f32 {
+        inner_left + pos * inner_width
+    };
+
+    // helper to convert screen x to position (0.0-1.0)
+    let x_to_position = |x: f32| -> f32 {
+        ((x - inner_left) / inner_width).clamp(0.0, 1.0)
+    };
+
+    // handle click on bar to add new stop
+    let bar_response = ui.interact(bar_rect, base_id.with("bar"), Sense::click());
+    if bar_response.clicked() {
+        if let Some(pos) = ui.input(|i| i.pointer.interact_pos()) {
+            let position = x_to_position(pos.x);
+
+            // check if click is near an existing stop
+            let near_stop = gradient.stops.iter().any(|stop| {
+                (stop.position - position).abs() < 0.05
+            });
+
+            if !near_stop {
+                // interpolate color at this position
+                let color = sample_gradient_at(gradient, position);
+                gradient.stops.push(GradientStop { color, position });
+                result.changed = true;
+            }
+        }
+    }
+
+    // draw stop tooltips and handle interactions
+    let dragging_stop_id = base_id.with("dragging_stop");
+    let mut dragging_stop: Option<usize> = ui.data(|d| d.get_temp(dragging_stop_id));
+    let mut stop_to_remove: Option<usize> = None;
+    let can_remove_stop = gradient.stops.len() > 2;
+
+    for (i, stop) in gradient.stops.iter_mut().enumerate() {
+        let stop_x = position_to_x(stop.position);
+        let tooltip_anchor_y = bar_rect.max.y - GRADIENT_BAR_PADDING;
+
+        let tooltip_rect = draw_stop_tooltip(ui, stop_x, tooltip_anchor_y, stop.color, i, base_id);
+
+        let stop_id = base_id.with(("stop", i));
+        let stop_response = ui.interact(tooltip_rect, stop_id, Sense::click_and_drag());
+
+        // handle click to open color picker
+        if stop_response.clicked() {
+            result.stop_to_open = Some(i);
+        }
+
+        // handle drag to reposition
+        if stop_response.drag_started() {
+            dragging_stop = Some(i);
+            ui.data_mut(|d| d.insert_temp(dragging_stop_id, i));
+        }
+
+        if dragging_stop == Some(i) && stop_response.dragged() {
+            if let Some(pos) = ui.input(|i| i.pointer.interact_pos()) {
+                let new_position = x_to_position(pos.x);
+                stop.position = new_position;
+                result.changed = true;
+            }
+        }
+
+        if stop_response.drag_stopped() {
+            if dragging_stop == Some(i) {
+                ui.data_mut(|d| d.remove::<usize>(dragging_stop_id));
+                dragging_stop = None;
+            }
+        }
+
+        // handle right-click to remove (if more than 2 stops)
+        if stop_response.secondary_clicked() && can_remove_stop {
+            stop_to_remove = Some(i);
+        }
+    }
+
+    if let Some(idx) = stop_to_remove {
+        gradient.stops.remove(idx);
+        result.changed = true;
+    }
+
+    result
+}
+
+fn fill_type_popover_option(
+    ui: &mut egui::Ui,
+    label: &str,
+    is_selected: bool,
+) -> bool {
+    let height = 24.0;
+    let width = ui.available_width();
+    let (rect, response) = ui.allocate_exact_size(Vec2::new(width, height), Sense::click());
+
+    if ui.is_rect_visible(rect) {
+        if response.hovered() {
+            ui.painter().rect_filled(rect, CornerRadius::same(2), colors::hover_bg());
+        }
+
+        let text_x = rect.left() + 8.0;
+        if is_selected {
+            ui.painter().text(
+                Pos2::new(text_x, rect.center().y),
+                egui::Align2::LEFT_CENTER,
+                icons::CHECK_LINE,
+                FontId::proportional(TEXT_SM),
+                colors::TEXT_MUTED,
+            );
+        }
+
+        ui.painter().text(
+            Pos2::new(text_x + 20.0, rect.center().y),
+            egui::Align2::LEFT_CENTER,
+            label,
+            FontId::proportional(TEXT_BASE),
+            colors::TEXT_MUTED,
+        );
+    }
+
+    response.clicked()
+}
+
+fn fill_type_popover_option_enabled(
+    ui: &mut egui::Ui,
+    label: &str,
+    is_selected: bool,
+    enabled: bool,
+) -> bool {
+    let height = 24.0;
+    let width = ui.available_width();
+    let sense = if enabled { Sense::click() } else { Sense::hover() };
+    let (rect, response) = ui.allocate_exact_size(Vec2::new(width, height), sense);
+
+    if ui.is_rect_visible(rect) {
+        if enabled && response.hovered() {
+            ui.painter().rect_filled(rect, CornerRadius::same(2), colors::hover_bg());
+        }
+
+        let text_color = if enabled { colors::TEXT_MUTED } else { colors::TEXT_MUTED.gamma_multiply(0.4) };
+
+        let text_x = rect.left() + 8.0;
+        if is_selected {
+            ui.painter().text(
+                Pos2::new(text_x, rect.center().y),
+                egui::Align2::LEFT_CENTER,
+                icons::CHECK_LINE,
+                FontId::proportional(TEXT_SM),
+                text_color,
+            );
+        }
+
+        ui.painter().text(
+            Pos2::new(text_x + 20.0, rect.center().y),
+            egui::Align2::LEFT_CENTER,
+            label,
+            FontId::proportional(TEXT_BASE),
+            text_color,
+        );
+    }
+
+    enabled && response.clicked()
+}
+
+pub fn solid_or_gradient_color_picker(
+    ui: &mut egui::Ui,
+    value: &mut SolidOrGradientColor,
+    width: f32,
+    panel_right_edge: Option<f32>,
+) -> Response {
+    let base_id = ui.make_persistent_id("solid_or_gradient_picker");
+    let fill_popup_id = base_id.with("fill_popup");
+    let stop_popup_id = base_id.with("stop_popup");
+
+    let icon_button_width = 24.0;
+    let picker_width = width - icon_button_width - SPACING;
+
+    let mut changed = false;
+
+    // calculate the total height needed (gradient mode is taller)
+    let total_height = if value.is_gradient() {
+        let tooltip_height = GRADIENT_STOP_SIZE + GRADIENT_STOP_PADDING * 2.0 + GRADIENT_STOP_ARROW_SIZE;
+        (GRADIENT_BAR_HEIGHT - GRADIENT_BAR_PADDING) + tooltip_height
+    } else {
+        24.0
+    };
+
+    let (total_rect, _) = ui.allocate_exact_size(Vec2::new(width, total_height), Sense::hover());
+
+    // create child ui for the picker area
+    let picker_rect = Rect::from_min_size(total_rect.min, Vec2::new(picker_width, total_height));
+    let mut child_ui = ui.new_child(egui::UiBuilder::new().max_rect(picker_rect));
+
+    // draw color or gradient picker in child ui
+    {
+        let ui = &mut child_ui;
+        match value {
+            SolidOrGradientColor::Solid { color } => {
+                if color_picker(ui, color, picker_width, panel_right_edge).changed() {
+                    changed = true;
+                }
+            }
+            SolidOrGradientColor::Gradient { gradient } => {
+                let result = gradient_picker(ui, gradient, picker_width, base_id);
+                if result.changed {
+                    changed = true;
+                }
+
+                // handle opening color picker for a stop
+                if let Some(stop_idx) = result.stop_to_open {
+                    let is_stop_open = ui.data(|d| d.get_temp::<Option<usize>>(stop_popup_id).unwrap_or(None));
+                    if is_stop_open == Some(stop_idx) {
+                        ui.data_mut(|d| d.insert_temp::<Option<usize>>(stop_popup_id, None));
+                    } else {
+                        ui.data_mut(|d| d.insert_temp(stop_popup_id, Some(stop_idx)));
+                        // store initial color for the stop
+                        let initial_color = gradient.stops[stop_idx].color;
+                        ui.data_mut(|d| d.insert_temp(stop_popup_id.with("initial"), initial_color));
+                    }
+                }
+
+                // show stop color picker popup if open
+                let open_stop_idx: Option<usize> = ui.data(|d| d.get_temp(stop_popup_id).unwrap_or(None));
+                let mut stop_to_remove: Option<usize> = None;
+                if let Some(stop_idx) = open_stop_idx {
+                    if stop_idx < gradient.stops.len() {
+                        // position popup to the right of the panel if specified, otherwise below the gradient
+                        let popup_pos = if let Some(panel_right) = panel_right_edge {
+                            Pos2::new(panel_right + SPACING, total_rect.min.y)
+                        } else {
+                            let inner_left = total_rect.min.x + GRADIENT_BAR_PADDING;
+                            let inner_width = picker_width - GRADIENT_BAR_PADDING * 2.0;
+                            let stop_x = inner_left + gradient.stops[stop_idx].position * inner_width;
+                            Pos2::new(stop_x - POPOVER_WIDTH / 2.0, total_rect.max.y + SPACING)
+                        };
+
+                        let initial_color = ui.data(|d| d.get_temp::<[f32; 4]>(stop_popup_id.with("initial")).unwrap_or(gradient.stops[stop_idx].color));
+                        let can_remove = gradient.stops.len() > 1;
+
+                        let area_response = egui::Area::new(stop_popup_id.with("area"))
+                            .order(egui::Order::Foreground)
+                            .fixed_pos(popup_pos)
+                            .show(ui.ctx(), |ui| {
+                                egui::Frame::popup(ui.style()).show(ui, |ui| {
+                                    if color_picker_popover_content(ui, &mut gradient.stops[stop_idx].color, initial_color) {
+                                        changed = true;
+                                    }
+
+                                    // buttons row
+                                    ui.add_space(SPACING);
+                                    let button_height = 24.0;
+                                    let confirm_width = POPOVER_WIDTH - button_height - SPACING;
+
+                                    // allocate the full row height first
+                                    let (row_rect, _) = ui.allocate_exact_size(Vec2::new(POPOVER_WIDTH, button_height), Sense::hover());
+
+                                    // round to pixel boundaries
+                                    let row_min_x = row_rect.min.x.round();
+                                    let row_min_y = row_rect.min.y.round();
+
+                                    // remove button (always visible, disabled if only 1 stop)
+                                    let remove_rect = Rect::from_min_size(
+                                        Pos2::new(row_min_x, row_min_y),
+                                        Vec2::splat(button_height)
+                                    );
+                                    let remove_response = ui.interact(remove_rect, stop_popup_id.with("remove_btn"), Sense::click());
+
+                                    if ui.is_rect_visible(remove_rect) {
+                                        let visuals = if !can_remove {
+                                            ui.style().visuals.widgets.inactive
+                                        } else if remove_response.hovered() {
+                                            ui.style().visuals.widgets.hovered
+                                        } else {
+                                            ui.style().visuals.widgets.inactive
+                                        };
+                                        ui.painter().rect_filled(remove_rect, visuals.corner_radius, visuals.bg_fill);
+                                        ui.painter().rect_stroke(remove_rect, visuals.corner_radius, visuals.bg_stroke, egui::StrokeKind::Inside);
+                                        let text_color = if can_remove { visuals.text_color() } else { ui.style().visuals.widgets.noninteractive.text_color() };
+                                        ui.painter().text(
+                                            remove_rect.center(),
+                                            egui::Align2::CENTER_CENTER,
+                                            icons::SUBTRACT_FILL,
+                                            FontId::proportional(TEXT_BASE),
+                                            text_color,
+                                        );
+                                    }
+
+                                    if can_remove && remove_response.clicked() {
+                                        stop_to_remove = Some(stop_idx);
+                                        ui.data_mut(|d| d.insert_temp::<Option<usize>>(stop_popup_id, None));
+                                    }
+
+                                    // confirm button
+                                    let confirm_rect = Rect::from_min_size(
+                                        Pos2::new(row_min_x + button_height + SPACING, row_min_y),
+                                        Vec2::new(confirm_width, button_height)
+                                    );
+                                    let confirm_response = ui.interact(confirm_rect, stop_popup_id.with("confirm_btn"), Sense::click());
+
+                                    if ui.is_rect_visible(confirm_rect) {
+                                        let visuals = if confirm_response.hovered() {
+                                            ui.style().visuals.widgets.hovered
+                                        } else {
+                                            ui.style().visuals.widgets.inactive
+                                        };
+                                        ui.painter().rect_filled(confirm_rect, visuals.corner_radius, visuals.bg_fill);
+                                        ui.painter().rect_stroke(confirm_rect, visuals.corner_radius, visuals.bg_stroke, egui::StrokeKind::Inside);
+                                        ui.painter().text(
+                                            confirm_rect.center(),
+                                            egui::Align2::CENTER_CENTER,
+                                            format!("{} Confirm", icons::CHECK_FILL),
+                                            FontId::proportional(TEXT_BASE),
+                                            visuals.text_color(),
+                                        );
+                                    }
+
+                                    if confirm_response.clicked() {
+                                        ui.data_mut(|d| d.insert_temp::<Option<usize>>(stop_popup_id, None));
+                                    }
+                                });
+                            });
+
+                        // close on click outside
+                        let dominated = ui.input(|i| i.pointer.any_pressed());
+                        if dominated {
+                            if let Some(pos) = ui.input(|i| i.pointer.press_origin()) {
+                                let popup_rect = area_response.response.rect;
+                                if !popup_rect.contains(pos) {
+                                    ui.data_mut(|d| d.insert_temp::<Option<usize>>(stop_popup_id, None));
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // remove stop if requested
+                if let Some(idx) = stop_to_remove {
+                    gradient.stops.remove(idx);
+                    changed = true;
+                }
+            }
+        }
+    }
+
+    // draw icon button for fill type
+    let button_rect = Rect::from_min_size(
+        Pos2::new(total_rect.max.x - icon_button_width, total_rect.min.y),
+        Vec2::new(icon_button_width, 24.0),
+    );
+
+    let button_response = ui.interact(button_rect, base_id.with("menu_button"), Sense::click());
+
+    if ui.is_rect_visible(button_rect) {
+        let bg_color = if button_response.hovered() {
+            colors::hover_bg()
+        } else {
+            colors::INPUT_BG
+        };
+
+        ui.painter().rect_filled(button_rect, CornerRadius::same(CORNER_RADIUS as u8), bg_color);
+        ui.painter().rect_stroke(
+            button_rect,
+            CornerRadius::same(CORNER_RADIUS as u8),
+            Stroke::new(1.0, colors::BORDER),
+            egui::StrokeKind::Inside,
+        );
+
+        ui.painter().text(
+            button_rect.center() + Vec2::new(0.0, 1.0),
+            egui::Align2::CENTER_CENTER,
+            icons::MORE_2_FILL,
+            FontId::proportional(TEXT_BASE),
+            colors::TEXT_MUTED,
+        );
+    }
+
+    // handle fill type popup
+    let mut is_popup_open = ui.data(|d| d.get_temp::<bool>(fill_popup_id).unwrap_or(false));
+
+    if button_response.clicked() {
+        is_popup_open = !is_popup_open;
+        ui.data_mut(|d| d.insert_temp(fill_popup_id, is_popup_open));
+    }
+
+    if is_popup_open {
+        let popup_pos = button_rect.left_bottom() + Vec2::new(0.0, 4.0);
+
+        let area_response = egui::Area::new(fill_popup_id)
+            .order(egui::Order::Foreground)
+            .fixed_pos(popup_pos)
+            .show(ui.ctx(), |ui| {
+                egui::Frame::popup(ui.style()).show(ui, |ui| {
+                    ui.set_max_width(150.0);
+                    ui.spacing_mut().item_spacing = Vec2::new(0.0, 2.0);
+
+                    // label
+                    ui.horizontal(|ui| {
+                        ui.add_space(8.0);
+                        ui.label(egui::RichText::new("Fill").size(TEXT_SM).color(colors::TEXT_MUTED));
+                    });
+
+                    let is_solid = value.is_solid();
+
+                    if fill_type_popover_option(ui, "Solid", is_solid) {
+                        if !is_solid {
+                            let color = match value {
+                                SolidOrGradientColor::Gradient { gradient } => gradient
+                                    .stops
+                                    .first()
+                                    .map(|s| s.color)
+                                    .unwrap_or([1.0, 1.0, 1.0, 1.0]),
+                                SolidOrGradientColor::Solid { color } => *color,
+                            };
+                            *value = SolidOrGradientColor::Solid { color };
+                            changed = true;
+                        }
+                        ui.data_mut(|d| d.insert_temp(fill_popup_id, false));
+                    }
+
+                    if fill_type_popover_option(ui, "Gradient", !is_solid) {
+                        if is_solid {
+                            let color = match value {
+                                SolidOrGradientColor::Solid { color } => *color,
+                                SolidOrGradientColor::Gradient { gradient } => gradient
+                                    .stops
+                                    .first()
+                                    .map(|s| s.color)
+                                    .unwrap_or([1.0, 1.0, 1.0, 1.0]),
+                            };
+                            // create inverted color for second stop (invert RGB, keep alpha)
+                            let inverted_color = [
+                                1.0 - color[0],
+                                1.0 - color[1],
+                                1.0 - color[2],
+                                color[3],
+                            ];
+                            *value = SolidOrGradientColor::Gradient {
+                                gradient: Gradient {
+                                    stops: vec![
+                                        GradientStop { color, position: 0.0 },
+                                        GradientStop { color: inverted_color, position: 1.0 },
+                                    ],
+                                    ..Default::default()
+                                },
+                            };
+                            changed = true;
+                        }
+                        ui.data_mut(|d| d.insert_temp(fill_popup_id, false));
+                    }
+
+                    // separator
+                    ui.add_space(4.0);
+                    let sep_rect = ui.available_rect_before_wrap();
+                    ui.painter().line_segment(
+                        [Pos2::new(sep_rect.left(), sep_rect.top()), Pos2::new(sep_rect.right(), sep_rect.top())],
+                        Stroke::new(1.0, colors::BORDER),
+                    );
+                    ui.add_space(4.0);
+
+                    // interpolation label
+                    ui.horizontal(|ui| {
+                        ui.add_space(8.0);
+                        ui.label(egui::RichText::new("Interpolation").size(TEXT_SM).color(colors::TEXT_MUTED));
+                    });
+
+                    // interpolation options (always shown, disabled if not gradient)
+                    let is_gradient = !is_solid;
+                    let current_interp = match value {
+                        SolidOrGradientColor::Gradient { gradient } => Some(gradient.interpolation),
+                        _ => None,
+                    };
+
+                    if fill_type_popover_option_enabled(ui, "Steps", current_interp == Some(GradientInterpolation::Steps), is_gradient) {
+                        if let SolidOrGradientColor::Gradient { gradient } = value {
+                            gradient.interpolation = GradientInterpolation::Steps;
+                            changed = true;
+                        }
+                    }
+
+                    if fill_type_popover_option_enabled(ui, "Linear", current_interp == Some(GradientInterpolation::Linear), is_gradient) {
+                        if let SolidOrGradientColor::Gradient { gradient } = value {
+                            gradient.interpolation = GradientInterpolation::Linear;
+                            changed = true;
+                        }
+                    }
+
+                    if fill_type_popover_option_enabled(ui, "Smoothstep", current_interp == Some(GradientInterpolation::Smoothstep), is_gradient) {
+                        if let SolidOrGradientColor::Gradient { gradient } = value {
+                            gradient.interpolation = GradientInterpolation::Smoothstep;
+                            changed = true;
+                        }
+                    }
+
+                    ui.add_space(4.0);
+                });
+            });
+
+        // close on click outside
+        let dominated = ui.input(|i| i.pointer.any_pressed());
+        if dominated {
+            if let Some(pos) = ui.input(|i| i.pointer.press_origin()) {
+                let popup_rect = area_response.response.rect;
+                if !popup_rect.contains(pos) && !button_rect.contains(pos) {
+                    ui.data_mut(|d| d.insert_temp(fill_popup_id, false));
+                }
+            }
+        }
+    }
+
+    let mut response = ui.interact(total_rect, base_id.with("response"), Sense::hover());
+    if changed {
+        response.mark_changed();
+    }
+
+    response
 }

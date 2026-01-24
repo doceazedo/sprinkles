@@ -57,7 +57,22 @@
                         curve: Some(LinearOut),
                     ),
                     color_curves: (
-                        initial_color: (type: Solid, color: (1.0, 1.0, 1.0, 1.0)),
+                        initial_color: (
+                            type: "Gradient",
+                            gradient: (
+                                stops: [
+                                    (
+                                        color: (0.8627451, 0.14901961, 0.14901961, 1.0),
+                                        position: 0.0,
+                                    ),
+                                    (
+                                        color: (0.9764706, 0.4509804, 0.08627451, 1.0),
+                                        position: 1.0,
+                                    ),
+                                ],
+                                interpolation: Linear,
+                            ),
+                        ),
                     ),
                 ),
             ),
