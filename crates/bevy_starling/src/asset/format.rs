@@ -33,6 +33,10 @@ pub struct EmitterTime {
     pub randomness: f32,
     #[serde(default)]
     pub fixed_fps: u32,
+    #[serde(default)]
+    pub seed: u32,
+    #[serde(default)]
+    pub use_fixed_seed: bool,
 }
 
 fn default_lifetime() -> f32 {
@@ -49,6 +53,8 @@ impl Default for EmitterTime {
             explosiveness: 0.0,
             randomness: 0.0,
             fixed_fps: 30,
+            seed: 0,
+            use_fixed_seed: false,
         }
     }
 }

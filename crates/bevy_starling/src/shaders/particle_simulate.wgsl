@@ -442,7 +442,9 @@ fn get_alpha_at_lifetime(initial_alpha: f32, age: f32, lifetime: f32) -> f32 {
 
 fn spawn_particle(idx: u32) -> Particle {
     var p: Particle;
-    let seed = hash(params.random_seed + idx + params.cycle * 1000u);
+    // per-particle seed derivation:
+    // base_seed + 1 + particle_index + (cycle * particle_count)
+    let seed = hash(params.random_seed + 1u + idx + params.cycle * params.amount);
 
     let emission_pos = get_emission_position(seed);
     let initial_scale = get_initial_scale(seed + 20u);

@@ -43,6 +43,8 @@ pub struct EmitterRuntime {
     pub prev_system_time: f32,
     pub cycle: u32,
     pub accumulated_delta: f32,
+    /// the active seed used for particle randomness. this is either the user-configured
+    /// fixed seed or a randomly generated seed, depending on `use_fixed_seed` setting.
     pub random_seed: u32,
     /// set to true when a one-shot emitter completes its emission cycle
     pub one_shot_completed: bool,
@@ -53,14 +55,15 @@ pub struct EmitterRuntime {
 }
 
 impl EmitterRuntime {
-    pub fn new(emitter_index: usize) -> Self {
+    pub fn new(emitter_index: usize, fixed_seed: Option<u32>) -> Self {
+        let random_seed = fixed_seed.unwrap_or_else(rand_seed);
         Self {
             emitting: true,
             system_time: 0.0,
             prev_system_time: 0.0,
             cycle: 0,
             accumulated_delta: 0.0,
-            random_seed: rand_seed(),
+            random_seed,
             one_shot_completed: false,
             clear_requested: false,
             emitter_index,
@@ -115,21 +118,23 @@ impl EmitterRuntime {
         self.one_shot_completed = false;
     }
 
-    /// Stop playback, reset time, and clear all particles
-    pub fn stop(&mut self) {
+    /// Stop playback, reset time, and clear all particles.
+    /// If `fixed_seed` is Some, uses that seed. Otherwise generates a new random seed.
+    pub fn stop(&mut self, fixed_seed: Option<u32>) {
         self.emitting = false;
         self.system_time = 0.0;
         self.prev_system_time = 0.0;
         self.cycle = 0;
         self.accumulated_delta = 0.0;
-        self.random_seed = rand_seed();
+        self.random_seed = fixed_seed.unwrap_or_else(rand_seed);
         self.one_shot_completed = false;
         self.clear_requested = true;
     }
 
-    /// Restart playback from the beginning
-    pub fn restart(&mut self) {
-        self.stop();
+    /// Restart playback from the beginning.
+    /// If `fixed_seed` is Some, uses that seed. Otherwise generates a new random seed.
+    pub fn restart(&mut self, fixed_seed: Option<u32>) {
+        self.stop(fixed_seed);
         self.emitting = true;
     }
 }

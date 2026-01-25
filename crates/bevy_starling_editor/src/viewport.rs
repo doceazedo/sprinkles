@@ -238,7 +238,12 @@ pub fn sync_playback_state(
             system_runtime.paused = false;
             for (emitter, mut runtime) in emitter_query.iter_mut() {
                 if emitter.parent_system == system_entity {
-                    runtime.stop();
+                    let fixed_seed = asset
+                        .emitters
+                        .get(runtime.emitter_index)
+                        .filter(|e| e.time.use_fixed_seed)
+                        .map(|e| e.time.seed);
+                    runtime.stop(fixed_seed);
                 }
             }
             editor_state.elapsed_ms = 0.0;
@@ -262,21 +267,11 @@ pub fn sync_playback_state(
 
         // handle one-shot emitters completion
         if has_one_shot && all_one_shots_completed {
-            if editor_state.is_looping {
-                // looping mode: restart all emitters
+            if editor_state.is_looping || editor_state.play_requested {
+                // looping mode or user clicked play: restart all emitters with new seed
                 for (emitter, mut runtime) in emitter_query.iter_mut() {
                     if emitter.parent_system == system_entity {
-                        runtime.cycle = 0;
-                        runtime.system_time = 0.0;
-                        runtime.prev_system_time = 0.0;
-                        runtime.play();
-                    }
-                }
-            } else if editor_state.play_requested {
-                // user clicked play after one_shot finished - full restart
-                for (emitter, mut runtime) in emitter_query.iter_mut() {
-                    if emitter.parent_system == system_entity {
-                        runtime.restart();
+                        runtime.restart(None);
                     }
                 }
                 editor_state.play_requested = false;

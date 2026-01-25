@@ -25,6 +25,14 @@ const EMITTER_HEADER_HEIGHT: f32 = 28.0;
 const PANEL_WIDTH: f32 = 500.0;
 const ACRONYMS: &[&str] = &["fps"];
 
+fn rand_seed() -> u32 {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let duration = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default();
+    (duration.as_nanos() & 0xFFFFFFFF) as u32
+}
+
 #[derive(Event)]
 pub struct AddEmitterEvent;
 
@@ -537,6 +545,18 @@ fn inspect_emitter_time(ui: &mut egui::Ui, id: &str, time: &mut EmitterTime, ind
             indent,
         );
         changed |= inspect_u32(ui, &field_label("fixed_fps"), &mut time.fixed_fps, indent);
+        let was_fixed_seed = time.use_fixed_seed;
+        changed |= inspect_bool(ui, &field_label("use_fixed_seed"), &mut time.use_fixed_seed, indent);
+        if time.use_fixed_seed && !was_fixed_seed && time.seed == 0 {
+            time.seed = rand_seed();
+            changed = true;
+        }
+        if time.use_fixed_seed {
+            ui.spacing_mut().indent = INDENT_WIDTH;
+            ui.indent("seed_indent", |ui| {
+                changed |= inspect_u32(ui, &field_label("seed"), &mut time.seed, indent + 1);
+            });
+        }
     });
     changed
 }
