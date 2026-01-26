@@ -40,7 +40,7 @@ impl AssetLoader for ParticleSystemAssetLoader {
     }
 
     fn extensions(&self) -> &[&str] {
-        &["aracari.ron"]
+        &["ron"]
     }
 }
 

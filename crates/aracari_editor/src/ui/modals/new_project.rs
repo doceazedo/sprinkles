@@ -224,7 +224,7 @@ pub fn draw_new_project_modal(
                         if response.changed() {
                             modal.location_edited = true;
                         }
-                        ui.label(".aracari.ron");
+                        ui.label(".ron");
                     });
 
                     ui.add_space(8.0);
@@ -289,7 +289,7 @@ pub fn on_create_project_event(
     mut assets: ResMut<Assets<ParticleSystemAsset>>,
 ) {
     let event = trigger.event();
-    let location_with_ext = format!("{}.aracari.ron", event.location);
+    let location_with_ext = format!("{}.ron", event.location);
 
     let asset = ParticleSystemAsset {
         name: event.project_name.clone(),
@@ -438,7 +438,7 @@ pub fn on_open_file_dialog_event(
     IoTaskPool::get()
         .spawn(async move {
             let file = rfd::AsyncFileDialog::new()
-                .add_filter("Aracari Project", &["aracari.ron"])
+                .add_filter("Aracari Project", &["ron"])
                 .pick_file()
                 .await;
 

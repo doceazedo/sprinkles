@@ -1,0 +1,8 @@
+(
+    title: "This is not a particle system",
+    items: [
+        "item1",
+        "item2",
+    ],
+    count: 42,
+)

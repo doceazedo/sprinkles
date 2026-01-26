@@ -1,0 +1,5 @@
+(
+    id: 123,
+    label: "Test Dummy Data",
+    values: [1.0, 2.0, 3.0],
+)

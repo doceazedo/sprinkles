@@ -187,6 +187,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "aracari"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "bitflags 2.10.0",
+ "bytemuck",
+ "ron 0.10.1",
+ "serde",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "aracari_editor"
+version = "0.1.0"
+dependencies = [
+ "Inflector",
+ "aracari",
+ "bevy",
+ "bevy_egui",
+ "egui-remixicon",
+ "rfd",
+ "ron 0.10.1",
+ "serde",
+]
+
+[[package]]
 name = "arboard"
 version = "3.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1516,32 +1542,6 @@ dependencies = [
  "fixedbitset",
  "nonmax",
  "tracing",
-]
-
-[[package]]
-name = "aracari"
-version = "0.1.0"
-dependencies = [
- "bevy",
- "bitflags 2.10.0",
- "bytemuck",
- "ron 0.10.1",
- "serde",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "aracari_editor"
-version = "0.1.0"
-dependencies = [
- "Inflector",
- "bevy",
- "bevy_egui",
- "aracari",
- "egui-remixicon",
- "rfd",
- "ron 0.10.1",
- "serde",
 ]
 
 [[package]]

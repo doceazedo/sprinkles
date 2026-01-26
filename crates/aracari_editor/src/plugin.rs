@@ -113,7 +113,7 @@ fn load_initial_project(
     let is_first_run = editor_data.cache.recent_projects.is_empty();
 
     if is_first_run {
-        let demo_file = "examples/3d_explosion.aracari.ron";
+        let demo_file = "examples/3d_explosion.ron";
         let demo_path = project_path(demo_file);
         if demo_path.exists() {
             if let Some(asset) = load_project_from_path(&demo_path) {

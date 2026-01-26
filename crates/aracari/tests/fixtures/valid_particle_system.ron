@@ -1,0 +1,22 @@
+(
+    name: "Test Particle System",
+    dimension: D3,
+    emitters: [
+        (
+            name: "Test Emitter",
+            enabled: true,
+            amount: 16,
+            time: (
+                lifetime: 2.0,
+            ),
+            drawing: (),
+            draw_passes: [
+                (
+                    mesh: Quad(),
+                    material: Standard(()),
+                ),
+            ],
+            process: (),
+        ),
+    ],
+)
