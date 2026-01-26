@@ -54,11 +54,6 @@ pub fn setup_camera(mut commands: Commands, asset_server: Res<AssetServer>) {
             specular_map: asset_server.load("pisa_specular_rgb9e5_zstd.ktx2"),
             ..default()
         },
-        // enable order-independent transparency for proper particle rendering
-        // this handles overlapping transparent particles correctly regardless of GPU render order
-        OrderIndependentTransparencySettings::default(),
-        // MSAA is incompatible with OIT
-        Msaa::Off,
     ));
 
     commands.spawn((

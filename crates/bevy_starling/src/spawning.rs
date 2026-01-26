@@ -468,6 +468,29 @@ pub fn setup_particle_systems(
     }
 }
 
+// small offset per emitter index to ensure consistent depth sorting for overlapping emitters
+const EMITTER_DEPTH_OFFSET: f32 = 0.0001;
+
+pub fn sync_emitter_mesh_transforms(
+    camera_query: Query<&GlobalTransform, With<Camera3d>>,
+    emitter_query: Query<(&GlobalTransform, &EmitterRuntime), With<EmitterEntity>>,
+    mut mesh_query: Query<(&EmitterMeshEntity, &mut Transform)>,
+) {
+    let camera_forward = camera_query
+        .iter()
+        .next()
+        .map(|t| t.forward().as_vec3())
+        .unwrap_or(Vec3::NEG_Z);
+
+    for (emitter_mesh, mut mesh_transform) in mesh_query.iter_mut() {
+        if let Ok((emitter_global, runtime)) = emitter_query.get(emitter_mesh.emitter_entity) {
+            // offset along camera forward based on emitter index for consistent ordering
+            let depth_offset = camera_forward * (runtime.emitter_index as f32 * EMITTER_DEPTH_OFFSET);
+            mesh_transform.translation = emitter_global.translation() + depth_offset;
+        }
+    }
+}
+
 pub fn cleanup_particle_entities(
     mut commands: Commands,
     mut removed_systems: RemovedComponents<ParticleSystem3D>,

@@ -1,6 +1,6 @@
 use bevy::{
     mesh::MeshVertexBufferLayoutRef,
-    pbr::{MaterialExtension, MaterialExtensionKey, MaterialExtensionPipeline},
+    pbr::{MaterialExtension, MaterialExtensionKey, MaterialExtensionPipeline, MeshPipelineKey},
     prelude::*,
     render::{
         render_resource::{
@@ -40,23 +40,28 @@ impl MaterialExtension for ParticleMaterialExtension {
         _pipeline: &MaterialExtensionPipeline,
         descriptor: &mut RenderPipelineDescriptor,
         _layout: &MeshVertexBufferLayoutRef,
-        _key: MaterialExtensionKey<Self>,
+        key: MaterialExtensionKey<Self>,
     ) -> Result<(), SpecializedMeshPipelineError> {
-        // enable depth writing for proper 3D depth testing between particles.
-        // this allows particles from different emitters to correctly occlude
-        // each other based on their actual world-space depth, matching Godot's
-        // default behavior. the draw_order sorting within each emitter still
-        // controls submission order for alpha blending correctness.
+        // check if material uses a transparent blend mode
+        let is_transparent = key.mesh_key.contains(MeshPipelineKey::BLEND_ALPHA)
+            || key.mesh_key.contains(MeshPipelineKey::BLEND_PREMULTIPLIED_ALPHA)
+            || key.mesh_key.contains(MeshPipelineKey::BLEND_MULTIPLY)
+            || key.mesh_key.contains(MeshPipelineKey::BLEND_ALPHA_TO_COVERAGE);
+
         if let Some(depth_stencil) = &mut descriptor.depth_stencil {
-            depth_stencil.depth_write_enabled = true;
+            // opaque particles write to depth for proper 3D occlusion within emitter.
+            // transparent particles skip depth write for cross-emitter transparency.
+            depth_stencil.depth_write_enabled = !is_transparent;
             depth_stencil.depth_compare = CompareFunction::GreaterEqual;
         }
 
-        // enable alpha blending for particle transparency
-        if let Some(fragment) = &mut descriptor.fragment {
-            for target in &mut fragment.targets {
-                if let Some(target) = target {
-                    target.blend = Some(BlendState::ALPHA_BLENDING);
+        // only enable alpha blending for transparent materials
+        if is_transparent {
+            if let Some(fragment) = &mut descriptor.fragment {
+                for target in &mut fragment.targets {
+                    if let Some(target) = target {
+                        target.blend = Some(BlendState::ALPHA_BLENDING);
+                    }
                 }
             }
         }

@@ -3,106 +3,6 @@
     dimension: D3,
     emitters: [
         (
-            name: "Fire",
-            enabled: true,
-            amount: 16,
-            time: (
-                lifetime: 1.0,
-                lifetime_randomness: 0.0,
-                delay: 0.0,
-                one_shot: true,
-                explosiveness: 0.9,
-                randomness: 0.0,
-                fixed_fps: 30,
-                seed: 0,
-                use_fixed_seed: false,
-            ),
-            drawing: (
-                draw_order: Index,
-            ),
-            draw_passes: [
-                (
-                    mesh: Sphere(
-                        radius: 1.0,
-                    ),
-                    material: Standard((
-                        base_color: (1.0, 1.0, 1.0, 1.0),
-                        emissive: (0.0, 0.0, 0.0, 1.0),
-                        perceptual_roughness: 1.0,
-                        metallic: 0.0,
-                        alpha_mode: Blend,
-                        double_sided: false,
-                        unlit: false,
-                        fog_enabled: true,
-                        reflectance: 0.5,
-                    )),
-                ),
-            ],
-            process: (
-                particle_flags: "",
-                spawn: (
-                    position: (
-                        emission_shape: Sphere(
-                            radius: 0.2,
-                        ),
-                        emission_shape_offset: (0.0, 0.0, 0.0),
-                        emission_shape_scale: (1.0, 1.0, 1.0),
-                    ),
-                    velocity: (
-                        inherit_velocity_ratio: 0.0,
-                        velocity_pivot: (0.0, 0.0, 0.0),
-                        direction: (1.0, 0.0, 0.0),
-                        spread: 180.0,
-                        flatness: 0.0,
-                        initial_velocity: (
-                            min: 0.0,
-                            max: 5.0,
-                        ),
-                    ),
-                    accelerations: (
-                        gravity: (0.0, 0.3, 0.0),
-                    ),
-                ),
-                display: (
-                    scale: (
-                        range: (
-                            min: 0.2,
-                            max: 0.4,
-                        ),
-                        curve: Some(SineInOutReverse),
-                    ),
-                    color_curves: (
-                        initial_color: Gradient(
-                            gradient: (
-                                stops: [
-                                    (
-                                        color: (0.8627451, 0.14901961, 0.14901961, 1.0),
-                                        position: 0.0,
-                                    ),
-                                    (
-                                        color: (0.9764706, 0.4509804, 0.08627451, 1.0),
-                                        position: 1.0,
-                                    ),
-                                ],
-                                interpolation: Linear,
-                            ),
-                        ),
-                    ),
-                ),
-                turbulence: Some((
-                    enabled: false,
-                    noise_strength: 0.1,
-                    noise_scale: 2.5,
-                    noise_speed: (0.0, 0.0, 0.0),
-                    noise_speed_random: 0.2,
-                    influence: (
-                        min: 0.01,
-                        max: 0.04,
-                    ),
-                )),
-            ),
-        ),
-        (
             name: "Smoke",
             enabled: true,
             amount: 16,
@@ -187,7 +87,7 @@
                                 interpolation: Linear,
                             ),
                         ),
-                        alpha_curve: Some(SineInOutReverse),
+                        alpha_curve: Some(SineOutReverse),
                     ),
                 ),
                 turbulence: Some((
@@ -201,6 +101,106 @@
                         max: 0.04,
                     ),
                     influence_curve: Some(SineInOut),
+                )),
+            ),
+        ),
+        (
+            name: "Fire",
+            enabled: true,
+            amount: 16,
+            time: (
+                lifetime: 1.0,
+                lifetime_randomness: 0.0,
+                delay: 0.0,
+                one_shot: true,
+                explosiveness: 0.9,
+                randomness: 0.0,
+                fixed_fps: 30,
+                seed: 0,
+                use_fixed_seed: false,
+            ),
+            drawing: (
+                draw_order: Index,
+            ),
+            draw_passes: [
+                (
+                    mesh: Sphere(
+                        radius: 1.0,
+                    ),
+                    material: Standard((
+                        base_color: (1.0, 1.0, 1.0, 1.0),
+                        emissive: (0.0, 0.0, 0.0, 1.0),
+                        perceptual_roughness: 1.0,
+                        metallic: 0.0,
+                        alpha_mode: Opaque,
+                        double_sided: false,
+                        unlit: false,
+                        fog_enabled: true,
+                        reflectance: 0.5,
+                    )),
+                ),
+            ],
+            process: (
+                particle_flags: "",
+                spawn: (
+                    position: (
+                        emission_shape: Sphere(
+                            radius: 0.2,
+                        ),
+                        emission_shape_offset: (0.0, 0.0, 0.0),
+                        emission_shape_scale: (1.0, 1.0, 1.0),
+                    ),
+                    velocity: (
+                        inherit_velocity_ratio: 0.0,
+                        velocity_pivot: (0.0, 0.0, 0.0),
+                        direction: (1.0, 0.0, 0.0),
+                        spread: 180.0,
+                        flatness: 0.0,
+                        initial_velocity: (
+                            min: 0.0,
+                            max: 5.0,
+                        ),
+                    ),
+                    accelerations: (
+                        gravity: (0.0, 0.3, 0.0),
+                    ),
+                ),
+                display: (
+                    scale: (
+                        range: (
+                            min: 0.2,
+                            max: 0.4,
+                        ),
+                        curve: Some(SineInOutReverse),
+                    ),
+                    color_curves: (
+                        initial_color: Gradient(
+                            gradient: (
+                                stops: [
+                                    (
+                                        color: (0.8627451, 0.14901961, 0.14901961, 1.0),
+                                        position: 0.0,
+                                    ),
+                                    (
+                                        color: (0.9764706, 0.4509804, 0.08627451, 1.0),
+                                        position: 1.0,
+                                    ),
+                                ],
+                                interpolation: Linear,
+                            ),
+                        ),
+                    ),
+                ),
+                turbulence: Some((
+                    enabled: false,
+                    noise_strength: 0.1,
+                    noise_scale: 2.5,
+                    noise_speed: (0.0, 0.0, 0.0),
+                    noise_speed_random: 0.2,
+                    influence: (
+                        min: 0.01,
+                        max: 0.04,
+                    ),
                 )),
             ),
         ),
