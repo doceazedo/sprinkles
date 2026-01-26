@@ -129,7 +129,7 @@ pub fn save_editor_data(data: &EditorData) {
 
 pub fn load_project_from_path(
     path: &std::path::Path,
-) -> Option<bevy_starling::asset::ParticleSystemAsset> {
+) -> Option<aracari::asset::ParticleSystemAsset> {
     let contents = std::fs::read_to_string(path).ok()?;
     ron::from_str(&contents).ok()
 }

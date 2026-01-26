@@ -29,9 +29,9 @@ use textures::{
     GradientTextureCache,
 };
 
-pub struct StarlingPlugin;
+pub struct AracariPlugin;
 
-impl Plugin for StarlingPlugin {
+impl Plugin for AracariPlugin {
     fn build(&self, app: &mut App) {
         embedded_asset!(app, "shaders/particle_types.wgsl");
         embedded_asset!(app, "shaders/particle_simulate.wgsl");

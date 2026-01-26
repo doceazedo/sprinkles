@@ -7,7 +7,7 @@ use bevy::core_pipeline::tonemapping::Tonemapping;
 use bevy::post_process::bloom::Bloom;
 use bevy::input::mouse::{AccumulatedMouseMotion, AccumulatedMouseScroll};
 use bevy::prelude::*;
-use bevy_starling::prelude::*;
+use aracari::prelude::*;
 
 use crate::state::EditorState;
 

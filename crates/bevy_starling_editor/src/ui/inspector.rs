@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContexts};
-use bevy_starling::prelude::*;
+use aracari::prelude::*;
 use egui_remixicon::icons;
 use inflector::Inflector;
 

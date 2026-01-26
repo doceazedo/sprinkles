@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use bevy::prelude::*;
 use bevy_egui::egui::{self, Color32, CornerRadius, FontId, Pos2, RichText, Vec2};
 use bevy_egui::EguiContexts;
-use bevy_starling::prelude::*;
+use aracari::prelude::*;
 use egui_remixicon::icons;
 
 use crate::state::{format_display_path, project_path, save_editor_data, EditorData, EditorState};

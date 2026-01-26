@@ -12,7 +12,7 @@ use bevy::{
     shader::ShaderRef,
 };
 
-const SHADER_ASSET_PATH: &str = "embedded://bevy_starling/shaders/particle_material.wgsl";
+const SHADER_ASSET_PATH: &str = "embedded://aracari/shaders/particle_material.wgsl";
 
 #[derive(Asset, AsBindGroup, Reflect, Debug, Clone)]
 pub struct ParticleMaterialExtension {

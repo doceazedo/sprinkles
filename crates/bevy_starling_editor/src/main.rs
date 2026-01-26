@@ -6,7 +6,7 @@ mod viewport;
 use bevy::prelude::*;
 use bevy::window::WindowResolution;
 
-use plugin::StarlingEditorPlugin;
+use plugin::AracariEditorPlugin;
 
 fn main() {
     App::new()
@@ -14,13 +14,13 @@ fn main() {
             DefaultPlugins
                 .set(WindowPlugin {
                     primary_window: Some(Window {
-                        title: "Starling Editor".into(),
+                        title: "Aracari Editor".into(),
                         resolution: WindowResolution::new(1280, 720),
                         ..default()
                     }),
                     ..default()
                 }),
         )
-        .add_plugins(StarlingEditorPlugin)
+        .add_plugins(AracariEditorPlugin)
         .run();
 }

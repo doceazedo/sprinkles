@@ -22,7 +22,7 @@ use crate::extract::{EmitterUniforms, ExtractedParticleSystem};
 use crate::runtime::ParticleData;
 use crate::textures::{FallbackCurveTexture, FallbackGradientTexture};
 
-const SHADER_ASSET_PATH: &str = "embedded://bevy_starling/shaders/particle_simulate.wgsl";
+const SHADER_ASSET_PATH: &str = "embedded://aracari/shaders/particle_simulate.wgsl";
 const WORKGROUP_SIZE: u32 = 64;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, RenderLabel)]

@@ -1,11 +1,11 @@
 //! Prelude module for convenient imports.
 //!
 //! ```rust,ignore
-//! use bevy_starling::prelude::*;
+//! use aracari::prelude::*;
 //! ```
 
 // core plugin
-pub use crate::StarlingPlugin;
+pub use crate::AracariPlugin;
 
 // asset types
 pub use crate::asset::{

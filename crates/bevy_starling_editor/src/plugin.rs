@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy_egui::{
     egui, input::egui_wants_any_pointer_input, EguiContexts, EguiPlugin, EguiPrimaryContextPass,
 };
-use bevy_starling::prelude::*;
+use aracari::prelude::*;
 
 use crate::state::{load_editor_data, load_project_from_path, project_path, save_editor_data, EditorData, EditorState, InspectorState};
 use crate::ui::modals::{
@@ -20,13 +20,13 @@ use crate::viewport::{
     CameraSettings, ViewportLayout,
 };
 
-pub struct StarlingEditorPlugin;
+pub struct AracariEditorPlugin;
 
-impl Plugin for StarlingEditorPlugin {
+impl Plugin for AracariEditorPlugin {
     fn build(&self, app: &mut App) {
         let editor_data = load_editor_data();
 
-        app.add_plugins(StarlingPlugin)
+        app.add_plugins(AracariPlugin)
             .add_plugins(EguiPlugin::default())
             .init_resource::<EditorState>()
             .init_resource::<InspectorState>()
@@ -113,7 +113,7 @@ fn load_initial_project(
     let is_first_run = editor_data.cache.recent_projects.is_empty();
 
     if is_first_run {
-        let demo_file = "examples/3d_explosion.starling";
+        let demo_file = "examples/3d_explosion.aracari.ron";
         let demo_path = project_path(demo_file);
         if demo_path.exists() {
             if let Some(asset) = load_project_from_path(&demo_path) {
@@ -130,10 +130,10 @@ fn load_initial_project(
     }
 
     // fallback: create a default empty project
-    let asset = bevy_starling::asset::ParticleSystemAsset {
+    let asset = aracari::asset::ParticleSystemAsset {
         name: "New project".to_string(),
-        dimension: bevy_starling::asset::ParticleSystemDimension::D3,
-        emitters: vec![bevy_starling::asset::EmitterData {
+        dimension: aracari::asset::ParticleSystemDimension::D3,
+        emitters: vec![aracari::asset::EmitterData {
             name: "Emitter 1".to_string(),
             ..Default::default()
         }],

@@ -1,4 +1,4 @@
-# Starling
+# Aracari
 
 GPU-accelerated particle systems for Bevy. WIP.
 

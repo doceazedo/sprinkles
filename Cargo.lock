@@ -1519,7 +1519,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "bevy_starling"
+name = "aracari"
 version = "0.1.0"
 dependencies = [
  "bevy",
@@ -1531,13 +1531,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "bevy_starling_editor"
+name = "aracari_editor"
 version = "0.1.0"
 dependencies = [
  "Inflector",
  "bevy",
  "bevy_egui",
- "bevy_starling",
+ "aracari",
  "egui-remixicon",
  "rfd",
  "ron 0.10.1",

@@ -1,5 +1,5 @@
 use bevy_egui::egui::{self, Color32, CornerRadius, FontId, Pos2, Rect, Response, Sense, Stroke, Vec2};
-use bevy_starling::prelude::*;
+use aracari::prelude::*;
 use egui_remixicon::icons;
 
 use super::styles::{colors, TEXT_BASE, TEXT_SM};

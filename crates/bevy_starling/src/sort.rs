@@ -20,7 +20,7 @@ use crate::compute::ParticleComputeLabel;
 use crate::extract::ExtractedParticleSystem;
 use crate::runtime::ParticleData;
 
-const SHADER_ASSET_PATH: &str = "embedded://bevy_starling/shaders/particle_sort.wgsl";
+const SHADER_ASSET_PATH: &str = "embedded://aracari/shaders/particle_sort.wgsl";
 const WORKGROUP_SIZE: u32 = 256;
 
 #[derive(Clone, Copy, Default, ShaderType)]

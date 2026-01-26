@@ -1,4 +1,4 @@
-#define_import_path starling::particle_types
+#define_import_path aracari::particle_types
 
 struct Particle {
     position: vec4<f32>,  // xyz, scale
