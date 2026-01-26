@@ -9,10 +9,11 @@ pub use crate::StarlingPlugin;
 
 // asset types
 pub use crate::asset::{
-    DrawOrder, DrawPassMaterial, EmissionShape, EmitterData, EmitterDrawPass, EmitterDrawing,
-    EmitterTime, Gradient as ParticleGradient, GradientInterpolation, GradientStop, ParticleFlags,
-    ParticleMesh, ParticleProcessConfig, ParticleProcessDisplay, ParticleProcessDisplayColor,
-    ParticleProcessDisplayScale, ParticleProcessSpawnAccelerations, ParticleProcessSpawnPosition,
+    AnimatedVelocity, DrawOrder, DrawPassMaterial, EmissionShape, EmitterData, EmitterDrawPass,
+    EmitterDrawing, EmitterTime, Gradient as ParticleGradient, GradientInterpolation, GradientStop,
+    ParticleFlags, ParticleMesh, ParticleProcessAccelerations, ParticleProcessAnimVelocities,
+    ParticleProcessConfig, ParticleProcessDisplay, ParticleProcessDisplayColor,
+    ParticleProcessDisplayScale, ParticleProcessSpawn, ParticleProcessSpawnPosition,
     ParticleProcessSpawnVelocity, ParticleProcessTurbulence, ParticleSystemAsset,
     ParticleSystemDimension, QuadOrientation, Range as ParticleRange, SerializableAlphaMode,
     SolidOrGradientColor, SplineCurve, SplineCurveConfig, StandardParticleMaterial,

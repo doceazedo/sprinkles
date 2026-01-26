@@ -1,7 +1,123 @@
 (
-    name: "Demo Particle System",
+    name: "Explosion",
     dimension: D3,
     emitters: [
+        (
+            name: "Windup",
+            enabled: true,
+            amount: 16,
+            time: (
+                lifetime: 0.3,
+                lifetime_randomness: 0.0,
+                delay: 0.0,
+                one_shot: true,
+                explosiveness: 0.9,
+                randomness: 0.0,
+                fixed_fps: 30,
+                seed: 0,
+                use_fixed_seed: false,
+            ),
+            drawing: (
+                draw_order: Index,
+            ),
+            draw_passes: [
+                (
+                    mesh: Cylinder(
+                        top_radius: 0.1,
+                        bottom_radius: 0.0,
+                        height: 3.0,
+                        radial_segments: 16,
+                        rings: 4,
+                        cap_top: true,
+                        cap_bottom: true,
+                    ),
+                    material: Standard((
+                        base_color: (1.0, 1.0, 1.0, 1.0),
+                        emissive: (0.0, 0.0, 0.0, 1.0),
+                        perceptual_roughness: 0.5,
+                        metallic: 0.0,
+                        alpha_mode: Blend,
+                        double_sided: false,
+                        unlit: false,
+                        fog_enabled: true,
+                        reflectance: 0.5,
+                    )),
+                ),
+            ],
+            process: (
+                particle_flags: "ALIGN_Y_TO_VELOCITY",
+                spawn: (
+                    position: (
+                        emission_shape: SphereSurface(
+                            radius: 1.75,
+                        ),
+                        emission_shape_offset: (0.0, 0.0, 0.0),
+                        emission_shape_scale: (1.0, 1.0, 1.0),
+                    ),
+                    velocity: (
+                        inherit_velocity_ratio: 0.0,
+                        velocity_pivot: (0.0, 0.0, 0.0),
+                        direction: (0.0, 0.0, 0.0),
+                        spread: 180.0,
+                        flatness: 0.0,
+                        initial_velocity: (
+                            min: 0.0,
+                            max: 0.0,
+                        ),
+                    ),
+                ),
+                animated_velocity: (
+                    radial_velocity: (
+                        value: (
+                            min: -5.0,
+                            max: -2.0,
+                        ),
+                        curve: Some((
+                            curve: SineOutReverse,
+                            min_value: 0.0,
+                            max_value: 1.0,
+                        )),
+                    ),
+                ),
+                accelerations: (
+                    gravity: (0.0, 0.0, 0.0),
+                ),
+                display: (
+                    scale: (
+                        range: (
+                            min: 0.2,
+                            max: 0.4,
+                        ),
+                        curve: Some((
+                            curve: SineInReverse,
+                            min_value: 0.0,
+                            max_value: 1.0,
+                        )),
+                    ),
+                    color_curves: (
+                        initial_color: Solid(
+                            color: (1.0, 0.9843137, 0.92156863, 1.0),
+                        ),
+                        alpha_curve: Some((
+                            curve: SineIn,
+                            min_value: 0.0,
+                            max_value: 1.0,
+                        )),
+                    ),
+                ),
+                turbulence: Some((
+                    enabled: false,
+                    noise_strength: 0.1,
+                    noise_scale: 2.5,
+                    noise_speed: (0.0, 0.0, 0.0),
+                    noise_speed_random: 0.2,
+                    influence: (
+                        min: 0.01,
+                        max: 0.04,
+                    ),
+                )),
+            ),
+        ),
         (
             name: "Smoke",
             enabled: true,
@@ -9,7 +125,7 @@
             time: (
                 lifetime: 2.0,
                 lifetime_randomness: 0.0,
-                delay: 0.0,
+                delay: 0.3,
                 one_shot: true,
                 explosiveness: 0.9,
                 randomness: 0.0,
@@ -59,9 +175,17 @@
                             max: 0.5,
                         ),
                     ),
-                    accelerations: (
-                        gravity: (0.0, 1.0, 0.0),
+                ),
+                animated_velocity: (
+                    radial_velocity: (
+                        value: (
+                            min: 0.0,
+                            max: 0.0,
+                        ),
                     ),
+                ),
+                accelerations: (
+                    gravity: (0.0, 1.0, 0.0),
                 ),
                 display: (
                     scale: (
@@ -123,7 +247,7 @@
             time: (
                 lifetime: 1.0,
                 lifetime_randomness: 0.0,
-                delay: 0.0,
+                delay: 0.3,
                 one_shot: true,
                 explosiveness: 0.9,
                 randomness: 0.0,
@@ -173,9 +297,17 @@
                             max: 5.0,
                         ),
                     ),
-                    accelerations: (
-                        gravity: (0.0, 0.3, 0.0),
+                ),
+                animated_velocity: (
+                    radial_velocity: (
+                        value: (
+                            min: 0.0,
+                            max: 0.0,
+                        ),
                     ),
+                ),
+                accelerations: (
+                    gravity: (0.0, 0.3, 0.0),
                 ),
                 display: (
                     scale: (
@@ -232,7 +364,7 @@
             time: (
                 lifetime: 0.7,
                 lifetime_randomness: 0.0,
-                delay: 0.0,
+                delay: 0.3,
                 one_shot: true,
                 explosiveness: 0.9,
                 randomness: 0.0,
@@ -288,9 +420,17 @@
                             max: 5.0,
                         ),
                     ),
-                    accelerations: (
-                        gravity: (0.0, -1.5, 0.0),
+                ),
+                animated_velocity: (
+                    radial_velocity: (
+                        value: (
+                            min: 0.0,
+                            max: 0.0,
+                        ),
                     ),
+                ),
+                accelerations: (
+                    gravity: (0.0, -1.5, 0.0),
                 ),
                 display: (
                     scale: (
@@ -347,7 +487,7 @@
             time: (
                 lifetime: 0.5,
                 lifetime_randomness: 0.0,
-                delay: 0.0,
+                delay: 0.3,
                 one_shot: true,
                 explosiveness: 0.0,
                 randomness: 0.0,
@@ -396,9 +536,17 @@
                             max: 0.0,
                         ),
                     ),
-                    accelerations: (
-                        gravity: (0.0, 0.0, 0.0),
+                ),
+                animated_velocity: (
+                    radial_velocity: (
+                        value: (
+                            min: 0.0,
+                            max: 0.0,
+                        ),
                     ),
+                ),
+                accelerations: (
+                    gravity: (0.0, 0.0, 0.0),
                 ),
                 display: (
                     scale: (

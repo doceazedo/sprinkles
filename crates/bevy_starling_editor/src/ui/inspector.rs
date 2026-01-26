@@ -1216,10 +1216,10 @@ fn inspect_spawn_velocity(
     changed
 }
 
-fn inspect_spawn_accelerations(
+fn inspect_accelerations(
     ui: &mut egui::Ui,
     id: &str,
-    accelerations: &mut ParticleProcessSpawnAccelerations,
+    accelerations: &mut ParticleProcessAccelerations,
     indent_level: u8,
 ) -> bool {
     let mut changed = false;
@@ -1594,6 +1594,69 @@ fn inspect_particle_flags(
     changed
 }
 
+fn inspect_process_spawn(
+    ui: &mut egui::Ui,
+    id: &str,
+    spawn: &mut ParticleProcessSpawn,
+    indent_level: u8,
+) -> bool {
+    let mut changed = false;
+    inspector_category(ui, id, "Spawn", indent_level, |ui, indent| {
+        changed |= inspect_spawn_position(
+            ui,
+            &format!("{}_position", id),
+            &mut spawn.position,
+            indent,
+        );
+        changed |= inspect_spawn_velocity(
+            ui,
+            &format!("{}_velocity", id),
+            &mut spawn.velocity,
+            indent,
+        );
+    });
+    changed
+}
+
+fn inspect_animated_velocity(
+    ui: &mut egui::Ui,
+    id: &str,
+    label: &str,
+    velocity: &mut AnimatedVelocity,
+    indent_level: u8,
+) -> bool {
+    let mut changed = false;
+    inspector_category(ui, id, label, indent_level, |ui, indent| {
+        changed |= inspect_range(ui, &field_label("value"), &mut velocity.value, indent);
+        changed |= inspect_spline_curve(
+            ui,
+            "Curve",
+            &mut velocity.curve,
+            indent,
+        );
+    });
+    changed
+}
+
+fn inspect_animated_velocities(
+    ui: &mut egui::Ui,
+    id: &str,
+    animated_velocity: &mut ParticleProcessAnimVelocities,
+    indent_level: u8,
+) -> bool {
+    let mut changed = false;
+    inspector_category(ui, id, "Animated velocities", indent_level, |ui, indent| {
+        changed |= inspect_animated_velocity(
+            ui,
+            &format!("{}_radial", id),
+            "Radial velocity",
+            &mut animated_velocity.radial_velocity,
+            indent,
+        );
+    });
+    changed
+}
+
 fn inspect_process_config(
     ui: &mut egui::Ui,
     id: &str,
@@ -1609,22 +1672,22 @@ fn inspect_process_config(
             &mut config.particle_flags,
             indent,
         );
-        changed |= inspect_spawn_position(
+        changed |= inspect_process_spawn(
             ui,
-            &format!("{}_position", id),
-            &mut config.spawn.position,
+            &format!("{}_spawn", id),
+            &mut config.spawn,
             indent,
         );
-        changed |= inspect_spawn_velocity(
+        changed |= inspect_animated_velocities(
             ui,
-            &format!("{}_velocity", id),
-            &mut config.spawn.velocity,
+            &format!("{}_animated_velocity", id),
+            &mut config.animated_velocity,
             indent,
         );
-        changed |= inspect_spawn_accelerations(
+        changed |= inspect_accelerations(
             ui,
             &format!("{}_accelerations", id),
-            &mut config.spawn.accelerations,
+            &mut config.accelerations,
             indent,
         );
         changed |= inspect_process_display(

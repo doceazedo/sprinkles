@@ -123,6 +123,13 @@ pub struct EmitterUniforms {
     pub turbulence_influence_max: f32,
 
     pub turbulence_influence_curve: SplineCurveUniform,
+
+    pub radial_velocity_min: f32,
+    pub radial_velocity_max: f32,
+    pub _pad8: f32,
+    pub _pad9: f32,
+
+    pub radial_velocity_curve: SplineCurveUniform,
 }
 
 #[derive(Resource, Default)]
@@ -145,6 +152,7 @@ pub struct ExtractedEmitterData {
     pub alpha_curve_texture_handle: Option<Handle<Image>>,
     pub emission_curve_texture_handle: Option<Handle<Image>>,
     pub turbulence_influence_curve_texture_handle: Option<Handle<Image>>,
+    pub radial_velocity_curve_texture_handle: Option<Handle<Image>>,
 }
 
 pub fn extract_particle_systems(
@@ -211,7 +219,7 @@ pub fn extract_particle_systems(
         let spawn = &emitter.process.spawn;
         let position = &spawn.position;
         let velocity = &spawn.velocity;
-        let accelerations = &spawn.accelerations;
+        let accelerations = &emitter.process.accelerations;
         let display = &emitter.process.display;
 
         let (emission_shape, emission_sphere_radius, emission_box_extents, emission_ring_axis, emission_ring_height, emission_ring_radius, emission_ring_inner_radius) =
@@ -368,6 +376,18 @@ pub fn extract_particle_systems(
                 },
                 None => SplineCurveUniform::disabled(),
             },
+
+            radial_velocity_min: emitter.process.animated_velocity.radial_velocity.value.min,
+            radial_velocity_max: emitter.process.animated_velocity.radial_velocity.value.max,
+            _pad8: 0.0,
+            _pad9: 0.0,
+
+            radial_velocity_curve: match &emitter.process.animated_velocity.radial_velocity.curve {
+                Some(c) if !c.is_constant() => {
+                    SplineCurveUniform::enabled(c.min_value, c.max_value)
+                }
+                _ => SplineCurveUniform::disabled(),
+            },
         };
 
         let gradient_texture_handle = match &display.color_curves.initial_color {
@@ -404,6 +424,15 @@ pub fn extract_particle_systems(
             .filter(|c| !c.is_constant())
             .and_then(|c| curve_cache.get(&c.curve));
 
+        let radial_velocity_curve_texture_handle = emitter
+            .process
+            .animated_velocity
+            .radial_velocity
+            .curve
+            .as_ref()
+            .filter(|c| !c.is_constant())
+            .and_then(|c| curve_cache.get(&c.curve));
+
         extracted.emitters.push((
             entity,
             ExtractedEmitterData {
@@ -421,6 +450,7 @@ pub fn extract_particle_systems(
                 alpha_curve_texture_handle,
                 emission_curve_texture_handle,
                 turbulence_influence_curve_texture_handle,
+                radial_velocity_curve_texture_handle,
             },
         ));
     }

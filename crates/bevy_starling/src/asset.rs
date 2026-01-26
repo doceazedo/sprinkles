@@ -587,7 +587,7 @@ impl Default for ParticleProcessSpawnVelocity {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ParticleProcessSpawnAccelerations {
+pub struct ParticleProcessAccelerations {
     #[serde(default = "default_gravity")]
     pub gravity: Vec3,
 }
@@ -596,7 +596,7 @@ fn default_gravity() -> Vec3 {
     Vec3::new(0.0, -9.8, 0.0)
 }
 
-impl Default for ParticleProcessSpawnAccelerations {
+impl Default for ParticleProcessAccelerations {
     fn default() -> Self {
         Self {
             gravity: Vec3::new(0.0, -9.8, 0.0),
@@ -610,8 +610,6 @@ pub struct ParticleProcessSpawn {
     pub position: ParticleProcessSpawnPosition,
     #[serde(default)]
     pub velocity: ParticleProcessSpawnVelocity,
-    #[serde(default)]
-    pub accelerations: ParticleProcessSpawnAccelerations,
 }
 
 impl Default for ParticleProcessSpawn {
@@ -619,7 +617,41 @@ impl Default for ParticleProcessSpawn {
         Self {
             position: ParticleProcessSpawnPosition::default(),
             velocity: ParticleProcessSpawnVelocity::default(),
-            accelerations: ParticleProcessSpawnAccelerations::default(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AnimatedVelocity {
+    #[serde(default)]
+    pub value: Range,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub curve: Option<SplineCurveConfig>,
+}
+
+impl Default for AnimatedVelocity {
+    fn default() -> Self {
+        Self {
+            value: Range::default(),
+            curve: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ParticleProcessAnimVelocities {
+    // TODO: angular_velocity: AnimatedVelocity,
+    #[serde(default)]
+    pub radial_velocity: AnimatedVelocity,
+    // TODO: directional_velocity: AnimatedVelocity,
+    // TODO: orbit_velocity: AnimatedVelocity,
+    // TODO: velocity_limit: Option<SplineCurve>,
+}
+
+impl Default for ParticleProcessAnimVelocities {
+    fn default() -> Self {
+        Self {
+            radial_velocity: AnimatedVelocity::default(),
         }
     }
 }
@@ -1378,6 +1410,10 @@ pub struct ParticleProcessConfig {
     #[serde(default)]
     pub spawn: ParticleProcessSpawn,
     #[serde(default)]
+    pub animated_velocity: ParticleProcessAnimVelocities,
+    #[serde(default)]
+    pub accelerations: ParticleProcessAccelerations,
+    #[serde(default)]
     pub display: ParticleProcessDisplay,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub turbulence: Option<ParticleProcessTurbulence>,
@@ -1388,6 +1424,8 @@ impl Default for ParticleProcessConfig {
         Self {
             particle_flags: ParticleFlags::empty(),
             spawn: ParticleProcessSpawn::default(),
+            animated_velocity: ParticleProcessAnimVelocities::default(),
+            accelerations: ParticleProcessAccelerations::default(),
             display: ParticleProcessDisplay::default(),
             turbulence: None,
         }

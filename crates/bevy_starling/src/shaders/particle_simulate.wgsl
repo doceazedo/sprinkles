@@ -88,6 +88,13 @@ struct EmitterParams {
     turbulence_influence_max: f32,
 
     turbulence_influence_curve: SplineCurve,
+
+    radial_velocity_min: f32,
+    radial_velocity_max: f32,
+    _pad8: f32,
+    _pad9: f32,
+
+    radial_velocity_curve: SplineCurve,
 }
 
 // particle flags (emitter-level flags that affect all particles)
@@ -117,6 +124,8 @@ const PARTICLE_FLAG_ACTIVE: u32 = 1u;
 @group(0) @binding(9) var emission_curve_sampler: sampler;
 @group(0) @binding(10) var turbulence_influence_curve_texture: texture_2d<f32>;
 @group(0) @binding(11) var turbulence_influence_curve_sampler: sampler;
+@group(0) @binding(12) var radial_velocity_curve_texture: texture_2d<f32>;
+@group(0) @binding(13) var radial_velocity_curve_sampler: sampler;
 
 @compute @workgroup_size(64)
 fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
@@ -517,6 +526,86 @@ fn get_emission_at_lifetime(age: f32, lifetime: f32) -> f32 {
     return 1.0 + curve_value;
 }
 
+fn get_initial_radial_velocity(seed: u32) -> f32 {
+    let t = hash_to_float(seed);
+    return mix(params.radial_velocity_min, params.radial_velocity_max, t);
+}
+
+fn get_radial_velocity_curve_multiplier(age: f32, lifetime: f32) -> f32 {
+    if (params.radial_velocity_curve.enabled == 0u) {
+        return 1.0;
+    }
+    let t = clamp(age / lifetime, 0.0, 1.0);
+    return sample_spline_curve(
+        radial_velocity_curve_texture,
+        radial_velocity_curve_sampler,
+        params.radial_velocity_curve,
+        t
+    );
+}
+
+// computes radial displacement (movement away from or toward velocity_pivot)
+// based on godot's implementation
+fn get_radial_displacement(
+    position: vec3<f32>,
+    radial_velocity: f32,
+    age: f32,
+    lifetime: f32,
+    dt: f32,
+    seed: u32
+) -> vec3<f32> {
+    var radial_displacement = vec3(0.0);
+
+    // skip if delta time is too small
+    if (dt < 0.001) {
+        return radial_displacement;
+    }
+
+    // apply lifetime curve
+    let curve_multiplier = get_radial_velocity_curve_multiplier(age, lifetime);
+    let effective_velocity = radial_velocity * curve_multiplier;
+
+    // skip if no radial velocity
+    if (abs(effective_velocity) < 0.0001) {
+        return radial_displacement;
+    }
+
+    let pivot = params.velocity_pivot;
+    let to_particle = position - pivot;
+    let distance_to_pivot = length(to_particle);
+
+    // minimum distance threshold to avoid singularity
+    let min_distance = 0.01;
+
+    if (distance_to_pivot > min_distance) {
+        // normal case: radiate away from pivot
+        let direction = normalize(to_particle);
+        radial_displacement = direction * effective_velocity;
+
+        // for negative (inward) velocity, clamp to prevent overshooting pivot
+        if (effective_velocity < 0.0) {
+            let max_inward_speed = distance_to_pivot / dt;
+            let clamped_speed = min(abs(effective_velocity), max_inward_speed);
+            radial_displacement = direction * (-clamped_speed);
+        }
+    } else {
+        // particle is at or very close to pivot - use random direction
+        // this prevents singularity and creates natural spread
+        let u = hash_to_float(seed + 50u);
+        let v = hash_to_float(seed + 51u);
+        let theta = 2.0 * PI * u;
+        let phi = acos(2.0 * v - 1.0);
+        let random_dir = vec3(
+            sin(phi) * cos(theta),
+            sin(phi) * sin(theta),
+            cos(phi)
+        );
+        radial_displacement = random_dir * abs(effective_velocity);
+    }
+
+    return radial_displacement;
+}
+
 fn spawn_particle(idx: u32) -> Particle {
     var p: Particle;
     // per-particle seed derivation:
@@ -529,8 +618,24 @@ fn spawn_particle(idx: u32) -> Particle {
     let scale = get_scale_at_lifetime(initial_scale, 0.0, 1.0);
     p.position = vec4(emission_pos, scale);
 
-    let vel = get_emission_velocity(seed + 10u);
+    var vel = get_emission_velocity(seed + 10u);
     let lifetime = params.lifetime * (1.0 + random_range(seed + 4u, params.lifetime_randomness));
+
+    // include radial velocity at spawn for correct initial alignment
+    let initial_radial_velocity = get_initial_radial_velocity(seed + 60u);
+    var radial_displacement = get_radial_displacement(
+        emission_pos,
+        initial_radial_velocity,
+        0.0,  // age = 0 at spawn
+        lifetime,
+        params.delta_time,
+        seed
+    );
+    if ((params.particle_flags & PARTICLE_FLAG_DISABLE_Z) != 0u) {
+        radial_displacement.z = 0.0;
+    }
+    vel = vel + radial_displacement;
+
     p.velocity = vec4(vel, lifetime);
 
     if (params.use_initial_color_gradient == 0u) {
@@ -576,35 +681,81 @@ fn update_particle(p_in: Particle) -> Particle {
     }
 
     let seed = bitcast<u32>(p.custom.z);
+    let initial_radial_velocity = get_initial_radial_velocity(seed + 60u);
+
+    // the stored velocity includes the previous frame's radial displacement (for alignment)
+    // we need to extract the pure physics velocity before applying gravity
+    let stored_velocity = p.velocity.xyz;
+
+    // extract physics velocity by removing previous radial component
+    // on first frame (age <= dt), stored velocity is pure physics (no radial yet)
+    var physics_velocity = stored_velocity;
+    if (age > dt) {
+        // compute previous position to calculate previous radial displacement
+        let prev_position = p.position.xyz - stored_velocity * dt;
+        let prev_age = age - dt;
+
+        // compute what the radial displacement was last frame
+        var prev_radial = get_radial_displacement(
+            prev_position,
+            initial_radial_velocity,
+            prev_age,
+            lifetime,
+            dt,
+            seed
+        );
+        if ((params.particle_flags & PARTICLE_FLAG_DISABLE_Z) != 0u) {
+            prev_radial.z = 0.0;
+        }
+
+        physics_velocity = stored_velocity - prev_radial;
+    }
 
     // apply gravity (respect DISABLE_Z flag for 2D mode)
     var gravity = params.gravity;
     if ((params.particle_flags & PARTICLE_FLAG_DISABLE_Z) != 0u) {
         gravity.z = 0.0;
     }
-    var velocity = p.velocity.xyz + gravity * dt;
+    physics_velocity = physics_velocity + gravity * dt;
 
-    // apply turbulence
+    // compute current radial displacement
+    var radial_displacement = get_radial_displacement(
+        p.position.xyz,
+        initial_radial_velocity,
+        age,
+        lifetime,
+        dt,
+        seed
+    );
+    if ((params.particle_flags & PARTICLE_FLAG_DISABLE_Z) != 0u) {
+        radial_displacement.z = 0.0;
+    }
+
+    // apply turbulence to physics velocity
     if (params.turbulence_enabled != 0u) {
         let base_influence = get_turbulence_influence(seed + 40u);
         let influence = get_turbulence_influence_at_lifetime(base_influence, age, lifetime);
         let random_offset = hash_to_float(seed + 41u);
         let noise_direction = get_noise_direction(p.position.xyz, age, random_offset);
-        let vel_magnitude = length(velocity);
+        let vel_magnitude = length(physics_velocity);
         if (vel_magnitude > 0.0001) {
-            velocity = mix(velocity, noise_direction * vel_magnitude, influence);
+            physics_velocity = mix(physics_velocity, noise_direction * vel_magnitude, influence);
         }
     }
 
     // disable Z for 2D mode before storing velocity and updating position
     if ((params.particle_flags & PARTICLE_FLAG_DISABLE_Z) != 0u) {
-        velocity.z = 0.0;
+        physics_velocity.z = 0.0;
     }
 
-    p.velocity = vec4(velocity, lifetime);
+    // combine physics velocity with controlled displacements (like radial velocity)
+    // this is used for both position update and alignment in the material shader
+    let effective_velocity = physics_velocity + radial_displacement;
+
+    p.velocity = vec4(effective_velocity, lifetime);
 
     // update position
-    var new_position = p.position.xyz + velocity * dt;
+    var new_position = p.position.xyz + effective_velocity * dt;
 
     // force Z to 0 for 2D mode
     if ((params.particle_flags & PARTICLE_FLAG_DISABLE_Z) != 0u) {
