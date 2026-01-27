@@ -1,3 +1,4 @@
+use bevy::color::palettes::tailwind::ZINC_950;
 use bevy::prelude::*;
 use bevy_egui::{
     egui, input::egui_wants_any_pointer_input, EguiContexts, EguiPlugin, EguiPrimaryContextPass,
@@ -15,9 +16,9 @@ use crate::ui::{
     on_remove_draw_pass, on_remove_emitter,
 };
 use crate::viewport::{
-    despawn_preview_on_project_change, draw_grid, orbit_camera, setup_camera,
-    spawn_preview_particle_system, sync_playback_state, update_camera_viewport, zoom_camera,
-    CameraSettings, ViewportLayout,
+    configure_floor_texture, despawn_preview_on_project_change, orbit_camera, setup_camera,
+    setup_floor, spawn_preview_particle_system, sync_playback_state, update_camera_viewport,
+    zoom_camera, CameraSettings, ViewportLayout,
 };
 
 pub struct AracariEditorPlugin;
@@ -37,6 +38,7 @@ impl Plugin for AracariEditorPlugin {
             .init_resource::<OpenFileDialogState>()
             .insert_resource(editor_data)
             .insert_resource(EguiConfigured(false))
+            .insert_resource(ClearColor(ZINC_950.into()))
             .add_observer(on_create_project_event)
             .add_observer(on_save_project_event)
             .add_observer(on_open_project_event)
@@ -45,14 +47,14 @@ impl Plugin for AracariEditorPlugin {
             .add_observer(on_remove_emitter)
             .add_observer(on_add_draw_pass)
             .add_observer(on_remove_draw_pass)
-            .add_systems(Startup, (setup_camera, load_initial_project))
+            .add_systems(Startup, (setup_camera, setup_floor, load_initial_project))
             .add_systems(
                 Update,
                 (
                     orbit_camera.run_if(not(egui_wants_any_pointer_input)),
                     zoom_camera.run_if(not(egui_wants_any_pointer_input)),
                     update_camera_viewport,
-                    draw_grid,
+                    configure_floor_texture,
                     spawn_preview_particle_system,
                     despawn_preview_on_project_change,
                     sync_playback_state,

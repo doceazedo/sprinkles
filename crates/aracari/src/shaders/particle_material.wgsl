@@ -97,8 +97,8 @@ fn vertex(vertex: Vertex) -> VertexOutput {
     // translate to particle position
     let local_position = scaled_position + particle_position;
 
-    // get world transform matrix (single mesh entity per emitter, so index 0)
-    var world_from_local = mesh_functions::get_world_from_local(0u);
+    // get world transform matrix using the mesh's instance index
+    var world_from_local = mesh_functions::get_world_from_local(vertex.instance_index);
 
     // compute world position
     out.world_position = mesh_functions::mesh_position_local_to_world(world_from_local, vec4(local_position, 1.0));
@@ -108,7 +108,7 @@ fn vertex(vertex: Vertex) -> VertexOutput {
 
     // transform normal to world space (use rotated normal if ALIGN_Y_TO_VELOCITY)
 #ifdef VERTEX_NORMALS
-    out.world_normal = mesh_functions::mesh_normal_local_to_world(rotated_normal, 0u);
+    out.world_normal = mesh_functions::mesh_normal_local_to_world(rotated_normal, vertex.instance_index);
 #endif
 
 #ifdef VERTEX_UVS_A
@@ -120,7 +120,7 @@ fn vertex(vertex: Vertex) -> VertexOutput {
 #endif
 
 #ifdef VERTEX_TANGENTS
-    out.world_tangent = mesh_functions::mesh_tangent_local_to_world(world_from_local, vertex.tangent, 0u);
+    out.world_tangent = mesh_functions::mesh_tangent_local_to_world(world_from_local, vertex.tangent, vertex.instance_index);
 #endif
 
 #ifdef VERTEX_COLORS

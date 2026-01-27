@@ -1,20 +1,26 @@
-use std::f32::consts::{FRAC_PI_2, FRAC_PI_4, PI};
+use std::f32::consts::{FRAC_PI_2, FRAC_PI_4};
 use std::ops::Range;
 
-use bevy::camera::SubCameraView;
-use bevy::color::palettes::tailwind;
-use bevy::core_pipeline::tonemapping::Tonemapping;
-use bevy::post_process::bloom::Bloom;
-use bevy::input::mouse::{AccumulatedMouseMotion, AccumulatedMouseScroll};
-use bevy::prelude::*;
 use aracari::prelude::*;
+use bevy::camera::SubCameraView;
+use bevy::color::palettes::tailwind::ZINC_950;
+use bevy::image::{ImageAddressMode, ImageSamplerDescriptor};
+use bevy::math::Affine2;
+use bevy::input::mouse::{AccumulatedMouseMotion, AccumulatedMouseScroll};
+use bevy::post_process::bloom::Bloom;
+use bevy::prelude::*;
 
 use crate::state::EditorState;
 
 const MIN_ZOOM_DISTANCE: f32 = 0.1;
 const MAX_ZOOM_DISTANCE: f32 = 20.0;
 const ZOOM_SPEED: f32 = 0.5;
-const INITIAL_ORBIT_DISTANCE: f32 = 8.66;
+const INITIAL_ORBIT_DISTANCE: f32 = 5.0;
+const ORBIT_OFFSET: Vec3 = Vec3::new(1.0, 0.75, 1.0);
+const ORBIT_TARGET: Vec3 = Vec3::ZERO;
+
+const FLOOR_SIZE: f32 = 100.0;
+const FLOOR_TILE_SIZE: f32 = 2.0;
 
 #[derive(Component)]
 pub struct EditorCamera;
@@ -44,25 +50,81 @@ pub struct ViewportLayout {
     pub left_panel_width: f32,
 }
 
-pub fn setup_camera(mut commands: Commands, asset_server: Res<AssetServer>) {
+pub fn setup_camera(mut commands: Commands) {
+    let initial_position = ORBIT_TARGET + ORBIT_OFFSET.normalize() * INITIAL_ORBIT_DISTANCE;
     commands.spawn((
         EditorCamera,
         Name::new("Camera"),
         Camera3d::default(),
-        Transform::from_xyz(5.0, 5.0, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
-        EnvironmentMapLight {
-            diffuse_map: asset_server.load("pisa_diffuse_rgb9e5_zstd.ktx2"),
-            specular_map: asset_server.load("pisa_specular_rgb9e5_zstd.ktx2"),
+        Transform::from_translation(initial_position).looking_at(ORBIT_TARGET, Vec3::Y),
+        Bloom::NATURAL,
+        DistanceFog {
+            color: ZINC_950.into(),
+            falloff: FogFalloff::Linear {
+                start: 24.0,
+                end: 48.0,
+            },
             ..default()
         },
-        // Tonemapping::TonyMcMapface,
-        Bloom::NATURAL,
     ));
 
     commands.spawn((
         DirectionalLight::default(),
         Transform::from_rotation(Quat::from_euler(EulerRot::XYZ, -FRAC_PI_4, 0.0, -FRAC_PI_4)),
     ));
+}
+
+#[derive(Resource)]
+pub struct FloorTexture(Handle<Image>);
+
+pub fn setup_floor(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    let floor_texture: Handle<Image> = asset_server.load("floor.png");
+    commands.insert_resource(FloorTexture(floor_texture.clone()));
+
+    let mesh = meshes.add(Plane3d::new(*Dir3::Y, Vec2::splat(FLOOR_SIZE / 2.)));
+
+    let tile_count = FLOOR_SIZE / FLOOR_TILE_SIZE;
+    let material = materials.add(StandardMaterial {
+        base_color_texture: Some(floor_texture),
+        uv_transform: Affine2::from_scale(Vec2::splat(tile_count)),
+        unlit: true,
+        ..default()
+    });
+
+    commands.spawn((
+        Mesh3d(mesh),
+        MeshMaterial3d(material),
+        Name::new("Floor"),
+        Transform::from_xyz(0.0, -2.0, 0.0),
+        Visibility::default(),
+    ));
+}
+
+pub fn configure_floor_texture(
+    mut commands: Commands,
+    floor_texture: Option<Res<FloorTexture>>,
+    mut images: ResMut<Assets<Image>>,
+) {
+    let Some(floor_texture) = floor_texture else {
+        return;
+    };
+    let Some(image) = images.get_mut(&floor_texture.0) else {
+        return;
+    };
+
+    image.sampler = bevy::image::ImageSampler::Descriptor(ImageSamplerDescriptor {
+        address_mode_u: ImageAddressMode::Repeat,
+        address_mode_v: ImageAddressMode::Repeat,
+        address_mode_w: ImageAddressMode::Repeat,
+        ..default()
+    });
+
+    commands.remove_resource::<FloorTexture>();
 }
 
 pub fn orbit_camera(
@@ -91,8 +153,7 @@ pub fn orbit_camera(
     let yaw = yaw + delta_yaw;
     camera.rotation = Quat::from_euler(EulerRot::YXZ, yaw, pitch, roll);
 
-    let target = Vec3::ZERO;
-    camera.translation = target - camera.forward() * camera_settings.orbit_distance;
+    camera.translation = ORBIT_TARGET - camera.forward() * camera_settings.orbit_distance;
 }
 
 pub fn zoom_camera(
@@ -109,8 +170,7 @@ pub fn zoom_camera(
     camera_settings.orbit_distance =
         (camera_settings.orbit_distance + zoom_delta).clamp(MIN_ZOOM_DISTANCE, MAX_ZOOM_DISTANCE);
 
-    let target = Vec3::ZERO;
-    camera.translation = target - camera.forward() * camera_settings.orbit_distance;
+    camera.translation = ORBIT_TARGET - camera.forward() * camera_settings.orbit_distance;
 }
 
 pub fn update_camera_viewport(
@@ -140,14 +200,6 @@ pub fn update_camera_viewport(
     });
 }
 
-pub fn draw_grid(mut gizmos: Gizmos) {
-    gizmos.grid(
-        Quat::from_rotation_x(PI / 2.0),
-        UVec2::splat(100),
-        Vec2::new(1.0, 1.0),
-        tailwind::ZINC_700,
-    );
-}
 
 #[derive(Component)]
 pub struct EditorParticlePreview;

@@ -450,7 +450,7 @@ pub fn setup_particle_systems(
                     CurrentMaterialConfig(current_material),
                     ParticleMeshHandle(particle_mesh_handle.clone()),
                     ParticleMaterialHandle(material_handle.clone()),
-                    Transform::default(),
+                    Transform::from_translation(emitter.position),
                     Visibility::default(),
                 ))
                 .id();

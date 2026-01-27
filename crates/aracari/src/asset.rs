@@ -140,6 +140,9 @@ pub struct EmitterData {
     #[serde(default = "default_enabled")]
     pub enabled: bool,
 
+    #[serde(default)]
+    pub position: Vec3,
+
     #[serde(default = "default_amount")]
     pub amount: u32,
 
@@ -169,6 +172,7 @@ impl Default for EmitterData {
         Self {
             name: "Emitter".to_string(),
             enabled: true,
+            position: Vec3::ZERO,
             amount: 8,
             time: EmitterTime::default(),
             drawing: EmitterDrawing::default(),

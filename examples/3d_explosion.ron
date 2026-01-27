@@ -5,6 +5,7 @@
         (
             name: "Windup",
             enabled: true,
+            position: (0.0, 0.0, 0.0),
             amount: 10,
             time: (
                 lifetime: 0.28,
@@ -121,6 +122,7 @@
         (
             name: "Smoke",
             enabled: true,
+            position: (0.0, 0.0, 0.0),
             amount: 16,
             time: (
                 lifetime: 2.0,
@@ -243,6 +245,7 @@
         (
             name: "Fire",
             enabled: true,
+            position: (0.0, 0.0, 0.0),
             amount: 16,
             time: (
                 lifetime: 1.0,
@@ -360,6 +363,7 @@
         (
             name: "Sparks",
             enabled: true,
+            position: (0.0, 0.0, 0.0),
             amount: 20,
             time: (
                 lifetime: 0.7,
@@ -483,6 +487,7 @@
         (
             name: "Shockwave",
             enabled: true,
+            position: (0.0, 0.0, 0.0),
             amount: 1,
             time: (
                 lifetime: 0.5,

@@ -1802,6 +1802,7 @@ pub fn draw_inspector(
                             ui.indent(&emitter_id, |ui| {
                                 any_changed |= inspect_bool(ui, &field_label("enabled"), &mut emitter.enabled, base_indent);
                                 any_changed |= inspect_u32(ui, &field_label("amount"), &mut emitter.amount, base_indent);
+                                any_changed |= inspect_vec3(ui, &field_label("position"), &mut emitter.position, base_indent);
 
                                 any_changed |= inspect_emitter_time(
                                     ui,
