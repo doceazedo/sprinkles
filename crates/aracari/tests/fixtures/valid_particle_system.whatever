@@ -12,7 +12,7 @@
             drawing: (),
             draw_passes: [
                 (
-                    mesh: Quad(),
+                    mesh: Sphere(),
                     material: Standard(()),
                 ),
             ],

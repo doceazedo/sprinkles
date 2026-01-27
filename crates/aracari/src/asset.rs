@@ -218,10 +218,11 @@ pub enum QuadOrientation {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum ParticleMesh {
     Quad {
+        #[serde(default)]
         orientation: QuadOrientation,
     },
     Sphere {
-        #[serde(default)]
+        #[serde(default = "default_sphere_radius")]
         radius: f32,
     },
     Cuboid {
@@ -248,6 +249,10 @@ pub enum ParticleMesh {
         #[serde(default)]
         subdivide_depth: u32,
     },
+}
+
+fn default_sphere_radius() -> f32 {
+    1.0
 }
 
 fn default_prism_left_to_right() -> f32 {
