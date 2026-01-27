@@ -63,6 +63,71 @@ fn field_label(name: &str) -> String {
 
 const INDENT_WIDTH: f32 = 12.0;
 
+trait EnumDisplay: PartialEq + Clone + 'static {
+    fn display_text(&self) -> &'static str;
+    fn all_variants() -> &'static [Self];
+}
+
+impl EnumDisplay for DrawOrder {
+    fn display_text(&self) -> &'static str {
+        match self {
+            DrawOrder::Index => "Index",
+            DrawOrder::Lifetime => "Lifetime",
+            DrawOrder::ReverseLifetime => "ReverseLifetime",
+            DrawOrder::ViewDepth => "ViewDepth",
+        }
+    }
+    fn all_variants() -> &'static [Self] {
+        &[DrawOrder::Index, DrawOrder::Lifetime, DrawOrder::ReverseLifetime, DrawOrder::ViewDepth]
+    }
+}
+
+impl EnumDisplay for QuadOrientation {
+    fn display_text(&self) -> &'static str {
+        match self {
+            QuadOrientation::FaceX => "Face X",
+            QuadOrientation::FaceY => "Face Y",
+            QuadOrientation::FaceZ => "Face Z",
+        }
+    }
+    fn all_variants() -> &'static [Self] {
+        &[QuadOrientation::FaceX, QuadOrientation::FaceY, QuadOrientation::FaceZ]
+    }
+}
+
+impl EnumDisplay for GradientInterpolation {
+    fn display_text(&self) -> &'static str {
+        match self {
+            GradientInterpolation::Steps => "Steps",
+            GradientInterpolation::Linear => "Linear",
+            GradientInterpolation::Smoothstep => "Smoothstep",
+        }
+    }
+    fn all_variants() -> &'static [Self] {
+        &[GradientInterpolation::Steps, GradientInterpolation::Linear, GradientInterpolation::Smoothstep]
+    }
+}
+
+fn inspect_enum<T: EnumDisplay>(
+    ui: &mut egui::Ui,
+    label: &str,
+    value: &mut T,
+    indent_level: u8,
+) -> bool {
+    let mut changed = false;
+    inspector_row(ui, label, indent_level, |ui, width| {
+        egui::ComboBox::from_id_salt(label)
+            .selected_text(value.display_text())
+            .width(width)
+            .show_ui(ui, |ui| {
+                for variant in T::all_variants() {
+                    changed |= ui.selectable_value(value, variant.clone(), variant.display_text()).changed();
+                }
+            });
+    });
+    changed
+}
+
 fn inspector_row(
     ui: &mut egui::Ui,
     label: &str,
@@ -133,9 +198,7 @@ fn instantiable_row(
                     .selected_text(selected_text)
                     .width(combobox_width)
                     .show_ui(ui, |ui| {
-                        if add_combobox_contents(ui) {
-                            changed = true;
-                        }
+                        changed |= add_combobox_contents(ui);
                     });
 
                 // more button (does nothing for now)
@@ -369,7 +432,7 @@ fn inspect_vector_fields<const N: usize>(
         for i in 0..N {
             let color = DEFAULT_FIELD_COLORS.get(i).copied().unwrap_or(colors::TEXT_MUTED);
 
-            if styled_labeled_f32_input(
+            changed |= styled_labeled_f32_input(
                 ui,
                 labels[i],
                 color,
@@ -378,9 +441,7 @@ fn inspect_vector_fields<const N: usize>(
                 ROW_HEIGHT,
                 None,
                 None,
-            ) {
-                changed = true;
-            }
+            );
 
             // spacing between fields
             if i < N - 1 {
@@ -404,46 +465,7 @@ fn inspect_vec3(ui: &mut egui::Ui, label: &str, value: &mut Vec3, indent_level: 
 }
 
 fn inspect_draw_order(ui: &mut egui::Ui, label: &str, value: &mut DrawOrder, indent_level: u8) -> bool {
-    let mut changed = false;
-    inspector_row(ui, label, indent_level, |ui, width| {
-        let current_text = match value {
-            DrawOrder::Index => "Index",
-            DrawOrder::Lifetime => "Lifetime",
-            DrawOrder::ReverseLifetime => "ReverseLifetime",
-            DrawOrder::ViewDepth => "ViewDepth",
-        };
-
-        egui::ComboBox::from_id_salt(label)
-            .selected_text(current_text)
-            .width(width)
-            .show_ui(ui, |ui| {
-                if ui
-                    .selectable_value(value, DrawOrder::Index, "Index")
-                    .changed()
-                {
-                    changed = true;
-                }
-                if ui
-                    .selectable_value(value, DrawOrder::Lifetime, "Lifetime")
-                    .changed()
-                {
-                    changed = true;
-                }
-                if ui
-                    .selectable_value(value, DrawOrder::ReverseLifetime, "ReverseLifetime")
-                    .changed()
-                {
-                    changed = true;
-                }
-                if ui
-                    .selectable_value(value, DrawOrder::ViewDepth, "ViewDepth")
-                    .changed()
-                {
-                    changed = true;
-                }
-            });
-    });
-    changed
+    inspect_enum(ui, label, value, indent_level)
 }
 
 fn inspect_particle_mesh(
@@ -606,41 +628,7 @@ fn inspect_quad_orientation(
     value: &mut QuadOrientation,
     indent_level: u8,
 ) -> bool {
-    let mut changed = false;
-
-    let current_text = match value {
-        QuadOrientation::FaceX => "Face X",
-        QuadOrientation::FaceY => "Face Y",
-        QuadOrientation::FaceZ => "Face Z",
-    };
-
-    inspector_row(ui, label, indent_level, |ui, width| {
-        egui::ComboBox::from_id_salt(label)
-            .selected_text(current_text)
-            .width(width)
-            .show_ui(ui, |ui| {
-                if ui
-                    .selectable_value(value, QuadOrientation::FaceX, "Face X")
-                    .changed()
-                {
-                    changed = true;
-                }
-                if ui
-                    .selectable_value(value, QuadOrientation::FaceY, "Face Y")
-                    .changed()
-                {
-                    changed = true;
-                }
-                if ui
-                    .selectable_value(value, QuadOrientation::FaceZ, "Face Z")
-                    .changed()
-                {
-                    changed = true;
-                }
-            });
-    });
-
-    changed
+    inspect_enum(ui, label, value, indent_level)
 }
 
 fn inspect_emitter_time(ui: &mut egui::Ui, id: &str, time: &mut EmitterTime, indent_level: u8) -> bool {
@@ -727,56 +715,13 @@ fn inspect_alpha_mode(
             .selected_text(current_text)
             .width(width)
             .show_ui(ui, |ui| {
-                if ui
-                    .selectable_value(value, SerializableAlphaMode::Opaque, "Opaque")
-                    .changed()
-                {
-                    changed = true;
-                }
-                if ui
-                    .selectable_value(
-                        value,
-                        SerializableAlphaMode::Mask { cutoff: 0.5 },
-                        "Mask",
-                    )
-                    .changed()
-                {
-                    changed = true;
-                }
-                if ui
-                    .selectable_value(value, SerializableAlphaMode::Blend, "Blend")
-                    .changed()
-                {
-                    changed = true;
-                }
-                if ui
-                    .selectable_value(value, SerializableAlphaMode::Premultiplied, "Premultiplied")
-                    .changed()
-                {
-                    changed = true;
-                }
-                if ui
-                    .selectable_value(value, SerializableAlphaMode::Add, "Add")
-                    .changed()
-                {
-                    changed = true;
-                }
-                if ui
-                    .selectable_value(value, SerializableAlphaMode::Multiply, "Multiply")
-                    .changed()
-                {
-                    changed = true;
-                }
-                if ui
-                    .selectable_value(
-                        value,
-                        SerializableAlphaMode::AlphaToCoverage,
-                        "Alpha to coverage",
-                    )
-                    .changed()
-                {
-                    changed = true;
-                }
+                changed |= ui.selectable_value(value, SerializableAlphaMode::Opaque, "Opaque").changed();
+                changed |= ui.selectable_value(value, SerializableAlphaMode::Mask { cutoff: 0.5 }, "Mask").changed();
+                changed |= ui.selectable_value(value, SerializableAlphaMode::Blend, "Blend").changed();
+                changed |= ui.selectable_value(value, SerializableAlphaMode::Premultiplied, "Premultiplied").changed();
+                changed |= ui.selectable_value(value, SerializableAlphaMode::Add, "Add").changed();
+                changed |= ui.selectable_value(value, SerializableAlphaMode::Multiply, "Multiply").changed();
+                changed |= ui.selectable_value(value, SerializableAlphaMode::AlphaToCoverage, "Alpha to coverage").changed();
             });
     });
 
@@ -801,17 +746,14 @@ fn inspect_standard_material(
     let mut changed = false;
 
     inspector_row(ui, "Base color", indent_level, |ui, width| {
-        if color_picker_with_id(
+        changed |= color_picker_with_id(
             ui,
             format!("{}_base_color", id),
             &mut mat.base_color,
             width,
             panel_right_edge,
         )
-        .changed()
-        {
-            changed = true;
-        }
+        .changed();
     });
 
     inspector_row(ui, "Base color texture", indent_level, |ui, width| {
@@ -833,17 +775,14 @@ fn inspect_standard_material(
     });
 
     inspector_row(ui, "Emissive", indent_level, |ui, width| {
-        if color_picker_with_id(
+        changed |= color_picker_with_id(
             ui,
             format!("{}_emissive", id),
             &mut mat.emissive,
             width,
             panel_right_edge,
         )
-        .changed()
-        {
-            changed = true;
-        }
+        .changed();
     });
 
     inspector_row(ui, "Emissive texture", indent_level, |ui, width| {
@@ -1315,9 +1254,7 @@ fn inspect_spline_curve(
 
                 // the spline curve picker uses its own combobox with submenus,
                 // so we pass the reduced width to it
-                if spline_curve_config_picker(ui, label, value, combobox_width) {
-                    changed = true;
-                }
+                changed |= spline_curve_config_picker(ui, label, value, combobox_width);
 
                 // more button (does nothing for now)
                 icon_button(ui, icons::MORE_2_FILL);
@@ -1422,16 +1359,12 @@ fn inspect_solid_or_gradient_color(
     ui.indent(id, |ui| match value {
         SolidOrGradientColor::Solid { color } => {
             inspector_row(ui, "Color", inner_indent, |ui, width| {
-                if color_picker(ui, color, width, panel_right_edge).changed() {
-                    changed = true;
-                }
+                changed |= color_picker(ui, color, width, panel_right_edge).changed();
             });
         }
         SolidOrGradientColor::Gradient { gradient } => {
             inspector_row(ui, "Gradient", inner_indent, |ui, width| {
-                if gradient_picker(ui, gradient, width, panel_right_edge).changed() {
-                    changed = true;
-                }
+                changed |= gradient_picker(ui, gradient, width, panel_right_edge).changed();
             });
             changed |= inspect_gradient_interpolation(
                 ui,
@@ -1451,41 +1384,7 @@ fn inspect_gradient_interpolation(
     value: &mut GradientInterpolation,
     indent_level: u8,
 ) -> bool {
-    let mut changed = false;
-
-    let current_text = match value {
-        GradientInterpolation::Steps => "Steps",
-        GradientInterpolation::Linear => "Linear",
-        GradientInterpolation::Smoothstep => "Smoothstep",
-    };
-
-    inspector_row(ui, label, indent_level, |ui, width| {
-        egui::ComboBox::from_id_salt(label)
-            .selected_text(current_text)
-            .width(width)
-            .show_ui(ui, |ui| {
-                if ui
-                    .selectable_value(value, GradientInterpolation::Steps, "Steps")
-                    .changed()
-                {
-                    changed = true;
-                }
-                if ui
-                    .selectable_value(value, GradientInterpolation::Linear, "Linear")
-                    .changed()
-                {
-                    changed = true;
-                }
-                if ui
-                    .selectable_value(value, GradientInterpolation::Smoothstep, "Smoothstep")
-                    .changed()
-                {
-                    changed = true;
-                }
-            });
-    });
-
-    changed
+    inspect_enum(ui, label, value, indent_level)
 }
 
 fn inspect_display_color(

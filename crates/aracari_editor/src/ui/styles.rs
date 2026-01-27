@@ -140,98 +140,48 @@ pub fn configure_style(ctx: &egui::Context) {
     ctx.set_style(style);
 }
 
-pub fn icon_button(ui: &mut egui::Ui, icon: &str) -> egui::Response {
-    let (rect, response) =
-        ui.allocate_exact_size(Vec2::splat(ICON_BUTTON_SIZE), egui::Sense::click());
+const ICON_BUTTON_CORNER_RADIUS: u8 = 4;
+const ICON_VERTICAL_OFFSET: f32 = 1.0;
 
-    if ui.is_rect_visible(rect) {
-        let bg_color = if response.hovered() {
-            colors::hover_bg()
-        } else {
-            Color32::TRANSPARENT
-        };
-
-        ui.painter()
-            .rect_filled(rect, CornerRadius::same(4), bg_color);
-
-        // offset icon slightly down for better visual centering
-        let icon_pos = rect.center() + Vec2::new(0.0, 1.0);
-        ui.painter().text(
-            icon_pos,
-            egui::Align2::CENTER_CENTER,
-            icon,
-            FontId::proportional(TEXT_BASE),
-            ui.visuals().text_color(),
-        );
-    }
-
-    response
+#[derive(Default)]
+pub struct IconButtonOptions {
+    pub color: Option<Color32>,
+    pub active: Option<bool>,
+    pub active_color: Option<Color32>,
+    pub active_bg: Option<Color32>,
+    pub hover_bg: Option<Color32>,
 }
 
-pub fn icon_button_colored(
-    ui: &mut egui::Ui,
-    icon: &str,
-    color: Color32,
-    hover_color: Color32,
-) -> egui::Response {
+pub fn icon_button_ex(ui: &mut egui::Ui, icon: &str, options: IconButtonOptions) -> egui::Response {
     let (rect, response) =
         ui.allocate_exact_size(Vec2::splat(ICON_BUTTON_SIZE), egui::Sense::click());
 
     if ui.is_rect_visible(rect) {
-        if response.hovered() {
-            ui.painter()
-                .rect_filled(rect, CornerRadius::same(4), hover_color);
-        }
+        let is_active = options.active.unwrap_or(false);
+        let default_hover_bg = colors::hover_bg();
 
-        // offset icon slightly down for better visual centering
-        let icon_pos = rect.center() + Vec2::new(0.0, 1.0);
-        ui.painter().text(
-            icon_pos,
-            egui::Align2::CENTER_CENTER,
-            icon,
-            FontId::proportional(TEXT_BASE),
-            color,
-        );
-    }
-
-    response
-}
-
-pub fn icon_toggle(
-    ui: &mut egui::Ui,
-    icon: &str,
-    active: bool,
-    active_color: Color32,
-    active_bg: Color32,
-    hover_bg: Color32,
-) -> egui::Response {
-    let (rect, response) =
-        ui.allocate_exact_size(Vec2::splat(ICON_BUTTON_SIZE), egui::Sense::click());
-
-    if ui.is_rect_visible(rect) {
-        let bg_color = if active {
+        let bg_color = if is_active {
             if response.hovered() {
-                hover_bg
+                options.hover_bg.unwrap_or(default_hover_bg)
             } else {
-                active_bg
+                options.active_bg.unwrap_or(Color32::TRANSPARENT)
             }
         } else if response.hovered() {
-            colors::hover_bg()
+            options.hover_bg.unwrap_or(default_hover_bg)
         } else {
             Color32::TRANSPARENT
         };
 
         ui.painter()
-            .rect_filled(rect, CornerRadius::same(4), bg_color);
+            .rect_filled(rect, CornerRadius::same(ICON_BUTTON_CORNER_RADIUS), bg_color);
 
-        let text_color = if active {
-            active_color
+        let text_color = if is_active {
+            options.active_color.unwrap_or_else(|| ui.visuals().text_color())
         } else {
-            ui.visuals().text_color()
+            options.color.unwrap_or_else(|| ui.visuals().text_color())
         };
 
-        // offset icon slightly down for better visual centering
-        let icon_pos = rect.center() + Vec2::new(0.0, 1.0);
+        let icon_pos = rect.center() + Vec2::new(0.0, ICON_VERTICAL_OFFSET);
         ui.painter().text(
             icon_pos,
             egui::Align2::CENTER_CENTER,
@@ -242,6 +192,40 @@ pub fn icon_toggle(
     }
 
     response
+}
+
+pub fn icon_button(ui: &mut egui::Ui, icon: &str) -> egui::Response {
+    icon_button_ex(ui, icon, IconButtonOptions::default())
+}
+
+pub fn icon_button_colored(
+    ui: &mut egui::Ui,
+    icon: &str,
+    color: Color32,
+    hover_color: Color32,
+) -> egui::Response {
+    icon_button_ex(ui, icon, IconButtonOptions {
+        color: Some(color),
+        hover_bg: Some(hover_color),
+        ..Default::default()
+    })
+}
+
+pub fn icon_toggle(
+    ui: &mut egui::Ui,
+    icon: &str,
+    active: bool,
+    active_color: Color32,
+    active_bg: Color32,
+    hover_bg: Color32,
+) -> egui::Response {
+    icon_button_ex(ui, icon, IconButtonOptions {
+        active: Some(active),
+        active_color: Some(active_color),
+        active_bg: Some(active_bg),
+        hover_bg: Some(hover_bg),
+        ..Default::default()
+    })
 }
 
 pub fn primary_button(ui: &mut egui::Ui, text: &str) -> egui::Response {
