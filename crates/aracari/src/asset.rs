@@ -187,6 +187,8 @@ pub struct EmitterDrawPass {
     pub mesh: ParticleMesh,
     #[serde(default)]
     pub material: DrawPassMaterial,
+    #[serde(default)]
+    pub shadow_caster: bool,
 }
 
 impl Default for EmitterDrawPass {
@@ -194,6 +196,7 @@ impl Default for EmitterDrawPass {
         Self {
             mesh: ParticleMesh::default(),
             material: DrawPassMaterial::default(),
+            shadow_caster: true,
         }
     }
 }
@@ -209,10 +212,10 @@ pub enum QuadOrientation {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum ParticleMesh {
     Quad {
-        #[serde(default)]
         orientation: QuadOrientation,
     },
     Sphere {
+        #[serde(default)]
         radius: f32,
     },
     Cuboid {
@@ -231,8 +234,8 @@ pub enum ParticleMesh {
 
 impl Default for ParticleMesh {
     fn default() -> Self {
-        Self::Quad {
-            orientation: QuadOrientation::default(),
+        Self::Sphere {
+            radius: 1.0,
         }
     }
 }
@@ -288,7 +291,7 @@ fn default_perceptual_roughness() -> f32 {
 }
 
 fn default_alpha_mode() -> SerializableAlphaMode {
-    SerializableAlphaMode::Blend
+    SerializableAlphaMode::Opaque
 }
 
 fn default_reflectance() -> f32 {

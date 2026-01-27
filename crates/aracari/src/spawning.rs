@@ -1,5 +1,6 @@
 use bevy::{
     asset::RenderAssetUsages,
+    light::NotShadowCaster,
     mesh::{Indices, PrimitiveTopology, VertexAttributeValues},
     pbr::ExtendedMaterial,
     prelude::*,
@@ -411,12 +412,12 @@ pub fn setup_particle_systems(
 
             let sorted_particles_buffer_handle = buffers.add(ShaderStorageBuffer::from(particles));
 
-            let (current_mesh, current_material) = if let Some(draw_pass) =
+            let (current_mesh, current_material, shadow_caster) = if let Some(draw_pass) =
                 emitter.draw_passes.first()
             {
-                (draw_pass.mesh.clone(), draw_pass.material.clone())
+                (draw_pass.mesh.clone(), draw_pass.material.clone(), draw_pass.shadow_caster)
             } else {
-                (ParticleMesh::default(), DrawPassMaterial::default())
+                (ParticleMesh::default(), DrawPassMaterial::default(), true)
             };
 
             let particle_mesh_handle = create_particle_mesh(&current_mesh, amount, &mut meshes);
@@ -457,13 +458,17 @@ pub fn setup_particle_systems(
 
             commands.entity(system_entity).add_child(emitter_entity);
 
-            commands.spawn((
+            let mut mesh_entity = commands.spawn((
                 Mesh3d(particle_mesh_handle),
                 MeshMaterial3d(material_handle),
                 Transform::default(),
                 Visibility::default(),
                 EmitterMeshEntity { emitter_entity },
             ));
+
+            if !shadow_caster {
+                mesh_entity.insert(NotShadowCaster);
+            }
         }
     }
 }

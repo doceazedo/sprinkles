@@ -43,6 +43,7 @@
                         fog_enabled: true,
                         reflectance: 0.5,
                     )),
+                    shadow_caster: false,
                 ),
             ],
             process: (
@@ -154,6 +155,7 @@
                         fog_enabled: true,
                         reflectance: 0.5,
                     )),
+                    shadow_caster: false,
                 ),
             ],
             process: (
@@ -277,6 +279,7 @@
                         fog_enabled: true,
                         reflectance: 0.5,
                     )),
+                    shadow_caster: false,
                 ),
             ],
             process: (
@@ -401,6 +404,7 @@
                         fog_enabled: true,
                         reflectance: 0.5,
                     )),
+                    shadow_caster: false,
                 ),
             ],
             process: (
@@ -520,6 +524,7 @@
                         fog_enabled: true,
                         reflectance: 0.5,
                     )),
+                    shadow_caster: false,
                 ),
             ],
             process: (

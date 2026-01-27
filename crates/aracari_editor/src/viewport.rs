@@ -15,7 +15,7 @@ use crate::state::EditorState;
 const MIN_ZOOM_DISTANCE: f32 = 0.1;
 const MAX_ZOOM_DISTANCE: f32 = 20.0;
 const ZOOM_SPEED: f32 = 0.5;
-const INITIAL_ORBIT_DISTANCE: f32 = 5.0;
+const INITIAL_ORBIT_DISTANCE: f32 = 8.0;
 const ORBIT_OFFSET: Vec3 = Vec3::new(1.0, 0.75, 1.0);
 const ORBIT_TARGET: Vec3 = Vec3::ZERO;
 
@@ -69,7 +69,10 @@ pub fn setup_camera(mut commands: Commands) {
     ));
 
     commands.spawn((
-        DirectionalLight::default(),
+        DirectionalLight {
+            shadows_enabled: true,
+            ..default()
+        },
         Transform::from_rotation(Quat::from_euler(EulerRot::XYZ, -FRAC_PI_4, 0.0, -FRAC_PI_4)),
     ));
 }
@@ -92,7 +95,6 @@ pub fn setup_floor(
     let material = materials.add(StandardMaterial {
         base_color_texture: Some(floor_texture),
         uv_transform: Affine2::from_scale(Vec2::splat(tile_count)),
-        unlit: true,
         ..default()
     });
 

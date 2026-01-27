@@ -23,10 +23,14 @@ const STANDARD_MATERIAL_FLAGS_UNLIT_BIT: u32 = 1u << 5u;
 }
 
 #ifdef PREPASS_PIPELINE
+#import bevy_pbr::prepass_io::{Vertex, VertexOutput}
+#ifdef PREPASS_FRAGMENT
 #import bevy_pbr::{
-    prepass_io::{Vertex, VertexOutput, FragmentOutput},
+    prepass_io::FragmentOutput,
     pbr_deferred_functions::deferred_output,
+    pbr_fragment::pbr_input_from_standard_material,
 }
+#endif
 #else
 #import bevy_pbr::{
     forward_io::{Vertex, VertexOutput, FragmentOutput},
@@ -80,14 +84,18 @@ fn vertex(vertex: Vertex) -> VertexOutput {
 
     // compute particle rotation based on flags
     var rotated_position = vertex.position;
+#ifdef VERTEX_NORMALS
     var rotated_normal = vertex.normal;
+#endif
 
     if (particle_flags & EMITTER_FLAG_ALIGN_Y_TO_VELOCITY) != 0u {
         let vel_length = length(velocity);
         if vel_length > 0.0001 {
             let rotation_matrix = align_y_to_direction(velocity);
             rotated_position = rotation_matrix * vertex.position;
+#ifdef VERTEX_NORMALS
             rotated_normal = rotation_matrix * vertex.normal;
+#endif
         }
     }
 
@@ -136,13 +144,14 @@ fn vertex(vertex: Vertex) -> VertexOutput {
     return out;
 }
 
+// depth-only prepass fragment (shadow/depth pass) - just discard inactive, no output needed
+#ifdef PREPASS_PIPELINE
+#ifndef PREPASS_FRAGMENT
 @fragment
 fn fragment(
     in: VertexOutput,
     @builtin(front_facing) is_front: bool,
-) -> FragmentOutput {
-    // read particle index from interpolated uv_b.x
-    // since all vertices of each quad have the same uv_b.x, interpolation yields the same value
+) {
 #ifdef VERTEX_UVS_B
     let particle_index = u32(in.uv_b.x);
     let particle = sorted_particles[particle_index];
@@ -150,51 +159,87 @@ fn fragment(
     let particle = sorted_particles[0u];
 #endif
 
-    // check if particle is active
     let flags = bitcast<u32>(particle.custom.w);
     let is_active = (flags & PARTICLE_FLAG_ACTIVE) != 0u;
 
-    // discard inactive particles
+    if (!is_active || particle.color.a < 0.001) {
+        discard;
+    }
+}
+#endif
+#endif
+
+// deferred prepass fragment (normal/motion vector/deferred passes)
+#ifdef PREPASS_PIPELINE
+#ifdef PREPASS_FRAGMENT
+@fragment
+fn fragment(
+    in: VertexOutput,
+    @builtin(front_facing) is_front: bool,
+) -> FragmentOutput {
+#ifdef VERTEX_UVS_B
+    let particle_index = u32(in.uv_b.x);
+    let particle = sorted_particles[particle_index];
+#else
+    let particle = sorted_particles[0u];
+#endif
+
+    let flags = bitcast<u32>(particle.custom.w);
+    let is_active = (flags & PARTICLE_FLAG_ACTIVE) != 0u;
+
     if (!is_active || particle.color.a < 0.001) {
         discard;
     }
 
-#ifdef PREPASS_PIPELINE
     var pbr_input = pbr_input_from_standard_material(in, is_front);
     pbr_input.material.base_color = pbr_input.material.base_color * particle.color;
     let out = deferred_output(in, pbr_input);
+
+    return out;
+}
+#endif
+#endif
+
+// forward rendering fragment
+#ifndef PREPASS_PIPELINE
+@fragment
+fn fragment(
+    in: VertexOutput,
+    @builtin(front_facing) is_front: bool,
+) -> FragmentOutput {
+#ifdef VERTEX_UVS_B
+    let particle_index = u32(in.uv_b.x);
+    let particle = sorted_particles[particle_index];
 #else
-    // generate PbrInput from StandardMaterial bindings
+    let particle = sorted_particles[0u];
+#endif
+
+    let flags = bitcast<u32>(particle.custom.w);
+    let is_active = (flags & PARTICLE_FLAG_ACTIVE) != 0u;
+
+    if (!is_active || particle.color.a < 0.001) {
+        discard;
+    }
+
     var pbr_input = pbr_input_from_standard_material(in, is_front);
-
-    // multiply base color by particle color
     pbr_input.material.base_color = pbr_input.material.base_color * particle.color;
-
-    // alpha discard
     pbr_input.material.base_color = alpha_discard(pbr_input.material, pbr_input.material.base_color);
 
-    // store the alpha before PBR lighting (which may overwrite it)
     let particle_alpha = pbr_input.material.base_color.a;
 
     var out: FragmentOutput;
 
-    // check if material is unlit
     let is_unlit = (pbr_input.material.flags & STANDARD_MATERIAL_FLAGS_UNLIT_BIT) != 0u;
 
     if is_unlit {
-        // for unlit materials, use base color + emissive directly
         out.color = pbr_input.material.base_color + pbr_input.material.emissive;
     } else {
-        // apply PBR lighting for lit materials
         out.color = apply_pbr_lighting(pbr_input);
     }
 
-    // apply post-processing (fog, tonemapping, etc.)
     out.color = main_pass_post_lighting_processing(pbr_input, out.color);
-
-    // restore particle alpha for proper blending
     out.color.a = particle_alpha;
-#endif
 
     return out;
 }
+#endif

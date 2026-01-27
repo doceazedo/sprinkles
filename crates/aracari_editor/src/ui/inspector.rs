@@ -1006,6 +1006,12 @@ fn inspect_draw_passes(
                         indent + 1,
                         panel_right_edge,
                     );
+                    actions.changed |= inspect_bool(
+                        ui,
+                        &field_label("shadow_caster"),
+                        &mut pass.shadow_caster,
+                        indent + 1,
+                    );
                 });
             });
         }

@@ -36,6 +36,14 @@ impl MaterialExtension for ParticleMaterialExtension {
         SHADER_ASSET_PATH.into()
     }
 
+    fn prepass_vertex_shader() -> ShaderRef {
+        SHADER_ASSET_PATH.into()
+    }
+
+    fn prepass_fragment_shader() -> ShaderRef {
+        SHADER_ASSET_PATH.into()
+    }
+
     fn specialize(
         _pipeline: &MaterialExtensionPipeline,
         descriptor: &mut RenderPipelineDescriptor,
