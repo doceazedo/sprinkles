@@ -5,9 +5,9 @@
         (
             name: "Windup",
             enabled: true,
-            amount: 16,
+            amount: 10,
             time: (
-                lifetime: 0.3,
+                lifetime: 0.28,
                 lifetime_randomness: 0.0,
                 delay: 0.0,
                 one_shot: true,
@@ -49,7 +49,7 @@
                 spawn: (
                     position: (
                         emission_shape: SphereSurface(
-                            radius: 1.75,
+                            radius: 2.0,
                         ),
                         emission_shape_offset: (0.0, 0.0, 0.0),
                         emission_shape_scale: (1.0, 1.0, 1.0),
@@ -69,8 +69,8 @@
                 animated_velocity: (
                     radial_velocity: (
                         value: (
-                            min: -5.0,
-                            max: -2.0,
+                            min: -6.0,
+                            max: -5.0,
                         ),
                         curve: Some((
                             curve: SineOutReverse,
@@ -555,7 +555,7 @@
                             max: 6.0,
                         ),
                         curve: Some((
-                            curve: SineOut,
+                            curve: CubicOut,
                             min_value: 0.0,
                             max_value: 1.0,
                         )),
@@ -565,7 +565,7 @@
                             color: (1.0, 1.0, 1.0, 1.0),
                         ),
                         alpha_curve: Some((
-                            curve: SineOutReverse,
+                            curve: CubicOutReverse,
                             min_value: 0.0,
                             max_value: 1.0,
                         )),
