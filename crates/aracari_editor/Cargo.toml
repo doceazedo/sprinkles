@@ -8,8 +8,6 @@ workspace = true
 
 [dependencies]
 bevy = { workspace = true }
-bevy_egui = "0.39.0"
-egui-remixicon = "0.33.1"
 aracari = { path = "../aracari" }
 serde = { workspace = true }
 ron = { workspace = true }

@@ -2,7 +2,6 @@ use std::f32::consts::{FRAC_PI_2, FRAC_PI_4};
 use std::ops::Range;
 
 use aracari::prelude::*;
-use bevy::camera::SubCameraView;
 use bevy::color::palettes::tailwind::ZINC_950;
 use bevy::image::{ImageAddressMode, ImageSamplerDescriptor};
 use bevy::math::Affine2;
@@ -43,11 +42,6 @@ impl Default for CameraSettings {
             yaw_speed: 0.004,
         }
     }
-}
-
-#[derive(Resource, Default)]
-pub struct ViewportLayout {
-    pub left_panel_width: f32,
 }
 
 pub fn setup_camera(mut commands: Commands) {
@@ -190,29 +184,8 @@ pub fn zoom_camera(
 
 pub fn update_camera_viewport(
     mut camera: Single<&mut Camera, With<EditorCamera>>,
-    layout: Res<ViewportLayout>,
-    windows: Query<&Window>,
 ) {
-    let Ok(window) = windows.single() else {
-        return;
-    };
-
-    let window_width = window.width();
-    let window_height = window.height();
-    let panel_width = layout.left_panel_width;
-
-    if panel_width <= 0.0 || panel_width >= window_width {
-        camera.sub_camera_view = None;
-        return;
-    }
-
-    // use SubCameraView to offset the projection so the origin appears centered
-    // in the available viewport area (to the right of the panel)
-    camera.sub_camera_view = Some(SubCameraView {
-        full_size: UVec2::new((window_width + panel_width) as u32, window_height as u32),
-        offset: Vec2::ZERO,
-        size: UVec2::new(window_width as u32, window_height as u32),
-    });
+    camera.sub_camera_view = None;
 }
 
 

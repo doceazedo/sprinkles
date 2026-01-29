@@ -1,6 +1,5 @@
 mod plugin;
 mod state;
-mod ui;
 mod viewport;
 
 use bevy::prelude::*;

@@ -1,24 +1,12 @@
 use bevy::color::palettes::tailwind::ZINC_950;
 use bevy::prelude::*;
-use bevy_egui::{
-    egui, input::egui_wants_any_pointer_input, EguiContexts, EguiPlugin, EguiPrimaryContextPass,
-};
 use aracari::prelude::*;
 
-use crate::state::{load_editor_data, load_project_from_path, project_path, save_editor_data, EditorData, EditorState, InspectorState};
-use crate::ui::modals::{
-    draw_confirm_delete_modal, draw_new_project_modal, on_create_project_event,
-    on_open_file_dialog_event, on_open_project_event, on_save_project_event,
-    poll_open_file_dialog, ConfirmDeleteModal, NewProjectModal, OpenFileDialogState,
-};
-use crate::ui::{
-    configure_style, draw_inspector, draw_topbar, on_add_draw_pass, on_add_emitter,
-    on_remove_draw_pass, on_remove_emitter,
-};
+use crate::state::{load_editor_data, load_project_from_path, project_path, save_editor_data, EditorData, EditorState};
 use crate::viewport::{
     configure_floor_texture, despawn_preview_on_project_change, orbit_camera,
     respawn_preview_on_emitter_change, setup_camera, setup_floor, spawn_preview_particle_system,
-    sync_playback_state, update_camera_viewport, zoom_camera, CameraSettings, ViewportLayout,
+    sync_playback_state, update_camera_viewport, zoom_camera, CameraSettings,
 };
 
 pub struct AracariEditorPlugin;
@@ -28,69 +16,24 @@ impl Plugin for AracariEditorPlugin {
         let editor_data = load_editor_data();
 
         app.add_plugins(AracariPlugin)
-            .add_plugins(EguiPlugin::default())
             .init_resource::<EditorState>()
-            .init_resource::<InspectorState>()
             .init_resource::<CameraSettings>()
-            .init_resource::<ViewportLayout>()
-            .init_resource::<NewProjectModal>()
-            .init_resource::<ConfirmDeleteModal>()
-            .init_resource::<OpenFileDialogState>()
             .insert_resource(editor_data)
-            .insert_resource(EguiConfigured(false))
             .insert_resource(ClearColor(ZINC_950.into()))
-            .add_observer(on_create_project_event)
-            .add_observer(on_save_project_event)
-            .add_observer(on_open_project_event)
-            .add_observer(on_open_file_dialog_event)
-            .add_observer(on_add_emitter)
-            .add_observer(on_remove_emitter)
-            .add_observer(on_add_draw_pass)
-            .add_observer(on_remove_draw_pass)
             .add_systems(Startup, (setup_camera, setup_floor, load_initial_project))
             .add_systems(
                 Update,
                 (
-                    orbit_camera.run_if(not(egui_wants_any_pointer_input)),
-                    zoom_camera.run_if(not(egui_wants_any_pointer_input)),
+                    orbit_camera,
+                    zoom_camera,
                     update_camera_viewport,
                     configure_floor_texture,
                     spawn_preview_particle_system,
                     despawn_preview_on_project_change,
                     (respawn_preview_on_emitter_change, sync_playback_state).chain(),
-                    poll_open_file_dialog,
-                ),
-            )
-            .add_systems(
-                EguiPrimaryContextPass,
-                (
-                    setup_egui.run_if(not(egui_configured)),
-                    (draw_topbar, draw_inspector).chain(),
-                    draw_new_project_modal,
-                    draw_confirm_delete_modal,
                 ),
             );
     }
-}
-
-#[derive(Resource)]
-struct EguiConfigured(bool);
-
-fn egui_configured(configured: Res<EguiConfigured>) -> bool {
-    configured.0
-}
-
-fn setup_egui(mut contexts: EguiContexts, mut configured: ResMut<EguiConfigured>) -> Result {
-    let ctx = contexts.ctx_mut()?;
-
-    let mut fonts = egui::FontDefinitions::default();
-    egui_remixicon::add_to_fonts(&mut fonts);
-    ctx.set_fonts(fonts);
-
-    configure_style(ctx);
-
-    configured.0 = true;
-    Ok(())
 }
 
 fn load_initial_project(
@@ -143,4 +86,3 @@ fn load_initial_project(
     let handle = assets.add(asset);
     editor_state.current_project = Some(handle);
 }
-
