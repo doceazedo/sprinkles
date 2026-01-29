@@ -1,11 +1,13 @@
+use aracari::prelude::*;
 use bevy::color::palettes::tailwind;
 use bevy::prelude::*;
 
-use crate::state::EditorState;
+use crate::state::{PlaybackPlayEvent, PlaybackResetEvent};
 use crate::ui::tokens::{PRIMARY_COLOR, TEXT_BODY_COLOR};
 use crate::ui::widgets::button::{
     ButtonSize, ButtonVariant, IconButtonProps, icon_button, set_button_variant,
 };
+use crate::viewport::EditorParticlePreview;
 
 const PLAY_ICON: &str = "icons/ri-play-fill.png";
 const PAUSE_ICON: &str = "icons/ri-pause-fill.png";
@@ -93,56 +95,63 @@ fn loop_button(asset_server: &AssetServer) -> impl Bundle {
 }
 
 fn handle_play_pause_click(
-    mut editor_state: ResMut<EditorState>,
-    query: Query<&Interaction, (Changed<Interaction>, With<PlayPauseButton>)>,
+    mut commands: Commands,
+    mut runtime_query: Query<&mut ParticleSystemRuntime, With<EditorParticlePreview>>,
+    button_query: Query<&Interaction, (Changed<Interaction>, With<PlayPauseButton>)>,
 ) {
-    for interaction in &query {
+    for interaction in &button_query {
         if *interaction == Interaction::Pressed {
-            editor_state.is_playing = !editor_state.is_playing;
-            if editor_state.is_playing {
-                editor_state.play_requested = true;
+            for mut runtime in &mut runtime_query {
+                runtime.toggle();
+                if !runtime.paused {
+                    commands.trigger(PlaybackPlayEvent);
+                }
             }
         }
     }
 }
 
 fn handle_stop_click(
-    mut editor_state: ResMut<EditorState>,
-    query: Query<&Interaction, (Changed<Interaction>, With<StopButton>)>,
+    mut commands: Commands,
+    button_query: Query<&Interaction, (Changed<Interaction>, With<StopButton>)>,
 ) {
-    for interaction in &query {
+    for interaction in &button_query {
         if *interaction == Interaction::Pressed {
-            editor_state.should_reset = true;
-            editor_state.is_playing = false;
+            commands.trigger(PlaybackResetEvent);
         }
     }
 }
 
 fn handle_loop_click(
-    mut editor_state: ResMut<EditorState>,
-    query: Query<&Interaction, (Changed<Interaction>, With<LoopButton>)>,
+    mut runtime_query: Query<&mut ParticleSystemRuntime, With<EditorParticlePreview>>,
+    button_query: Query<&Interaction, (Changed<Interaction>, With<LoopButton>)>,
 ) {
-    for interaction in &query {
+    for interaction in &button_query {
         if *interaction == Interaction::Pressed {
-            editor_state.is_looping = !editor_state.is_looping;
+            for mut runtime in &mut runtime_query {
+                runtime.force_loop = !runtime.force_loop;
+            }
         }
     }
 }
 
 fn update_play_pause_icon(
-    editor_state: Res<EditorState>,
     asset_server: Res<AssetServer>,
+    runtime_query: Query<
+        &ParticleSystemRuntime,
+        (Changed<ParticleSystemRuntime>, With<EditorParticlePreview>),
+    >,
     button_query: Query<&Children, With<PlayPauseButton>>,
     mut image_query: Query<&mut ImageNode>,
 ) {
-    if !editor_state.is_changed() {
+    let Some(runtime) = runtime_query.iter().next() else {
         return;
-    }
+    };
 
-    let icon_path = if editor_state.is_playing {
-        PAUSE_ICON
-    } else {
+    let icon_path = if runtime.paused {
         PLAY_ICON
+    } else {
+        PAUSE_ICON
     };
 
     for children in &button_query {
@@ -155,7 +164,10 @@ fn update_play_pause_icon(
 }
 
 fn update_loop_button_style(
-    editor_state: Res<EditorState>,
+    runtime_query: Query<
+        &ParticleSystemRuntime,
+        (Changed<ParticleSystemRuntime>, With<EditorParticlePreview>),
+    >,
     mut button_query: Query<
         (
             &Children,
@@ -167,11 +179,11 @@ fn update_loop_button_style(
     >,
     mut image_query: Query<&mut ImageNode>,
 ) {
-    if !editor_state.is_changed() {
+    let Some(runtime) = runtime_query.iter().next() else {
         return;
-    }
+    };
 
-    let variant = if editor_state.is_looping {
+    let variant = if runtime.force_loop {
         ButtonVariant::Active
     } else {
         ButtonVariant::Ghost

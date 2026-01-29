@@ -7,9 +7,10 @@ use crate::state::{
     save_editor_data,
 };
 use crate::viewport::{
-    CameraSettings, configure_floor_texture, despawn_preview_on_project_change, orbit_camera,
-    respawn_preview_on_emitter_change, setup_camera, setup_floor, spawn_preview_particle_system,
-    sync_playback_state, zoom_camera,
+    CameraSettings, configure_floor_texture, despawn_preview_on_project_change,
+    handle_playback_play_event, handle_playback_reset_event, handle_playback_seek_event,
+    orbit_camera, respawn_preview_on_emitter_change, setup_camera, setup_floor,
+    spawn_preview_particle_system, sync_playback_state, zoom_camera,
 };
 
 pub struct AracariEditorPlugin;
@@ -23,6 +24,10 @@ impl Plugin for AracariEditorPlugin {
             .init_resource::<CameraSettings>()
             .insert_resource(editor_data)
             .insert_resource(ClearColor(ZINC_950.into()))
+            .add_observer(respawn_preview_on_emitter_change)
+            .add_observer(handle_playback_play_event)
+            .add_observer(handle_playback_reset_event)
+            .add_observer(handle_playback_seek_event)
             .add_systems(Startup, (setup_camera, setup_floor, load_initial_project))
             .add_systems(
                 Update,
@@ -32,7 +37,7 @@ impl Plugin for AracariEditorPlugin {
                     configure_floor_texture,
                     spawn_preview_particle_system,
                     despawn_preview_on_project_change,
-                    (respawn_preview_on_emitter_change, sync_playback_state).chain(),
+                    sync_playback_state,
                 ),
             );
     }

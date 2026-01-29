@@ -41,6 +41,8 @@ impl ParticleData {
 pub struct ParticleSystemRuntime {
     /// set to true when the simulation is paused (freezes physics)
     pub paused: bool,
+    /// when true, one-shot emitters will restart after completing
+    pub force_loop: bool,
     pub global_seed: u32,
 }
 
@@ -48,6 +50,7 @@ impl Default for ParticleSystemRuntime {
     fn default() -> Self {
         Self {
             paused: false,
+            force_loop: true,
             global_seed: rand_seed(),
         }
     }
@@ -62,6 +65,11 @@ impl ParticleSystemRuntime {
     /// Resume playback
     pub fn resume(&mut self) {
         self.paused = false;
+    }
+
+    /// Toggle pause state
+    pub fn toggle(&mut self) {
+        self.paused = !self.paused;
     }
 }
 
@@ -166,6 +174,12 @@ impl EmitterRuntime {
     pub fn restart(&mut self, fixed_seed: Option<u32>) {
         self.stop(fixed_seed);
         self.emitting = true;
+    }
+
+    /// Seek to a specific time in seconds.
+    pub fn seek(&mut self, time: f32) {
+        self.system_time = time;
+        self.prev_system_time = time;
     }
 }
 

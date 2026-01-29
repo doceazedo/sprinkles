@@ -1,9 +1,11 @@
+use aracari::prelude::*;
 use bevy::color::palettes::tailwind;
 use bevy::prelude::*;
 use bevy::text::{FontFeatureTag, FontFeatures};
 
-use crate::state::EditorState;
+use crate::state::PlaybackSeekEvent;
 use crate::ui::tokens::{FONT_PATH, TEXT_MUTED_COLOR};
+use crate::viewport::EditorParticlePreview;
 
 const SEEKBAR_HEIGHT: f32 = 4.0;
 const SEEKBAR_WIDTH: f32 = 192.0;
@@ -11,8 +13,7 @@ const LABEL_SIZE: f32 = 12.0;
 
 pub fn plugin(app: &mut App) {
     app.add_systems(Update, (update_seekbar, setup_seekbar_observers))
-        .add_observer(on_seekbar_drag)
-        .add_observer(on_seekbar_release);
+        .add_observer(on_seekbar_drag);
 }
 
 #[derive(Component)]
@@ -36,17 +37,13 @@ pub struct SeekbarFill;
 #[derive(Component, Default)]
 pub struct SeekbarDragState {
     pub dragging: bool,
+    pub drag_time: f32,
 }
 
 #[derive(EntityEvent)]
 pub struct SeekbarDragEvent {
     pub entity: Entity,
     pub value: f32,
-}
-
-#[derive(EntityEvent)]
-pub struct SeekbarReleaseEvent {
-    pub entity: Entity,
 }
 
 pub fn seekbar(asset_server: &AssetServer) -> impl Bundle {
@@ -132,13 +129,11 @@ pub fn seekbar(asset_server: &AssetServer) -> impl Bundle {
     )
 }
 
-fn format_elapsed(ms: f32) -> String {
-    let seconds = ms / 1000.0;
+fn format_time(seconds: f32) -> String {
     format!("{:.2}", seconds)
 }
 
-fn format_duration(ms: f32) -> String {
-    let seconds = ms / 1000.0;
+fn format_duration(seconds: f32) -> String {
     format!("{:.2}s", seconds)
 }
 
@@ -153,7 +148,9 @@ fn setup_seekbar_observers(hitboxes: Query<Entity, Added<SeekbarHitbox>>, mut co
 }
 
 fn update_seekbar(
-    state: Res<EditorState>,
+    assets: Res<Assets<ParticleSystemAsset>>,
+    system_query: Query<(Entity, &ParticleSystem3D), With<EditorParticlePreview>>,
+    emitter_query: Query<(&EmitterEntity, &EmitterRuntime)>,
     mut elapsed_label: Query<&mut Text, (With<SeekbarElapsed>, Without<SeekbarDuration>)>,
     mut duration_label: Query<&mut Text, (With<SeekbarDuration>, Without<SeekbarElapsed>)>,
     mut fill: Query<&mut Node, With<SeekbarFill>>,
@@ -163,12 +160,36 @@ fn update_seekbar(
         return;
     };
 
+    let Some((system_entity, particle_system)) = system_query.iter().next() else {
+        return;
+    };
+
+    let Some(asset) = assets.get(&particle_system.handle) else {
+        return;
+    };
+
+    let duration = asset
+        .emitters
+        .iter()
+        .map(|e| e.time.total_duration())
+        .fold(0.0_f32, |a, b| a.max(b));
+
+    let elapsed = if drag.dragging {
+        drag.drag_time
+    } else {
+        emitter_query
+            .iter()
+            .filter(|(e, _)| e.parent_system == system_entity)
+            .map(|(_, r)| r.system_time)
+            .fold(0.0_f32, |a, b| a.max(b))
+    };
+
     for mut text in &mut elapsed_label {
-        **text = format_elapsed(state.elapsed_ms);
+        **text = format_time(elapsed);
     }
 
     for mut text in &mut duration_label {
-        **text = format_duration(state.duration_ms);
+        **text = format_duration(duration);
     }
 
     // skip fill update while dragging since it's handled by the drag event
@@ -176,8 +197,8 @@ fn update_seekbar(
         return;
     }
 
-    let progress = if state.duration_ms > 0.0 {
-        (state.elapsed_ms / state.duration_ms).clamp(0.0, 1.0)
+    let progress = if duration > 0.0 {
+        (elapsed / duration).clamp(0.0, 1.0)
     } else {
         0.0
     };
@@ -229,7 +250,6 @@ fn on_drag(
 fn on_drag_end(
     event: On<Pointer<DragEnd>>,
     mut hitboxes: Query<&mut SeekbarDragState, With<SeekbarHitbox>>,
-    mut commands: Commands,
 ) {
     let entity = event.entity;
     let Ok(mut drag_state) = hitboxes.get_mut(entity) else {
@@ -237,16 +257,34 @@ fn on_drag_end(
     };
 
     drag_state.dragging = false;
-    commands.trigger(SeekbarReleaseEvent { entity });
 }
 
-fn on_seekbar_drag(event: On<SeekbarDragEvent>, mut editor_state: ResMut<EditorState>) {
-    let seek_time_ms = event.value * editor_state.duration_ms;
-    editor_state.is_seeking = true;
-    editor_state.seek_to_ms = Some(seek_time_ms);
-    editor_state.elapsed_ms = seek_time_ms;
-}
+fn on_seekbar_drag(
+    event: On<SeekbarDragEvent>,
+    mut commands: Commands,
+    assets: Res<Assets<ParticleSystemAsset>>,
+    system_query: Query<&ParticleSystem3D, With<EditorParticlePreview>>,
+    mut hitboxes: Query<&mut SeekbarDragState, With<SeekbarHitbox>>,
+) {
+    let Some(particle_system) = system_query.iter().next() else {
+        return;
+    };
 
-fn on_seekbar_release(_event: On<SeekbarReleaseEvent>, mut editor_state: ResMut<EditorState>) {
-    editor_state.is_seeking = false;
+    let Some(asset) = assets.get(&particle_system.handle) else {
+        return;
+    };
+
+    let duration = asset
+        .emitters
+        .iter()
+        .map(|e| e.time.total_duration())
+        .fold(0.0_f32, |a, b| a.max(b));
+
+    let seek_time = event.value * duration;
+
+    if let Ok(mut drag_state) = hitboxes.get_mut(event.entity) {
+        drag_state.drag_time = seek_time;
+    }
+
+    commands.trigger(PlaybackSeekEvent(seek_time));
 }

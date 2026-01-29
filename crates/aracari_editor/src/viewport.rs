@@ -12,7 +12,8 @@ use bevy::post_process::bloom::Bloom;
 use bevy::prelude::*;
 use bevy::render::render_resource::{TextureDimension, TextureFormat, TextureUsages};
 
-use crate::state::EditorState;
+use crate::state::{EditorState, PlaybackPlayEvent, PlaybackResetEvent, PlaybackSeekEvent};
+use crate::ui::components::seekbar::SeekbarDragState;
 
 const MIN_ZOOM_DISTANCE: f32 = 0.1;
 const MAX_ZOOM_DISTANCE: f32 = 20.0;
@@ -260,16 +261,13 @@ pub fn despawn_preview_on_project_change(
 }
 
 pub fn respawn_preview_on_emitter_change(
+    _trigger: On<PlaybackResetEvent>,
     mut commands: Commands,
     editor_state: Res<EditorState>,
     assets: Res<Assets<ParticleSystemAsset>>,
     preview_query: Query<Entity, (With<EditorParticlePreview>, With<ParticleSystemRuntime>)>,
     emitter_query: Query<&EmitterEntity>,
 ) {
-    if !editor_state.should_reset {
-        return;
-    }
-
     let Some(handle) = &editor_state.current_project else {
         return;
     };
@@ -294,8 +292,8 @@ pub fn respawn_preview_on_emitter_change(
     }
 }
 
-pub fn sync_playback_state(
-    mut editor_state: ResMut<EditorState>,
+pub fn handle_playback_reset_event(
+    _trigger: On<PlaybackResetEvent>,
     assets: Res<Assets<ParticleSystemAsset>>,
     mut system_query: Query<
         (Entity, &ParticleSystem3D, &mut ParticleSystemRuntime),
@@ -308,47 +306,99 @@ pub fn sync_playback_state(
             continue;
         };
 
-        // calculate duration from the longest emitter total duration
-        let max_duration = asset
-            .emitters
-            .iter()
-            .map(|e| e.time.total_duration())
-            .fold(0.0_f32, |a, b| a.max(b));
-        editor_state.duration_ms = max_duration * 1000.0;
-
-        // handle stop button - apply to all emitters
-        if editor_state.should_reset {
-            system_runtime.paused = false;
-            for (emitter, mut runtime) in emitter_query.iter_mut() {
-                if emitter.parent_system == system_entity {
-                    let fixed_seed = asset
-                        .emitters
-                        .get(runtime.emitter_index)
-                        .filter(|e| e.time.use_fixed_seed)
-                        .map(|e| e.time.seed);
-                    runtime.stop(fixed_seed);
-                }
+        system_runtime.paused = true;
+        for (emitter, mut runtime) in emitter_query.iter_mut() {
+            if emitter.parent_system == system_entity {
+                let fixed_seed = asset
+                    .emitters
+                    .get(runtime.emitter_index)
+                    .filter(|e| e.time.use_fixed_seed)
+                    .map(|e| e.time.seed);
+                runtime.stop(fixed_seed);
             }
-            editor_state.elapsed_ms = 0.0;
-            editor_state.should_reset = false;
+        }
+    }
+}
+
+pub fn handle_playback_play_event(
+    _trigger: On<PlaybackPlayEvent>,
+    assets: Res<Assets<ParticleSystemAsset>>,
+    mut system_query: Query<
+        (Entity, &ParticleSystem3D, &mut ParticleSystemRuntime),
+        With<EditorParticlePreview>,
+    >,
+    mut emitter_query: Query<(&EmitterEntity, &mut EmitterRuntime)>,
+) {
+    for (system_entity, particle_system, mut system_runtime) in system_query.iter_mut() {
+        let Some(asset) = assets.get(&particle_system.handle) else {
             continue;
-        }
+        };
 
-        // handle seekbar seeking
-        if let Some(seek_time_ms) = editor_state.seek_to_ms.take() {
-            let seek_time = seek_time_ms / 1000.0;
+        // check if all one-shot emitters have completed
+        let all_one_shots_completed =
+            asset
+                .emitters
+                .iter()
+                .enumerate()
+                .all(|(idx, emitter_data)| {
+                    if !emitter_data.time.one_shot {
+                        return true;
+                    }
+                    emitter_query.iter().any(|(emitter, runtime)| {
+                        emitter.parent_system == system_entity
+                            && runtime.emitter_index == idx
+                            && runtime.one_shot_completed
+                    })
+                });
+
+        let has_one_shot = asset.emitters.iter().any(|e| e.time.one_shot);
+
+        // restart completed one-shot emitters when play is requested
+        if has_one_shot && all_one_shots_completed {
             for (emitter, mut runtime) in emitter_query.iter_mut() {
                 if emitter.parent_system == system_entity {
-                    runtime.system_time = seek_time;
-                    runtime.prev_system_time = seek_time;
-                    runtime.one_shot_completed = false;
+                    runtime.restart(None);
                 }
             }
-            editor_state.elapsed_ms = seek_time_ms;
+            system_runtime.resume();
         }
+    }
+}
+
+pub fn handle_playback_seek_event(
+    trigger: On<PlaybackSeekEvent>,
+    system_query: Query<Entity, With<EditorParticlePreview>>,
+    mut emitter_query: Query<(&EmitterEntity, &mut EmitterRuntime)>,
+) {
+    let seek_time = trigger.0;
+
+    for system_entity in system_query.iter() {
+        for (emitter, mut runtime) in emitter_query.iter_mut() {
+            if emitter.parent_system == system_entity {
+                runtime.seek(seek_time);
+            }
+        }
+    }
+}
+
+pub fn sync_playback_state(
+    assets: Res<Assets<ParticleSystemAsset>>,
+    drag_state: Query<&SeekbarDragState>,
+    mut system_query: Query<
+        (Entity, &ParticleSystem3D, &mut ParticleSystemRuntime),
+        With<EditorParticlePreview>,
+    >,
+    mut emitter_query: Query<(&EmitterEntity, &mut EmitterRuntime)>,
+) {
+    let is_seeking = drag_state.iter().any(|s| s.dragging);
+
+    for (system_entity, particle_system, mut system_runtime) in system_query.iter_mut() {
+        let Some(asset) = assets.get(&particle_system.handle) else {
+            continue;
+        };
 
         // while seeking, pause and skip normal updates
-        if editor_state.is_seeking {
+        if is_seeking {
             if !system_runtime.paused {
                 system_runtime.pause();
             }
@@ -376,32 +426,26 @@ pub fn sync_playback_state(
 
         // handle one-shot emitters completion
         if has_one_shot && all_one_shots_completed {
-            if editor_state.is_looping || editor_state.play_requested {
-                // looping mode or user clicked play: restart all emitters with new seed
+            if system_runtime.force_loop {
                 for (emitter, mut runtime) in emitter_query.iter_mut() {
                     if emitter.parent_system == system_entity {
                         runtime.restart(None);
                     }
                 }
-                editor_state.play_requested = false;
             } else {
-                // one_shot finished, not looping: stop and reset progress
-                editor_state.elapsed_ms = 0.0;
-                editor_state.is_playing = false;
+                // pause and reset elapsed time to 0
+                system_runtime.pause();
+                for (emitter, mut runtime) in emitter_query.iter_mut() {
+                    if emitter.parent_system == system_entity {
+                        runtime.seek(0.0);
+                    }
+                }
             }
             continue;
         }
 
-        // clear play_requested if we get here (normal playback)
-        editor_state.play_requested = false;
-
-        // sync playback state from editor to system
-        if editor_state.is_playing {
-            if system_runtime.paused {
-                system_runtime.resume();
-            }
-            // ensure non-completed emitters are emitting
-            // (don't restart one-shot emitters that have already completed)
+        // sync playback state
+        if !system_runtime.paused {
             for (emitter, mut runtime) in emitter_query.iter_mut() {
                 if emitter.parent_system == system_entity
                     && !runtime.emitting
@@ -410,20 +454,6 @@ pub fn sync_playback_state(
                     runtime.play();
                 }
             }
-        } else {
-            if !system_runtime.paused {
-                system_runtime.pause();
-            }
         }
-
-        // track elapsed time as the maximum system_time across all emitters
-        // this prevents the progress bar from resetting when shorter emitters wrap
-        let mut max_elapsed = 0.0_f32;
-        for (emitter, runtime) in emitter_query.iter() {
-            if emitter.parent_system == system_entity {
-                max_elapsed = max_elapsed.max(runtime.system_time);
-            }
-        }
-        editor_state.elapsed_ms = max_elapsed * 1000.0;
     }
 }
