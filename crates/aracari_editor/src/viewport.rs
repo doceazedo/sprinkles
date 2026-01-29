@@ -4,8 +4,8 @@ use std::ops::Range;
 use aracari::prelude::*;
 use bevy::color::palettes::tailwind::ZINC_950;
 use bevy::image::{ImageAddressMode, ImageSamplerDescriptor};
-use bevy::math::Affine2;
 use bevy::input::mouse::{AccumulatedMouseMotion, AccumulatedMouseScroll};
+use bevy::math::Affine2;
 use bevy::post_process::bloom::Bloom;
 use bevy::prelude::*;
 
@@ -142,8 +142,8 @@ pub fn orbit_camera(
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     mouse_motion: Res<AccumulatedMouseMotion>,
 ) {
-    let orbiting = mouse_buttons.pressed(MouseButton::Left)
-        || mouse_buttons.pressed(MouseButton::Right);
+    let orbiting =
+        mouse_buttons.pressed(MouseButton::Left) || mouse_buttons.pressed(MouseButton::Right);
 
     if !orbiting {
         return;
@@ -182,12 +182,9 @@ pub fn zoom_camera(
     camera.translation = ORBIT_TARGET - camera.forward() * camera_settings.orbit_distance;
 }
 
-pub fn update_camera_viewport(
-    mut camera: Single<&mut Camera, With<EditorCamera>>,
-) {
+pub fn update_camera_viewport(mut camera: Single<&mut Camera, With<EditorCamera>>) {
     camera.sub_camera_view = None;
 }
-
 
 #[derive(Component)]
 pub struct EditorParticlePreview;
@@ -321,16 +318,21 @@ pub fn sync_playback_state(
         }
 
         // check if all one-shot emitters have completed
-        let all_one_shots_completed = asset.emitters.iter().enumerate().all(|(idx, emitter_data)| {
-            if !emitter_data.time.one_shot {
-                return true;
-            }
-            emitter_query.iter().any(|(emitter, runtime)| {
-                emitter.parent_system == system_entity
-                    && runtime.emitter_index == idx
-                    && runtime.one_shot_completed
-            })
-        });
+        let all_one_shots_completed =
+            asset
+                .emitters
+                .iter()
+                .enumerate()
+                .all(|(idx, emitter_data)| {
+                    if !emitter_data.time.one_shot {
+                        return true;
+                    }
+                    emitter_query.iter().any(|(emitter, runtime)| {
+                        emitter.parent_system == system_entity
+                            && runtime.emitter_index == idx
+                            && runtime.one_shot_completed
+                    })
+                });
 
         let has_one_shot = asset.emitters.iter().any(|e| e.time.one_shot);
 

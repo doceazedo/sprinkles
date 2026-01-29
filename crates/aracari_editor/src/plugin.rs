@@ -1,12 +1,15 @@
+use aracari::prelude::*;
 use bevy::color::palettes::tailwind::ZINC_950;
 use bevy::prelude::*;
-use aracari::prelude::*;
 
-use crate::state::{load_editor_data, load_project_from_path, project_path, save_editor_data, EditorData, EditorState};
+use crate::state::{
+    EditorData, EditorState, load_editor_data, load_project_from_path, project_path,
+    save_editor_data,
+};
 use crate::viewport::{
-    configure_floor_texture, despawn_preview_on_project_change, orbit_camera,
+    CameraSettings, configure_floor_texture, despawn_preview_on_project_change, orbit_camera,
     respawn_preview_on_emitter_change, setup_camera, setup_floor, spawn_preview_particle_system,
-    sync_playback_state, update_camera_viewport, zoom_camera, CameraSettings,
+    sync_playback_state, update_camera_viewport, zoom_camera,
 };
 
 pub struct AracariEditorPlugin;
