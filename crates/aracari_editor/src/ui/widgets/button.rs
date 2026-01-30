@@ -9,11 +9,21 @@ use crate::ui::tokens::{
 
 const ICON_MORE: &str = "icons/ri-more-fill.png";
 
+#[derive(EntityEvent)]
+pub struct ButtonClickEvent {
+    pub entity: Entity,
+}
+
+#[derive(EntityEvent)]
+pub struct ButtonMoreEvent {
+    pub entity: Entity,
+}
+
 pub fn plugin(app: &mut App) {
     app.add_systems(
         Update,
         (
-            setup_button_callbacks,
+            setup_more_button,
             handle_hover,
             handle_more_hover,
             handle_more_visibility,
@@ -112,12 +122,6 @@ impl ButtonSize {
 }
 
 #[derive(Component)]
-struct OnClickCallback(fn());
-
-#[derive(Component)]
-struct OnMoreCallback(fn());
-
-#[derive(Component)]
 struct ButtonMoreContainer;
 
 #[derive(Component)]
@@ -126,11 +130,9 @@ struct ButtonMoreButton(Entity);
 #[derive(Component)]
 struct ButtonMoreIcon;
 
-#[derive(Component)]
-struct ButtonState {
-    variant: ButtonVariant,
-    on_click: Option<fn()>,
-    on_more: Option<fn()>,
+#[derive(Component, Default)]
+struct ButtonOptions {
+    has_more: bool,
 }
 
 #[derive(Default)]
@@ -139,8 +141,7 @@ pub struct ButtonProps {
     pub variant: ButtonVariant,
     pub size: ButtonSize,
     pub align_left: bool,
-    pub on_click: Option<fn()>,
-    pub on_more: Option<fn()>,
+    pub has_more: bool,
 }
 
 impl ButtonProps {
@@ -162,12 +163,8 @@ impl ButtonProps {
         self.align_left = true;
         self
     }
-    pub fn on_click(mut self, callback: fn()) -> Self {
-        self.on_click = Some(callback);
-        self
-    }
-    pub fn on_more(mut self, callback: fn()) -> Self {
-        self.on_more = Some(callback);
+    pub fn with_more(mut self) -> Self {
+        self.has_more = true;
         self
     }
 }
@@ -178,7 +175,6 @@ pub struct IconButtonProps {
     pub color: Option<Srgba>,
     pub variant: ButtonVariant,
     pub size: ButtonSize,
-    pub on_click: Option<fn()>,
 }
 
 impl IconButtonProps {
@@ -199,10 +195,6 @@ impl IconButtonProps {
     }
     pub fn size(mut self, size: ButtonSize) -> Self {
         self.size = size;
-        self
-    }
-    pub fn on_click(mut self, callback: fn()) -> Self {
-        self.on_click = Some(callback);
         self
     }
 }
@@ -252,18 +244,13 @@ pub fn button(props: ButtonProps, asset_server: &AssetServer) -> impl Bundle {
         variant,
         size,
         align_left,
-        on_click,
-        on_more,
+        has_more,
     } = props;
     let font: Handle<Font> = asset_server.load(FONT_PATH);
 
     (
         button_base(variant, size, align_left),
-        ButtonState {
-            variant,
-            on_click,
-            on_more,
-        },
+        ButtonOptions { has_more },
         children![
             (
                 Text::new(content),
@@ -294,29 +281,17 @@ pub fn button(props: ButtonProps, asset_server: &AssetServer) -> impl Bundle {
     )
 }
 
-fn setup_button_callbacks(
+fn setup_more_button(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    new_buttons: Query<(Entity, &ButtonState, &Children), Added<EditorButton>>,
+    new_buttons: Query<(Entity, &ButtonVariant, &ButtonOptions, &Children), Added<EditorButton>>,
     containers: Query<Entity, With<ButtonMoreContainer>>,
 ) {
-    for (button_entity, state, button_children) in &new_buttons {
-        // attach on_click callback
-        if let Some(callback) = state.on_click {
-            commands
-                .entity(button_entity)
-                .insert(OnClickCallback(callback));
+    for (button_entity, variant, options, button_children) in &new_buttons {
+        if !options.has_more {
+            continue;
         }
 
-        // attach on_more callback and spawn more button
-        let Some(on_more) = state.on_more else {
-            continue;
-        };
-        commands
-            .entity(button_entity)
-            .insert(OnMoreCallback(on_more));
-
-        // find the more container (second child)
         let Some(&container_entity) = button_children.get(1) else {
             continue;
         };
@@ -324,7 +299,7 @@ fn setup_button_callbacks(
             continue;
         }
 
-        let initial_display = if state.variant == ButtonVariant::Ghost {
+        let initial_display = if *variant == ButtonVariant::Ghost {
             Display::None
         } else {
             Display::Flex
@@ -333,7 +308,7 @@ fn setup_button_callbacks(
         let more_entity = commands
             .spawn(more_button(
                 button_entity,
-                state.variant,
+                *variant,
                 initial_display,
                 &asset_server,
             ))
@@ -399,12 +374,15 @@ fn handle_more_hover(
 }
 
 fn handle_more_visibility(
-    buttons: Query<(&Hovered, &ButtonState, &Children), (Changed<Hovered>, With<EditorButton>)>,
+    buttons: Query<
+        (&Hovered, &ButtonVariant, &ButtonOptions, &Children),
+        (Changed<Hovered>, With<EditorButton>),
+    >,
     containers: Query<&Children, With<ButtonMoreContainer>>,
     mut more_buttons: Query<&mut Node, With<ButtonMoreButton>>,
 ) {
-    for (hovered, state, button_children) in &buttons {
-        if state.variant != ButtonVariant::Ghost || state.on_more.is_none() {
+    for (hovered, variant, options, button_children) in &buttons {
+        if !options.has_more || *variant != ButtonVariant::Ghost {
             continue;
         }
 
@@ -430,45 +408,39 @@ fn handle_more_visibility(
 }
 
 fn handle_button_click(
-    interactions: Query<
-        (&Interaction, &OnClickCallback),
-        (Changed<Interaction>, With<EditorButton>),
-    >,
+    interactions: Query<(Entity, &Interaction), (Changed<Interaction>, With<EditorButton>)>,
+    mut commands: Commands,
 ) {
-    for (interaction, callback) in &interactions {
+    for (entity, interaction) in &interactions {
         if *interaction == Interaction::Pressed {
-            (callback.0)();
+            commands.trigger(ButtonClickEvent { entity });
         }
     }
 }
 
 fn handle_more_click(
     interactions: Query<(&Interaction, &ButtonMoreButton), Changed<Interaction>>,
-    callbacks: Query<&OnMoreCallback>,
+    mut commands: Commands,
 ) {
     for (interaction, more_button) in &interactions {
         if *interaction == Interaction::Pressed {
-            if let Ok(callback) = callbacks.get(more_button.0) {
-                (callback.0)();
-            }
+            commands.trigger(ButtonMoreEvent { entity: more_button.0 });
         }
     }
 }
 
 fn handle_button_right_click(
-    buttons: Query<(Entity, &Hovered), With<EditorButton>>,
-    callbacks: Query<&OnMoreCallback>,
+    buttons: Query<(Entity, &Hovered, &ButtonOptions), With<EditorButton>>,
     mouse: Res<ButtonInput<MouseButton>>,
+    mut commands: Commands,
 ) {
     if !mouse.just_pressed(MouseButton::Right) {
         return;
     }
 
-    for (entity, hovered) in &buttons {
-        if hovered.get() {
-            if let Ok(callback) = callbacks.get(entity) {
-                (callback.0)();
-            }
+    for (entity, hovered, options) in &buttons {
+        if options.has_more && hovered.get() {
+            commands.trigger(ButtonMoreEvent { entity });
         }
     }
 }
@@ -516,17 +488,11 @@ pub fn icon_button(props: IconButtonProps, asset_server: &AssetServer) -> impl B
         color,
         variant,
         size,
-        on_click,
     } = props;
     let icon_color = color.unwrap_or(variant.text_color());
 
     (
         button_base(variant, size, false),
-        ButtonState {
-            variant,
-            on_click,
-            on_more: None,
-        },
         children![(
             ImageNode::new(asset_server.load(&icon)).with_color(Color::Srgba(icon_color)),
             Node {

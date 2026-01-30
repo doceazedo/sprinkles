@@ -1,13 +1,10 @@
 use bevy::prelude::*;
 
 use crate::ui::tokens::{BORDER_COLOR, FONT_PATH, TEXT_DISPLAY_COLOR, TEXT_SIZE};
-use crate::ui::widgets::button::{ButtonVariant, IconButtonProps, icon_button};
+use crate::ui::widgets::button::{ButtonClickEvent, ButtonVariant, IconButtonProps, icon_button};
 
 pub fn plugin(app: &mut App) {
-    app.add_systems(
-        Update,
-        (setup_panel_section_buttons, handle_collapse_click),
-    );
+    app.add_systems(Update, setup_panel_section_buttons);
 }
 
 #[derive(Component)]
@@ -20,6 +17,9 @@ struct PanelSectionHeader;
 struct PanelSectionButtonsContainer;
 
 #[derive(Component)]
+struct PanelSectionAddButton(Entity);
+
+#[derive(Component)]
 struct PanelSectionCollapseButton(Entity);
 
 #[derive(Component, Default)]
@@ -27,7 +27,7 @@ struct Collapsed(bool);
 
 #[derive(Component)]
 struct PanelSectionState {
-    on_add: Option<fn()>,
+    has_add_button: bool,
     collapsible: bool,
 }
 
@@ -37,7 +37,7 @@ const ICON_COLLAPSE: &str = "icons/ri-arrow-down-s-line.png";
 #[derive(Default)]
 pub struct PanelSectionProps {
     pub title: String,
-    pub on_add: Option<fn()>,
+    pub has_add_button: bool,
     pub collapsible: bool,
 }
 
@@ -49,8 +49,8 @@ impl PanelSectionProps {
         }
     }
 
-    pub fn on_add(mut self, callback: fn()) -> Self {
-        self.on_add = Some(callback);
+    pub fn with_add_button(mut self) -> Self {
+        self.has_add_button = true;
         self
     }
 
@@ -63,7 +63,7 @@ impl PanelSectionProps {
 pub fn panel_section(props: PanelSectionProps, asset_server: &AssetServer) -> impl Bundle {
     let PanelSectionProps {
         title,
-        on_add,
+        has_add_button,
         collapsible,
     } = props;
     let font: Handle<Font> = asset_server.load(FONT_PATH);
@@ -81,7 +81,7 @@ pub fn panel_section(props: PanelSectionProps, asset_server: &AssetServer) -> im
         },
         BorderColor::all(BORDER_COLOR),
         PanelSectionState {
-            on_add,
+            has_add_button,
             collapsible,
         },
         children![(
@@ -136,14 +136,16 @@ fn setup_panel_section_buttons(
             continue;
         }
 
-        if let Some(callback) = state.on_add {
+        if state.has_add_button {
             let add_entity = commands
-                .spawn(icon_button(
-                    IconButtonProps::new(ICON_ADD)
-                        .variant(ButtonVariant::Ghost)
-                        .on_click(callback),
-                    &asset_server,
+                .spawn((
+                    PanelSectionAddButton(section_entity),
+                    icon_button(
+                        IconButtonProps::new(ICON_ADD).variant(ButtonVariant::Ghost),
+                        &asset_server,
+                    ),
                 ))
+                .observe(on_add_click)
                 .id();
             commands.entity(container_entity).add_child(add_entity);
         }
@@ -161,53 +163,62 @@ fn setup_panel_section_buttons(
                         &asset_server,
                     ),
                 ))
+                .observe(on_collapse_click)
                 .id();
             commands.entity(container_entity).add_child(collapse_entity);
         }
     }
 }
 
-fn handle_collapse_click(
-    mut interactions: Query<
-        (Entity, &Interaction, &PanelSectionCollapseButton),
-        Changed<Interaction>,
-    >,
+fn on_add_click(
+    event: On<ButtonClickEvent>,
+    add_buttons: Query<&PanelSectionAddButton>,
+    mut commands: Commands,
+) {
+    let Ok(add_button) = add_buttons.get(event.entity) else {
+        return;
+    };
+    commands.trigger(ButtonClickEvent { entity: add_button.0 });
+}
+
+fn on_collapse_click(
+    event: On<ButtonClickEvent>,
+    collapse_buttons: Query<&PanelSectionCollapseButton>,
     mut sections: Query<(&mut Collapsed, &Children), With<EditorPanelSection>>,
     mut nodes: Query<&mut Node, Without<PanelSectionHeader>>,
     headers: Query<Entity, With<PanelSectionHeader>>,
     mut button_transforms: Query<&mut UiTransform>,
 ) {
-    for (button_entity, interaction, collapse_button) in &mut interactions {
-        if *interaction != Interaction::Pressed {
+    let button_entity = event.entity;
+    let Ok(collapse_button) = collapse_buttons.get(button_entity) else {
+        return;
+    };
+
+    let Ok((mut collapsed, section_children)) = sections.get_mut(collapse_button.0) else {
+        return;
+    };
+
+    collapsed.0 = !collapsed.0;
+
+    for child in section_children.iter() {
+        if headers.get(child).is_ok() {
             continue;
         }
-
-        let Ok((mut collapsed, section_children)) = sections.get_mut(collapse_button.0) else {
-            continue;
-        };
-
-        collapsed.0 = !collapsed.0;
-
-        for child in section_children.iter() {
-            if headers.get(child).is_ok() {
-                continue;
-            }
-            if let Ok(mut node) = nodes.get_mut(child) {
-                node.display = if collapsed.0 {
-                    Display::None
-                } else {
-                    Display::Flex
-                };
-            }
-        }
-
-        if let Ok(mut transform) = button_transforms.get_mut(button_entity) {
-            transform.rotation = if collapsed.0 {
-                Rot2::degrees(0.0)
+        if let Ok(mut node) = nodes.get_mut(child) {
+            node.display = if collapsed.0 {
+                Display::None
             } else {
-                Rot2::degrees(180.0)
+                Display::Flex
             };
         }
+    }
+
+    if let Ok(mut transform) = button_transforms.get_mut(button_entity) {
+        transform.rotation = if collapsed.0 {
+            Rot2::degrees(0.0)
+        } else {
+            Rot2::degrees(180.0)
+        };
     }
 }
 
