@@ -181,7 +181,10 @@ pub fn orbit_camera(
         return;
     }
 
-    if viewport.get() {
+    let just_pressed = mouse_buttons.just_pressed(MouseButton::Left)
+        || mouse_buttons.just_pressed(MouseButton::Right);
+
+    if just_pressed && viewport.get() {
         input_state.dragging = true;
     }
 
