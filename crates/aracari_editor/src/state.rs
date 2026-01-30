@@ -13,6 +13,19 @@ use aracari::prelude::*;
 pub struct EditorState {
     pub current_project: Option<Handle<ParticleSystemAsset>>,
     pub current_project_path: Option<PathBuf>,
+    pub inspecting: Option<Inspecting>,
+}
+
+#[derive(Clone, Copy)]
+pub struct Inspecting {
+    pub kind: Inspectable,
+    pub index: u8,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Inspectable {
+    Emitter,
+    Collider,
 }
 
 /// triggered to reset playback (stop and return to beginning)

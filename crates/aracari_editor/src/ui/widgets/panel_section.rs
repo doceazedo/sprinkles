@@ -34,9 +34,26 @@ struct PanelSectionState {
 const ICON_ADD: &str = "icons/ri-add-line.png";
 const ICON_COLLAPSE: &str = "icons/ri-arrow-down-s-line.png";
 
+#[derive(Default, Clone, Copy)]
+pub enum PanelSectionSize {
+    #[default]
+    MD,
+    XL,
+}
+
+impl PanelSectionSize {
+    fn padding(&self) -> UiRect {
+        match self {
+            Self::MD => UiRect::all(px(12)),
+            Self::XL => UiRect::new(px(24), px(24), px(20), px(24)),
+        }
+    }
+}
+
 #[derive(Default)]
 pub struct PanelSectionProps {
     pub title: String,
+    pub size: PanelSectionSize,
     pub has_add_button: bool,
     pub collapsible: bool,
 }
@@ -47,6 +64,11 @@ impl PanelSectionProps {
             title: title.into(),
             ..default()
         }
+    }
+
+    pub fn with_size(mut self, size: PanelSectionSize) -> Self {
+        self.size = size;
+        self
     }
 
     pub fn with_add_button(mut self) -> Self {
@@ -63,6 +85,7 @@ impl PanelSectionProps {
 pub fn panel_section(props: PanelSectionProps, asset_server: &AssetServer) -> impl Bundle {
     let PanelSectionProps {
         title,
+        size,
         has_add_button,
         collapsible,
     } = props;
@@ -74,9 +97,9 @@ pub fn panel_section(props: PanelSectionProps, asset_server: &AssetServer) -> im
         Node {
             width: percent(100),
             flex_direction: FlexDirection::Column,
-            row_gap: px(6),
-            padding: UiRect::all(px(12)),
-            border: UiRect::bottom(px(1)),
+            row_gap: px(6.0),
+            padding: size.padding(),
+            border: UiRect::bottom(px(1.0)),
             ..default()
         },
         BorderColor::all(BORDER_COLOR),
@@ -178,7 +201,9 @@ fn on_add_click(
     let Ok(add_button) = add_buttons.get(event.entity) else {
         return;
     };
-    commands.trigger(ButtonClickEvent { entity: add_button.0 });
+    commands.trigger(ButtonClickEvent {
+        entity: add_button.0,
+    });
 }
 
 fn on_collapse_click(
@@ -221,4 +246,3 @@ fn on_collapse_click(
         };
     }
 }
-

@@ -3,8 +3,8 @@ use bevy::color::palettes::tailwind::ZINC_950;
 use bevy::prelude::*;
 
 use crate::state::{
-    EditorData, EditorState, load_editor_data, load_project_from_path, project_path,
-    save_editor_data,
+    EditorData, EditorState, Inspectable, Inspecting, load_editor_data, load_project_from_path,
+    project_path, save_editor_data,
 };
 use crate::viewport::{
     CameraSettings, ViewportInputState, configure_floor_texture, despawn_preview_on_project_change,
@@ -54,9 +54,16 @@ fn load_initial_project(
         let path = project_path(location);
         if path.exists() {
             if let Some(asset) = load_project_from_path(&path) {
+                let has_emitters = !asset.emitters.is_empty();
                 let handle = assets.add(asset);
                 editor_state.current_project = Some(handle);
                 editor_state.current_project_path = Some(path);
+                if has_emitters {
+                    editor_state.inspecting = Some(Inspecting {
+                        kind: Inspectable::Emitter,
+                        index: 0,
+                    });
+                }
                 return;
             }
         }
@@ -70,9 +77,16 @@ fn load_initial_project(
         let demo_path = project_path(demo_file);
         if demo_path.exists() {
             if let Some(asset) = load_project_from_path(&demo_path) {
+                let has_emitters = !asset.emitters.is_empty();
                 let handle = assets.add(asset);
                 editor_state.current_project = Some(handle);
                 editor_state.current_project_path = Some(demo_path);
+                if has_emitters {
+                    editor_state.inspecting = Some(Inspecting {
+                        kind: Inspectable::Emitter,
+                        index: 0,
+                    });
+                }
 
                 // add demo to recent projects
                 editor_data.cache.add_recent_project(demo_file.to_string());
@@ -93,4 +107,8 @@ fn load_initial_project(
     };
     let handle = assets.add(asset);
     editor_state.current_project = Some(handle);
+    editor_state.inspecting = Some(Inspecting {
+        kind: Inspectable::Emitter,
+        index: 0,
+    });
 }

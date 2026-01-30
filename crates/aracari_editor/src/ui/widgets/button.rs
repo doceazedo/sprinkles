@@ -48,9 +48,9 @@ pub enum ButtonVariant {
 
 #[derive(Component, Default, Clone, Copy)]
 pub enum ButtonSize {
+    SM,
     #[default]
-    Default,
-    Sm,
+    MD,
     Icon,
 }
 
@@ -87,8 +87,8 @@ impl ButtonVariant {
     }
     pub fn border(&self) -> Val {
         match self {
-            Self::Default | Self::Ghost => Val::Px(1.0),
-            Self::Primary | Self::Active => Val::Px(0.0),
+            Self::Default => Val::Px(1.0),
+            _ => Val::Px(0.0),
         }
     }
     pub fn border_opacity(&self, hovered: bool) -> f32 {
@@ -111,9 +111,9 @@ impl ButtonSize {
     }
     fn padding(&self) -> Val {
         match self {
-            Self::Default => Val::Px(12.0),
-            Self::Sm => Val::Px(6.0),
-            Self::Icon => Val::Px(0.0),
+            Self::SM => px(6.0),
+            Self::MD => px(12.0),
+            Self::Icon => px(0.0),
         }
     }
     fn icon_size(&self) -> Val {
@@ -151,11 +151,11 @@ impl ButtonProps {
             ..default()
         }
     }
-    pub fn variant(mut self, variant: ButtonVariant) -> Self {
+    pub fn with_variant(mut self, variant: ButtonVariant) -> Self {
         self.variant = variant;
         self
     }
-    pub fn size(mut self, size: ButtonSize) -> Self {
+    pub fn with_size(mut self, size: ButtonSize) -> Self {
         self.size = size;
         self
     }
@@ -424,7 +424,9 @@ fn handle_more_click(
 ) {
     for (interaction, more_button) in &interactions {
         if *interaction == Interaction::Pressed {
-            commands.trigger(ButtonMoreEvent { entity: more_button.0 });
+            commands.trigger(ButtonMoreEvent {
+                entity: more_button.0,
+            });
         }
     }
 }

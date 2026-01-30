@@ -15,6 +15,7 @@ pub struct EditorUiPlugin;
 impl Plugin for EditorUiPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(widgets::button::plugin)
+            .add_plugins(widgets::checkbox::plugin)
             .add_plugins(widgets::panel::plugin)
             .add_plugins(widgets::panel_section::plugin)
             .add_plugins(components::data_panel::plugin)

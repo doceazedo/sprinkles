@@ -46,7 +46,7 @@ pub fn topbar(asset_server: &AssetServer) -> impl Bundle {
                     playback_controls(asset_server),
                     EditorSeparator::vertical(),
                     button(
-                        ButtonProps::new("Save").variant(ButtonVariant::Primary),
+                        ButtonProps::new("Save").with_variant(ButtonVariant::Primary),
                         asset_server,
                     ),
                 ],
