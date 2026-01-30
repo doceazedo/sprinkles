@@ -8,6 +8,7 @@ use crate::ui::widgets::button::{ButtonVariant, IconButtonProps, icon_button};
 use crate::ui::widgets::checkbox::{CheckboxProps, checkbox};
 use crate::ui::widgets::panel::{PanelDirection, PanelProps, panel, panel_resize_handle};
 use crate::ui::widgets::panel_section::{PanelSectionProps, PanelSectionSize, panel_section};
+use crate::ui::widgets::text_edit::{TextEditProps, text_edit};
 
 pub fn plugin(app: &mut App) {
     app.add_systems(Update, (setup_inspector_panel, update_panel_title));
@@ -68,7 +69,22 @@ fn setup_inspector_panel(
                                     .collapsible(),
                                 &asset_server,
                             ))
-                            .with_child(test_label("Content 1", font.clone()));
+                            .with_children(|section| {
+                                section.spawn(test_label("Content 1", font.clone()));
+                                section.spawn(text_edit(
+                                    TextEditProps::default()
+                                        .with_label("Text Input")
+                                        .with_placeholder("Type here..."),
+                                ));
+                                section.spawn(text_edit(
+                                    TextEditProps::default()
+                                        .numeric()
+                                        .with_label("Numeric Input")
+                                        .with_placeholder("0.0")
+                                        .with_default_value("45")
+                                        .with_suffix("%"),
+                                ));
+                            });
 
                         content
                             .spawn(panel_section(

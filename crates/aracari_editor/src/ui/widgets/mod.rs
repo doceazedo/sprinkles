@@ -3,3 +3,4 @@ pub mod checkbox;
 pub mod panel;
 pub mod panel_section;
 pub mod separator;
+pub mod text_edit;

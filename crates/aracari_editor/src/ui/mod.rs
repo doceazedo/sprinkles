@@ -18,6 +18,7 @@ impl Plugin for EditorUiPlugin {
             .add_plugins(widgets::checkbox::plugin)
             .add_plugins(widgets::panel::plugin)
             .add_plugins(widgets::panel_section::plugin)
+            .add_plugins(widgets::text_edit::plugin)
             .add_plugins(components::data_panel::plugin)
             .add_plugins(components::inspector_panel::plugin)
             .add_plugins(components::seekbar::plugin)
