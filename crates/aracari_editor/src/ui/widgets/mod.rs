@@ -4,3 +4,4 @@ pub mod panel;
 pub mod panel_section;
 pub mod separator;
 pub mod text_edit;
+pub mod vector_edit;

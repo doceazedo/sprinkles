@@ -9,6 +9,7 @@ use crate::ui::widgets::checkbox::{CheckboxProps, checkbox};
 use crate::ui::widgets::panel::{PanelDirection, PanelProps, panel, panel_resize_handle};
 use crate::ui::widgets::panel_section::{PanelSectionProps, PanelSectionSize, panel_section};
 use crate::ui::widgets::text_edit::{TextEditProps, text_edit};
+use crate::ui::widgets::vector_edit::{VectorEditProps, vector_edit};
 
 pub fn plugin(app: &mut App) {
     app.add_systems(Update, (setup_inspector_panel, update_panel_title));
@@ -92,6 +93,11 @@ fn setup_inspector_panel(
                                         .with_default_value("100")
                                         .with_min(0.0)
                                         .with_max(255.0),
+                                ));
+                                section.spawn(vector_edit(
+                                    VectorEditProps::default()
+                                        .with_label("Position")
+                                        .with_default_values([0.0, 0.0, 0.0]),
                                 ));
                             });
 
@@ -222,4 +228,12 @@ fn test_label(content: &str, font: Handle<Font>) -> impl Bundle {
         },
         TextColor(TEXT_BODY_COLOR.into()),
     )
+}
+
+fn fields_row() -> impl Bundle {
+    Node {
+        width: percent(100),
+        column_gap: px(12.0),
+        ..default()
+    }
 }

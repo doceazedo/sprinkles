@@ -15,7 +15,7 @@ use crate::ui::tokens::{
 };
 
 const DEFAULT_DRAG_ICON: &str = "icons/ri-expand-horizontal-s-line.png";
-const INPUT_HEIGHT: u64 = 28;
+const INPUT_HEIGHT: f32 = 28.0;
 const AFFIX_SIZE: u64 = 16;
 
 pub fn plugin(app: &mut App) {
@@ -211,6 +211,7 @@ pub fn text_edit(props: TextEditProps) -> impl Bundle {
         Node {
             flex_direction: FlexDirection::Column,
             row_gap: px(3),
+            flex_grow: 1.0,
             ..default()
         },
         TextEditConfig {
@@ -287,13 +288,15 @@ fn setup_text_edit_input(
         commands.entity(entity).add_child(wrapper_entity);
 
         if is_numeric {
+            const HITBOX_WIDTH: f32 = INPUT_HEIGHT * 0.9;
             let hitbox = commands
                 .spawn((
                     DragHitbox::default(),
                     Node {
                         position_type: PositionType::Absolute,
-                        width: px(INPUT_HEIGHT),
+                        width: px(HITBOX_WIDTH),
                         height: px(INPUT_HEIGHT),
+                        left: px(0),
                         ..default()
                     },
                     ZIndex(10),
@@ -326,6 +329,7 @@ fn setup_text_edit_input(
                             ..default()
                         },
                         TextColor(TEXT_BODY_COLOR.with_alpha(0.5).into()),
+                        TextLayout::new_with_justify(Justify::Center),
                         Node {
                             width: px(AFFIX_SIZE),
                             ..default()
