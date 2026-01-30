@@ -8,12 +8,14 @@ use bevy::color::palettes::tailwind::ZINC_950;
 use bevy::image::{ImageAddressMode, ImageSamplerDescriptor};
 use bevy::input::mouse::{AccumulatedMouseMotion, AccumulatedMouseScroll};
 use bevy::math::Affine2;
+use bevy::picking::hover::Hovered;
 use bevy::post_process::bloom::Bloom;
 use bevy::prelude::*;
 use bevy::render::render_resource::{TextureDimension, TextureFormat, TextureUsages};
 
 use crate::state::{EditorState, PlaybackPlayEvent, PlaybackResetEvent, PlaybackSeekEvent};
 use crate::ui::components::seekbar::SeekbarDragState;
+use crate::ui::components::viewport::EditorViewport;
 
 const MIN_ZOOM_DISTANCE: f32 = 0.1;
 const MAX_ZOOM_DISTANCE: f32 = 20.0;
@@ -27,6 +29,11 @@ const FLOOR_TILE_SIZE: f32 = 2.0;
 
 #[derive(Component)]
 pub struct EditorCamera;
+
+#[derive(Default, Resource)]
+pub struct ViewportInputState {
+    pub dragging: bool,
+}
 
 #[derive(Debug, Resource)]
 pub struct CameraSettings {
@@ -160,14 +167,25 @@ pub fn configure_floor_texture(
 
 pub fn orbit_camera(
     mut camera: Single<&mut Transform, With<EditorCamera>>,
+    viewport: Single<&Hovered, With<EditorViewport>>,
+    mut input_state: ResMut<ViewportInputState>,
     camera_settings: Res<CameraSettings>,
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     mouse_motion: Res<AccumulatedMouseMotion>,
 ) {
-    let orbiting =
+    let pressing =
         mouse_buttons.pressed(MouseButton::Left) || mouse_buttons.pressed(MouseButton::Right);
 
-    if !orbiting {
+    if !pressing {
+        input_state.dragging = false;
+        return;
+    }
+
+    if viewport.get() {
+        input_state.dragging = true;
+    }
+
+    if !input_state.dragging {
         return;
     }
 
@@ -189,9 +207,14 @@ pub fn orbit_camera(
 
 pub fn zoom_camera(
     mut camera: Single<&mut Transform, With<EditorCamera>>,
+    viewport: Single<&Hovered, With<EditorViewport>>,
     mut camera_settings: ResMut<CameraSettings>,
     mouse_scroll: Res<AccumulatedMouseScroll>,
 ) {
+    if !viewport.get() {
+        return;
+    }
+
     let delta = mouse_scroll.delta.y;
     if delta == 0.0 {
         return;

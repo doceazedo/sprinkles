@@ -7,7 +7,7 @@ use crate::state::{
     save_editor_data,
 };
 use crate::viewport::{
-    CameraSettings, configure_floor_texture, despawn_preview_on_project_change,
+    CameraSettings, ViewportInputState, configure_floor_texture, despawn_preview_on_project_change,
     handle_playback_play_event, handle_playback_reset_event, handle_playback_seek_event,
     orbit_camera, respawn_preview_on_emitter_change, setup_camera, setup_floor,
     spawn_preview_particle_system, sync_playback_state, zoom_camera,
@@ -22,6 +22,7 @@ impl Plugin for AracariEditorPlugin {
         app.add_plugins(AracariPlugin)
             .init_resource::<EditorState>()
             .init_resource::<CameraSettings>()
+            .init_resource::<ViewportInputState>()
             .insert_resource(editor_data)
             .insert_resource(ClearColor(ZINC_950.into()))
             .add_observer(respawn_preview_on_emitter_change)

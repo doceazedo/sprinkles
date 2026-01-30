@@ -1,3 +1,4 @@
+use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
 use bevy::ui::widget::ViewportNode;
 
@@ -17,6 +18,7 @@ pub fn viewport_container() -> impl Bundle {
             height: percent(100),
             ..default()
         },
+        Hovered::default(),
     )
 }
 
