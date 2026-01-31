@@ -544,8 +544,9 @@ fn handle_unfocus(
 
     let clicked_outside =
         mouse.get_just_pressed().next().is_some() && *interaction == Interaction::None;
-    let key_dismiss =
-        keyboard.just_pressed(KeyCode::Escape) || keyboard.just_pressed(KeyCode::Enter);
+    let key_dismiss = keyboard.just_pressed(KeyCode::Escape)
+        || keyboard.just_pressed(KeyCode::Enter)
+        || keyboard.just_pressed(KeyCode::NumpadEnter);
 
     if clicked_outside || key_dismiss {
         focus.0 = None;

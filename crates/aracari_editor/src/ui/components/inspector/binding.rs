@@ -1,5 +1,8 @@
+use std::collections::HashMap;
+
 use aracari::prelude::*;
 use bevy::ecs::system::ParamSet;
+use bevy::input_focus::InputFocus;
 use bevy::prelude::*;
 use bevy::reflect::GetPath;
 use bevy_ui_text_input::{
@@ -12,21 +15,18 @@ use crate::ui::widgets::checkbox::CheckboxState;
 use crate::ui::widgets::text_edit::EditorTextEdit;
 
 pub fn plugin(app: &mut App) {
-    app.init_resource::<LastBoundEmitter>()
-        .add_systems(
-            Update,
-            (
-                bind_values_to_inputs,
-                sync_input_changes_to_asset,
-                sync_checkbox_changes_to_asset,
-            ),
-        );
+    app.init_resource::<BoundEmitter>().add_systems(
+        Update,
+        (
+            bind_values_to_inputs,
+            sync_input_on_blur,
+            sync_checkbox_changes_to_asset,
+        ),
+    );
 }
 
 #[derive(Resource, Default)]
-struct LastBoundEmitter {
-    index: Option<u8>,
-}
+struct BoundEmitter(Option<u8>);
 
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum FieldKind {
@@ -245,7 +245,7 @@ fn parse_field_value(text: &str, kind: FieldKind) -> FieldValue {
 fn bind_values_to_inputs(
     mut commands: Commands,
     editor_state: Res<EditorState>,
-    mut last_bound: ResMut<LastBoundEmitter>,
+    mut bound_emitter: ResMut<BoundEmitter>,
     assets: Res<Assets<ParticleSystemAsset>>,
     new_fields: Query<Entity, Added<Field>>,
     new_text_edits: Query<Entity, Added<EditorTextEdit>>,
@@ -260,17 +260,15 @@ fn bind_values_to_inputs(
     let inspecting = match &editor_state.inspecting {
         Some(i) if i.kind == Inspectable::Emitter => i,
         _ => {
-            last_bound.index = None;
+            bound_emitter.0 = None;
             return;
         }
     };
 
-    let emitter_changed = last_bound.index != Some(inspecting.index);
+    let emitter_changed = bound_emitter.0 != Some(inspecting.index);
     let has_new_checkboxes = !checkbox_set.p0().is_empty();
-    let should_rebind = emitter_changed
-        || !new_fields.is_empty()
-        || !new_text_edits.is_empty()
-        || has_new_checkboxes;
+    let has_new_fields = !new_fields.is_empty() || !new_text_edits.is_empty();
+    let should_rebind = emitter_changed || has_new_fields || has_new_checkboxes;
 
     if !should_rebind {
         return;
@@ -286,7 +284,7 @@ fn bind_values_to_inputs(
         return;
     };
 
-    last_bound.index = Some(inspecting.index);
+    bound_emitter.0 = Some(inspecting.index);
 
     for (entity, child_of, mut queue) in &mut text_edits {
         let Some(field) = find_ancestor_field(child_of.parent(), &fields, &parents) else {
@@ -335,18 +333,32 @@ fn find_ancestor_field<'a>(
     None
 }
 
-fn sync_input_changes_to_asset(
+fn sync_input_on_blur(
+    input_focus: Res<InputFocus>,
+    mut last_focus: Local<Option<Entity>>,
     editor_state: Res<EditorState>,
     mut assets: ResMut<Assets<ParticleSystemAsset>>,
     mut dirty_state: ResMut<DirtyState>,
-    changed_inputs: Query<
-        (&TextInputBuffer, &ChildOf),
-        (Changed<TextInputBuffer>, With<FieldBound>),
-    >,
+    text_inputs: Query<(&TextInputBuffer, &ChildOf), With<FieldBound>>,
     fields: Query<&Field>,
     parents: Query<&ChildOf>,
     mut emitter_runtimes: Query<&mut EmitterRuntime>,
 ) {
+    let current_focus = input_focus.0;
+    let previous_focus = *last_focus;
+    *last_focus = current_focus;
+
+    let Some(blurred_entity) = previous_focus else {
+        return;
+    };
+    if current_focus == Some(blurred_entity) {
+        return;
+    }
+
+    let Ok((buffer, child_of)) = text_inputs.get(blurred_entity) else {
+        return;
+    };
+
     let inspecting = match &editor_state.inspecting {
         Some(i) if i.kind == Inspectable::Emitter => i,
         _ => return,
@@ -362,26 +374,18 @@ fn sync_input_changes_to_asset(
         return;
     };
 
-    let mut changed = false;
+    let Some(field) = find_ancestor_field(child_of.parent(), &fields, &parents) else {
+        return;
+    };
 
-    for (buffer, child_of) in &changed_inputs {
-        let Some(field) = find_ancestor_field(child_of.parent(), &fields, &parents) else {
-            continue;
-        };
+    let text = buffer.get_text();
+    let value = parse_field_value(&text, field.kind);
 
-        let text = buffer.get_text();
-        let value = parse_field_value(&text, field.kind);
-
-        if matches!(value, FieldValue::None) {
-            continue;
-        }
-
-        if set_emitter_field_value(emitter, field, value) {
-            changed = true;
-        }
+    if matches!(value, FieldValue::None) {
+        return;
     }
 
-    if changed {
+    if set_emitter_field_value(emitter, field, value) {
         dirty_state.has_unsaved_changes = true;
         for mut runtime in &mut emitter_runtimes {
             runtime.restart(emitter.time.fixed_seed);
@@ -393,10 +397,14 @@ fn sync_checkbox_changes_to_asset(
     editor_state: Res<EditorState>,
     mut assets: ResMut<Assets<ParticleSystemAsset>>,
     mut dirty_state: ResMut<DirtyState>,
-    changed_checkboxes: Query<(Entity, &CheckboxState), (Changed<CheckboxState>, With<CheckboxBound>)>,
+    changed_checkboxes: Query<
+        (Entity, &CheckboxState),
+        (Changed<CheckboxState>, With<CheckboxBound>),
+    >,
     fields: Query<&Field>,
     parents: Query<&ChildOf>,
     mut emitter_runtimes: Query<&mut EmitterRuntime>,
+    mut last_checkbox_states: Local<HashMap<Entity, bool>>,
 ) {
     let inspecting = match &editor_state.inspecting {
         Some(i) if i.kind == Inspectable::Emitter => i,
@@ -414,6 +422,12 @@ fn sync_checkbox_changes_to_asset(
     };
 
     for (entity, state) in &changed_checkboxes {
+        let last_state = last_checkbox_states.get(&entity).copied();
+        last_checkbox_states.insert(entity, state.checked);
+        if last_state.is_none() {
+            continue;
+        }
+
         let field = if let Ok(f) = fields.get(entity) {
             f
         } else if let Ok(child_of) = parents.get(entity) {
