@@ -2,10 +2,9 @@ use aracari::prelude::*;
 use bevy::color::palettes::tailwind::ZINC_950;
 use bevy::prelude::*;
 
-use crate::state::{
-    DirtyState, EditorData, EditorState, Inspectable, Inspecting, load_editor_data,
-    load_project_from_path, project_path, save_editor_data,
-};
+use crate::io::{project_path, save_editor_data, EditorData};
+use crate::project::load_project_from_path;
+use crate::state::{EditorState, Inspectable, Inspecting};
 use crate::viewport::{
     CameraSettings, ViewportInputState, configure_floor_texture, despawn_preview_on_project_change,
     handle_playback_play_event, handle_playback_reset_event, handle_playback_seek_event,
@@ -17,14 +16,12 @@ pub struct AracariEditorPlugin;
 
 impl Plugin for AracariEditorPlugin {
     fn build(&self, app: &mut App) {
-        let editor_data = load_editor_data();
-
         app.add_plugins(AracariPlugin)
-            .init_resource::<EditorState>()
-            .init_resource::<DirtyState>()
+            .add_plugins(crate::io::plugin)
+            .add_plugins(crate::state::plugin)
+            .add_plugins(crate::project::plugin)
             .init_resource::<CameraSettings>()
             .init_resource::<ViewportInputState>()
-            .insert_resource(editor_data)
             .insert_resource(ClearColor(ZINC_950.into()))
             .add_observer(respawn_preview_on_emitter_change)
             .add_observer(handle_playback_play_event)

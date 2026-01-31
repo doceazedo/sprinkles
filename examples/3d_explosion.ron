@@ -4,20 +4,12 @@
     emitters: [
         (
             name: "Windup",
-            enabled: true,
-            position: (0.0, 0.0, 0.0),
             amount: 10,
             time: (
                 lifetime: 0.28,
-                lifetime_randomness: 0.0,
-                delay: 0.0,
                 one_shot: true,
                 explosiveness: 0.9,
-                randomness: 0.0,
                 fixed_fps: 30,
-            ),
-            drawing: (
-                draw_order: Index,
             ),
             draw_passes: [
                 (
@@ -32,13 +24,9 @@
                     ),
                     material: Standard((
                         base_color: (1.0, 1.0, 1.0, 1.0),
-                        emissive: (0.0, 0.0, 0.0, 1.0),
+                        emissive: (0.0, 0.0, 0.0, 0.0),
                         perceptual_roughness: 0.5,
-                        metallic: 0.0,
                         alpha_mode: Blend,
-                        double_sided: false,
-                        unlit: false,
-                        fog_enabled: true,
                         reflectance: 0.5,
                     )),
                     shadow_caster: false,
@@ -51,19 +39,10 @@
                         emission_shape: SphereSurface(
                             radius: 2.0,
                         ),
-                        emission_shape_offset: (0.0, 0.0, 0.0),
-                        emission_shape_scale: (1.0, 1.0, 1.0),
                     ),
                     velocity: (
-                        inherit_velocity_ratio: 0.0,
-                        velocity_pivot: (0.0, 0.0, 0.0),
                         direction: (0.0, 0.0, 0.0),
                         spread: 180.0,
-                        flatness: 0.0,
-                        initial_velocity: (
-                            min: 0.0,
-                            max: 0.0,
-                        ),
                     ),
                 ),
                 animated_velocity: (
@@ -106,10 +85,8 @@
                     ),
                 ),
                 turbulence: Some((
-                    enabled: false,
                     noise_strength: 0.1,
                     noise_scale: 2.5,
-                    noise_speed: (0.0, 0.0, 0.0),
                     noise_speed_random: 0.2,
                     influence: (
                         min: 0.01,
@@ -120,20 +97,13 @@
         ),
         (
             name: "Smoke",
-            enabled: true,
-            position: (0.0, 0.0, 0.0),
             amount: 16,
             time: (
                 lifetime: 2.0,
-                lifetime_randomness: 0.0,
                 delay: 0.3,
                 one_shot: true,
                 explosiveness: 0.9,
-                randomness: 0.0,
                 fixed_fps: 30,
-            ),
-            drawing: (
-                draw_order: Index,
             ),
             draw_passes: [
                 (
@@ -142,13 +112,9 @@
                     ),
                     material: Standard((
                         base_color: (1.0, 1.0, 1.0, 1.0),
-                        emissive: (0.0, 0.0, 0.0, 1.0),
+                        emissive: (0.0, 0.0, 0.0, 0.0),
                         perceptual_roughness: 1.0,
-                        metallic: 0.0,
                         alpha_mode: Blend,
-                        double_sided: false,
-                        unlit: false,
-                        fog_enabled: true,
                         reflectance: 0.5,
                     )),
                     shadow_caster: false,
@@ -161,28 +127,17 @@
                         emission_shape: Sphere(
                             radius: 0.3,
                         ),
-                        emission_shape_offset: (0.0, 0.0, 0.0),
-                        emission_shape_scale: (1.0, 1.0, 1.0),
                     ),
                     velocity: (
-                        inherit_velocity_ratio: 0.0,
-                        velocity_pivot: (0.0, 0.0, 0.0),
                         direction: (1.0, 0.0, 0.0),
                         spread: 45.0,
-                        flatness: 0.0,
                         initial_velocity: (
-                            min: 0.0,
                             max: 0.5,
                         ),
                     ),
                 ),
                 animated_velocity: (
-                    radial_velocity: (
-                        value: (
-                            min: 0.0,
-                            max: 0.0,
-                        ),
-                    ),
+                    radial_velocity: (),
                 ),
                 accelerations: (
                     gravity: (0.0, 1.0, 0.0),
@@ -212,7 +167,6 @@
                                         position: 1.0,
                                     ),
                                 ],
-                                interpolation: Linear,
                             ),
                         ),
                         alpha_curve: Some((
@@ -226,7 +180,6 @@
                     enabled: true,
                     noise_strength: 0.1,
                     noise_scale: 0.2,
-                    noise_speed: (0.0, 0.0, 0.0),
                     noise_speed_random: 0.2,
                     influence: (
                         min: 0.01,
@@ -242,20 +195,13 @@
         ),
         (
             name: "Fire",
-            enabled: true,
-            position: (0.0, 0.0, 0.0),
             amount: 16,
             time: (
                 lifetime: 1.0,
-                lifetime_randomness: 0.0,
                 delay: 0.3,
                 one_shot: true,
                 explosiveness: 0.9,
-                randomness: 0.0,
                 fixed_fps: 30,
-            ),
-            drawing: (
-                draw_order: Index,
             ),
             draw_passes: [
                 (
@@ -264,13 +210,9 @@
                     ),
                     material: Standard((
                         base_color: (1.0, 1.0, 1.0, 1.0),
-                        emissive: (0.0, 0.0, 0.0, 1.0),
+                        emissive: (0.0, 0.0, 0.0, 0.0),
                         perceptual_roughness: 1.0,
-                        metallic: 0.0,
                         alpha_mode: Opaque,
-                        double_sided: false,
-                        unlit: false,
-                        fog_enabled: true,
                         reflectance: 0.5,
                     )),
                     shadow_caster: false,
@@ -283,28 +225,17 @@
                         emission_shape: Sphere(
                             radius: 0.2,
                         ),
-                        emission_shape_offset: (0.0, 0.0, 0.0),
-                        emission_shape_scale: (1.0, 1.0, 1.0),
                     ),
                     velocity: (
-                        inherit_velocity_ratio: 0.0,
-                        velocity_pivot: (0.0, 0.0, 0.0),
                         direction: (1.0, 0.0, 0.0),
                         spread: 180.0,
-                        flatness: 0.0,
                         initial_velocity: (
-                            min: 0.0,
                             max: 5.0,
                         ),
                     ),
                 ),
                 animated_velocity: (
-                    radial_velocity: (
-                        value: (
-                            min: 0.0,
-                            max: 0.0,
-                        ),
-                    ),
+                    radial_velocity: (),
                 ),
                 accelerations: (
                     gravity: (0.0, 0.3, 0.0),
@@ -334,7 +265,6 @@
                                         position: 1.0,
                                     ),
                                 ],
-                                interpolation: Linear,
                             ),
                         ),
                         emission_curve: Some((
@@ -345,10 +275,8 @@
                     ),
                 ),
                 turbulence: Some((
-                    enabled: false,
                     noise_strength: 0.1,
                     noise_scale: 2.5,
-                    noise_speed: (0.0, 0.0, 0.0),
                     noise_speed_random: 0.2,
                     influence: (
                         min: 0.01,
@@ -359,20 +287,13 @@
         ),
         (
             name: "Sparks",
-            enabled: true,
-            position: (0.0, 0.0, 0.0),
             amount: 20,
             time: (
                 lifetime: 0.7,
-                lifetime_randomness: 0.0,
                 delay: 0.3,
                 one_shot: true,
                 explosiveness: 0.9,
-                randomness: 0.0,
                 fixed_fps: 30,
-            ),
-            drawing: (
-                draw_order: Index,
             ),
             draw_passes: [
                 (
@@ -387,13 +308,9 @@
                     ),
                     material: Standard((
                         base_color: (1.0, 1.0, 1.0, 1.0),
-                        emissive: (0.0, 0.0, 0.0, 1.0),
+                        emissive: (0.0, 0.0, 0.0, 0.0),
                         perceptual_roughness: 0.5,
-                        metallic: 0.0,
                         alpha_mode: Blend,
-                        double_sided: false,
-                        unlit: false,
-                        fog_enabled: true,
                         reflectance: 0.5,
                     )),
                     shadow_caster: false,
@@ -406,15 +323,10 @@
                         emission_shape: Sphere(
                             radius: 0.2,
                         ),
-                        emission_shape_offset: (0.0, 0.0, 0.0),
-                        emission_shape_scale: (1.0, 1.0, 1.0),
                     ),
                     velocity: (
-                        inherit_velocity_ratio: 0.0,
-                        velocity_pivot: (0.0, 0.0, 0.0),
                         direction: (1.0, 0.0, 0.0),
                         spread: 180.0,
-                        flatness: 0.0,
                         initial_velocity: (
                             min: 2.0,
                             max: 5.0,
@@ -422,12 +334,7 @@
                     ),
                 ),
                 animated_velocity: (
-                    radial_velocity: (
-                        value: (
-                            min: 0.0,
-                            max: 0.0,
-                        ),
-                    ),
+                    radial_velocity: (),
                 ),
                 accelerations: (
                     gravity: (0.0, -1.5, 0.0),
@@ -457,7 +364,6 @@
                                         position: 1.0,
                                     ),
                                 ],
-                                interpolation: Linear,
                             ),
                         ),
                         emission_curve: Some((
@@ -468,10 +374,8 @@
                     ),
                 ),
                 turbulence: Some((
-                    enabled: false,
                     noise_strength: 0.1,
                     noise_scale: 2.5,
-                    noise_speed: (0.0, 0.0, 0.0),
                     noise_speed_random: 0.2,
                     influence: (
                         min: 0.01,
@@ -482,20 +386,12 @@
         ),
         (
             name: "Shockwave",
-            enabled: true,
-            position: (0.0, 0.0, 0.0),
             amount: 1,
             time: (
                 lifetime: 0.5,
-                lifetime_randomness: 0.0,
                 delay: 0.3,
                 one_shot: true,
-                explosiveness: 0.0,
-                randomness: 0.0,
                 fixed_fps: 30,
-            ),
-            drawing: (
-                draw_order: Index,
             ),
             draw_passes: [
                 (
@@ -505,13 +401,11 @@
                     material: Standard((
                         base_color: (1.0, 1.0, 1.0, 1.0),
                         base_color_texture: Some("circle_01_a.png"),
-                        emissive: (0.0, 0.0, 0.0, 1.0),
+                        emissive: (0.0, 0.0, 0.0, 0.0),
                         perceptual_roughness: 0.5,
-                        metallic: 0.0,
                         alpha_mode: Blend,
                         double_sided: true,
                         unlit: true,
-                        fog_enabled: true,
                         reflectance: 0.5,
                     )),
                     shadow_caster: false,
@@ -520,30 +414,14 @@
             process: (
                 particle_flags: "",
                 spawn: (
-                    position: (
-                        emission_shape: Point,
-                        emission_shape_offset: (0.0, 0.0, 0.0),
-                        emission_shape_scale: (1.0, 1.0, 1.0),
-                    ),
+                    position: (),
                     velocity: (
-                        inherit_velocity_ratio: 0.0,
-                        velocity_pivot: (0.0, 0.0, 0.0),
                         direction: (1.0, 0.0, 0.0),
                         spread: 45.0,
-                        flatness: 0.0,
-                        initial_velocity: (
-                            min: 0.0,
-                            max: 0.0,
-                        ),
                     ),
                 ),
                 animated_velocity: (
-                    radial_velocity: (
-                        value: (
-                            min: 0.0,
-                            max: 0.0,
-                        ),
-                    ),
+                    radial_velocity: (),
                 ),
                 accelerations: (
                     gravity: (0.0, 0.0, 0.0),
@@ -575,8 +453,6 @@
         ),
         (
             name: "Debris",
-            enabled: true,
-            position: (0.0, 0.0, 0.0),
             amount: 16,
             time: (
                 lifetime: 3.0,
@@ -584,11 +460,7 @@
                 delay: 0.3,
                 one_shot: true,
                 explosiveness: 0.95,
-                randomness: 0.0,
                 fixed_fps: 30,
-            ),
-            drawing: (
-                draw_order: Index,
             ),
             draw_passes: [
                 (
@@ -601,16 +473,11 @@
                     ),
                     material: Standard((
                         base_color: (1.0, 1.0, 1.0, 1.0),
-                        emissive: (0.0, 0.0, 0.0, 1.0),
+                        emissive: (0.0, 0.0, 0.0, 0.0),
                         perceptual_roughness: 0.5,
-                        metallic: 0.0,
                         alpha_mode: Opaque,
-                        double_sided: false,
-                        unlit: false,
-                        fog_enabled: true,
                         reflectance: 0.5,
                     )),
-                    shadow_caster: true,
                 ),
             ],
             process: (
@@ -620,28 +487,17 @@
                         emission_shape: Sphere(
                             radius: 0.2,
                         ),
-                        emission_shape_offset: (0.0, 0.0, 0.0),
-                        emission_shape_scale: (1.0, 1.0, 1.0),
                     ),
                     velocity: (
-                        inherit_velocity_ratio: 0.0,
-                        velocity_pivot: (0.0, 0.0, 0.0),
                         direction: (1.0, 0.0, 0.0),
                         spread: 180.0,
-                        flatness: 0.0,
                         initial_velocity: (
-                            min: 0.0,
                             max: 5.0,
                         ),
                     ),
                 ),
                 animated_velocity: (
-                    radial_velocity: (
-                        value: (
-                            min: 0.0,
-                            max: 0.0,
-                        ),
-                    ),
+                    radial_velocity: (),
                 ),
                 accelerations: (
                     gravity: (0.0, -9.8, 0.0),
@@ -712,7 +568,6 @@
                                         position: 1.0,
                                     ),
                                 ],
-                                interpolation: Linear,
                             ),
                         ),
                     ),

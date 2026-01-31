@@ -48,6 +48,9 @@ pub struct Field {
 #[derive(Component)]
 struct FieldBound;
 
+#[derive(Component)]
+struct CheckboxBound;
+
 impl Field {
     pub fn new(path: impl Into<String>) -> Self {
         Self {
@@ -314,6 +317,7 @@ fn bind_values_to_inputs(
         if let Some(checked) = value.to_bool() {
             state.checked = checked;
         }
+        commands.entity(entity).insert(CheckboxBound);
     }
 }
 
@@ -389,7 +393,7 @@ fn sync_checkbox_changes_to_asset(
     editor_state: Res<EditorState>,
     mut assets: ResMut<Assets<ParticleSystemAsset>>,
     mut dirty_state: ResMut<DirtyState>,
-    changed_checkboxes: Query<(Entity, &CheckboxState), Changed<CheckboxState>>,
+    changed_checkboxes: Query<(Entity, &CheckboxState), (Changed<CheckboxState>, With<CheckboxBound>)>,
     fields: Query<&Field>,
     parents: Query<&ChildOf>,
     mut emitter_runtimes: Query<&mut EmitterRuntime>,

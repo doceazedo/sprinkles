@@ -1,4 +1,6 @@
+mod io;
 mod plugin;
+mod project;
 mod state;
 mod ui;
 mod viewport;
