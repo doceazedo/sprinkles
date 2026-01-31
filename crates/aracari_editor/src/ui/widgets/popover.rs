@@ -3,12 +3,17 @@ use bevy::prelude::*;
 use bevy::ui::UiGlobalTransform;
 use bevy::window::PrimaryWindow;
 
-use crate::ui::tokens::{BACKGROUND_COLOR, BORDER_COLOR, CORNER_RADIUS_LG};
+use crate::ui::tokens::{
+    BACKGROUND_COLOR, BORDER_COLOR, CORNER_RADIUS_LG, FONT_PATH, TEXT_DISPLAY_COLOR, TEXT_SIZE,
+};
+use crate::ui::widgets::button::{ButtonVariant, IconButtonProps, icon_button};
 
 const POPOVER_GAP: f32 = 4.0;
+const ICON_CLOSE: &str = "icons/ri-close-fill.png";
 
 pub fn plugin(app: &mut App) {
-    app.add_systems(Update, (handle_popover_position, handle_popover_dismiss));
+    app.add_observer(handle_popover_close_click)
+        .add_systems(Update, (handle_popover_position, handle_popover_dismiss));
 }
 
 #[derive(Component)]
@@ -16,6 +21,9 @@ pub struct EditorPopover;
 
 #[derive(Component)]
 pub struct PopoverAnchor(pub Entity);
+
+#[derive(Component, Default)]
+struct PopoverLayoutReady(bool);
 
 #[derive(Component, Default, Clone, Copy, PartialEq)]
 pub enum PopoverPlacement {
@@ -97,6 +105,7 @@ pub struct PopoverProps {
     pub anchor: Entity,
     pub node: Option<Node>,
     pub padding: f32,
+    pub z_index: i32,
 }
 
 impl PopoverProps {
@@ -106,6 +115,7 @@ impl PopoverProps {
             anchor,
             node: None,
             padding: 6.0,
+            z_index: 100,
         }
     }
 
@@ -123,6 +133,11 @@ impl PopoverProps {
         self.padding = padding;
         self
     }
+
+    pub fn with_z_index(mut self, z_index: i32) -> Self {
+        self.z_index = z_index;
+        self
+    }
 }
 
 pub fn popover(props: PopoverProps) -> impl Bundle {
@@ -131,6 +146,7 @@ pub fn popover(props: PopoverProps) -> impl Bundle {
         anchor,
         node,
         padding,
+        z_index,
     } = props;
 
     let base_node = node.unwrap_or_default();
@@ -138,6 +154,7 @@ pub fn popover(props: PopoverProps) -> impl Bundle {
     (
         EditorPopover,
         PopoverAnchor(anchor),
+        PopoverLayoutReady::default(),
         placement,
         Hovered::default(),
         Interaction::None,
@@ -152,7 +169,7 @@ pub fn popover(props: PopoverProps) -> impl Bundle {
         Visibility::Hidden,
         BackgroundColor(BACKGROUND_COLOR.into()),
         BorderColor::all(BORDER_COLOR),
-        ZIndex(100),
+        ZIndex(z_index),
     )
 }
 
@@ -164,6 +181,7 @@ fn handle_popover_position(
             &ComputedNode,
             &mut Node,
             &mut Visibility,
+            &mut PopoverLayoutReady,
         ),
         With<EditorPopover>,
     >,
@@ -175,7 +193,7 @@ fn handle_popover_position(
     };
     let window_size = Vec2::new(window.width(), window.height());
 
-    for (anchor_ref, placement, popover_computed, mut popover_node, mut visibility) in &mut popovers
+    for (anchor_ref, placement, popover_computed, mut popover_node, mut visibility, mut layout_ready) in &mut popovers
     {
         let Ok((anchor_computed, anchor_transform)) = anchors.get(anchor_ref.0) else {
             continue;
@@ -219,13 +237,19 @@ fn handle_popover_position(
 
         popover_node.left = px(pos.x);
         popover_node.top = px(pos.y);
-        *visibility = Visibility::Visible;
+
+        if layout_ready.0 {
+            *visibility = Visibility::Visible;
+        } else {
+            layout_ready.0 = true;
+        }
     }
 }
 
 fn handle_popover_dismiss(
     mut commands: Commands,
-    popovers: Query<(Entity, &Hovered), With<EditorPopover>>,
+    popovers: Query<(Entity, &PopoverAnchor, &Hovered), With<EditorPopover>>,
+    parents: Query<&ChildOf>,
     keyboard: Res<ButtonInput<KeyCode>>,
     mouse: Res<ButtonInput<MouseButton>>,
 ) {
@@ -236,10 +260,111 @@ fn handle_popover_dismiss(
         return;
     }
 
-    for (entity, hovered) in &popovers {
-        let should_dismiss = esc_pressed || (clicked && !hovered.get());
-        if should_dismiss {
+    let any_hovered = popovers.iter().any(|(_, _, hovered)| hovered.get());
+
+    for (entity, _anchor, hovered) in &popovers {
+        if esc_pressed || !any_hovered {
+            commands.entity(entity).try_despawn();
+            continue;
+        }
+
+        if hovered.get() {
+            continue;
+        }
+
+        let has_hovered_nested_popover = popovers.iter().any(|(other_entity, other_anchor, other_hovered)| {
+            other_entity != entity && other_hovered.get() && is_descendant_of(other_anchor.0, entity, &parents)
+        });
+
+        if !has_hovered_nested_popover {
             commands.entity(entity).try_despawn();
         }
     }
+}
+
+fn is_descendant_of(entity: Entity, ancestor: Entity, parents: &Query<&ChildOf>) -> bool {
+    let mut current = entity;
+    while let Ok(child_of) = parents.get(current) {
+        if child_of.parent() == ancestor {
+            return true;
+        }
+        current = child_of.parent();
+    }
+    false
+}
+
+#[derive(Component)]
+pub struct PopoverCloseButton(Entity);
+
+pub struct PopoverHeaderProps {
+    pub title: String,
+    pub popover: Entity,
+}
+
+impl PopoverHeaderProps {
+    pub fn new(title: impl Into<String>, popover: Entity) -> Self {
+        Self {
+            title: title.into(),
+            popover,
+        }
+    }
+}
+
+pub fn popover_header(props: PopoverHeaderProps, asset_server: &AssetServer) -> impl Bundle {
+    let PopoverHeaderProps { title, popover } = props;
+    let font: Handle<Font> = asset_server.load(FONT_PATH);
+
+    (
+        Node {
+            width: percent(100),
+            padding: UiRect::new(px(12.0), px(6.0), px(6.0), px(6.0)),
+            border: UiRect::bottom(px(1.0)),
+            justify_content: JustifyContent::SpaceBetween,
+            align_items: AlignItems::Center,
+            ..default()
+        },
+        BorderColor::all(BORDER_COLOR),
+        children![
+            (
+                Text::new(title),
+                TextFont {
+                    font: font.into(),
+                    font_size: TEXT_SIZE,
+                    weight: FontWeight::SEMIBOLD,
+                    ..default()
+                },
+                TextColor(TEXT_DISPLAY_COLOR.into()),
+            ),
+            (
+                PopoverCloseButton(popover),
+                icon_button(
+                    IconButtonProps::new(ICON_CLOSE).variant(ButtonVariant::Ghost),
+                    asset_server,
+                ),
+            ),
+        ],
+    )
+}
+
+pub fn popover_content() -> impl Bundle {
+    Node {
+        width: percent(100),
+        flex_direction: FlexDirection::Column,
+        row_gap: px(12.0),
+        padding: UiRect::all(px(12.0)),
+        ..default()
+    }
+}
+
+use crate::ui::widgets::button::ButtonClickEvent;
+
+fn handle_popover_close_click(
+    trigger: On<ButtonClickEvent>,
+    mut commands: Commands,
+    close_buttons: Query<&PopoverCloseButton>,
+) {
+    let Ok(close_button) = close_buttons.get(trigger.entity) else {
+        return;
+    };
+    commands.entity(close_button.0).try_despawn();
 }

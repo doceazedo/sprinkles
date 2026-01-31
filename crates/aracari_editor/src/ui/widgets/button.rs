@@ -48,7 +48,7 @@ impl ButtonVariant {
             (Self::Ghost, false) => 0.0,
             (Self::Active, false) => 0.1,
             (Self::Active, true) => 0.15,
-            (Self::ActiveAlt, _) => 0.1,
+            (Self::ActiveAlt, _) => 0.05,
             (Self::Default, false) => 0.5,
             (Self::Default, true) => 0.8,
             (Self::Ghost, true) => 0.05,
@@ -79,7 +79,7 @@ impl ButtonVariant {
     pub fn border_opacity(&self, hovered: bool) -> f32 {
         match (self, hovered) {
             (Self::Ghost, false) => 0.0,
-            (Self::ActiveAlt, _) => 0.4,
+            (Self::ActiveAlt, _) => 0.2,
             _ => 1.0,
         }
     }

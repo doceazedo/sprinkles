@@ -37,6 +37,7 @@ pub enum FieldKind {
     U32OrEmpty,
     OptionalU32,
     Bool,
+    VariantEdit,
 }
 
 #[derive(Component, Clone)]
@@ -93,6 +94,7 @@ fn get_emitter_field_value(emitter: &EmitterData, field: &Field) -> FieldValue {
             .ok()
             .map(|v| FieldValue::Bool(*v))
             .unwrap_or(FieldValue::None),
+        FieldKind::VariantEdit => FieldValue::None,
     };
 
     value.with_kind(field.kind)
@@ -241,6 +243,7 @@ fn parse_field_value(text: &str, kind: FieldKind) -> FieldValue {
             }
         }
         FieldKind::Bool => FieldValue::None,
+        FieldKind::VariantEdit => FieldValue::None,
     }
 }
 

@@ -9,7 +9,7 @@ use crate::ui::tokens::{BORDER_COLOR, FONT_PATH, TEXT_BODY_COLOR, TEXT_SIZE_LG};
 use crate::ui::widgets::button::{ButtonVariant, IconButtonProps, icon_button};
 use crate::ui::widgets::checkbox::{CheckboxProps, checkbox};
 use crate::ui::widgets::combobox::{ComboBoxOptionData, combobox};
-use crate::ui::widgets::enum_button::{EnumButtonProps, enum_button};
+use crate::ui::widgets::variant_edit::{VariantEditProps, variant_edit};
 use crate::ui::widgets::panel::{PanelDirection, PanelProps, panel, panel_resize_handle};
 
 pub fn plugin(app: &mut App) {
@@ -64,28 +64,29 @@ fn setup_inspector_panel(
                     ))
                     .with_children(|content| {
                         content.spawn(time::time_section(&asset_server));
-                        content.spawn((
-                            Node {
-                                padding: UiRect::all(px(12)),
-                                flex_direction: FlexDirection::Column,
-                                row_gap: px(8),
-                                ..default()
-                            },
-                            children![
-                                combobox(vec![
+                        content
+                            .spawn((
+                                Node {
+                                    width: percent(100),
+                                    padding: UiRect::all(px(12)),
+                                    flex_direction: FlexDirection::Column,
+                                    row_gap: px(8),
+                                    ..default()
+                                },
+                                children![combobox(vec![
                                     ComboBoxOptionData::new("Emitter")
                                         .with_icon("icons/ri-showers-fill.png"),
                                     ComboBoxOptionData::new("Collider")
                                         .with_icon("icons/ri-box-2-fill.png"),
                                     ComboBoxOptionData::new("Time")
                                         .with_icon("icons/ri-time-line.png"),
-                                ]),
-                                enum_button(EnumButtonProps::new(
-                                    "icons/ri-seedling-fill.png",
-                                    "Test Enum"
-                                )),
-                            ],
-                        ));
+                                ])],
+                            ))
+                            .with_child(variant_edit(
+                                VariantEditProps::new("icons/ri-seedling-fill.png", "Quad")
+                                    .with_label("Draw Pass Mesh")
+                                    .with_options(vec!["Quad", "Ribbon", "Custom Mesh"]),
+                            ));
                     });
             });
     }

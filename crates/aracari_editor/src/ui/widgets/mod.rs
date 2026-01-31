@@ -1,7 +1,6 @@
 pub mod button;
 pub mod checkbox;
 pub mod combobox;
-pub mod enum_button;
 pub mod inspector_field;
 pub mod panel;
 pub mod panel_section;
@@ -9,4 +8,5 @@ pub mod popover;
 pub mod separator;
 pub mod text_edit;
 pub mod toast;
+pub mod variant_edit;
 pub mod vector_edit;

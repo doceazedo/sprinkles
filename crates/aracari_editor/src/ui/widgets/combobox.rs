@@ -89,7 +89,10 @@ pub fn combobox(options: Vec<impl Into<ComboBoxOptionData>>) -> impl Bundle {
             style: ComboBoxStyle::Default,
             initialized: false,
         },
-        Node::default(),
+        Node {
+            width: percent(100),
+            ..default()
+        },
     )
 }
 
@@ -184,6 +187,7 @@ fn handle_trigger_click(
             PopoverProps::new(trigger.entity)
                 .with_placement(PopoverPlacement::BottomStart)
                 .with_padding(4.0)
+                .with_z_index(200)
                 .with_node(Node {
                     min_width: px(120.0),
                     ..default()
