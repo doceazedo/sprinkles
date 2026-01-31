@@ -68,10 +68,7 @@ pub fn topbar(asset_server: &AssetServer) -> impl Bundle {
                     EditorSeparator::vertical(),
                     (
                         SaveButton,
-                        button(
-                            ButtonProps::new("Save").with_variant(ButtonVariant::Primary),
-                            asset_server,
-                        ),
+                        button(ButtonProps::new("Save").with_variant(ButtonVariant::Primary)),
                     ),
                 ],
             ),

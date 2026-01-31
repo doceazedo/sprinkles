@@ -16,8 +16,11 @@ impl Plugin for EditorUiPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(widgets::button::plugin)
             .add_plugins(widgets::checkbox::plugin)
+            .add_plugins(widgets::combobox::plugin)
+            .add_plugins(widgets::enum_button::plugin)
             .add_plugins(widgets::panel::plugin)
             .add_plugins(widgets::panel_section::plugin)
+            .add_plugins(widgets::popover::plugin)
             .add_plugins(widgets::text_edit::plugin)
             .add_plugins(components::data_panel::plugin)
             .add_plugins(components::inspector::plugin)

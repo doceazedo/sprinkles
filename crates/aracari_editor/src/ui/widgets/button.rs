@@ -1,4 +1,3 @@
-use bevy::color::palettes::css::WHITE;
 use bevy::color::palettes::tailwind;
 use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
@@ -7,31 +6,13 @@ use crate::ui::tokens::{
     CORNER_RADIUS_LG, FONT_PATH, PRIMARY_COLOR, TEXT_BODY_COLOR, TEXT_DISPLAY_COLOR, TEXT_SIZE,
 };
 
-const ICON_MORE: &str = "icons/ri-more-fill.png";
-
 #[derive(EntityEvent)]
 pub struct ButtonClickEvent {
     pub entity: Entity,
 }
 
-#[derive(EntityEvent)]
-pub struct ButtonMoreEvent {
-    pub entity: Entity,
-}
-
 pub fn plugin(app: &mut App) {
-    app.add_systems(
-        Update,
-        (
-            setup_more_button,
-            handle_hover,
-            handle_more_hover,
-            handle_more_visibility,
-            handle_button_click,
-            handle_more_click,
-            handle_button_right_click,
-        ),
-    );
+    app.add_systems(Update, (setup_button, handle_hover, handle_button_click));
 }
 
 #[derive(Component)]
@@ -44,11 +25,11 @@ pub enum ButtonVariant {
     Primary,
     Ghost,
     Active,
+    ActiveAlt,
 }
 
 #[derive(Component, Default, Clone, Copy)]
 pub enum ButtonSize {
-    SM,
     #[default]
     MD,
     Icon,
@@ -58,7 +39,7 @@ impl ButtonVariant {
     pub fn bg_color(&self) -> Srgba {
         match self {
             Self::Default => tailwind::ZINC_700,
-            Self::Ghost => TEXT_BODY_COLOR,
+            Self::Ghost | Self::ActiveAlt => TEXT_BODY_COLOR,
             Self::Primary | Self::Active => PRIMARY_COLOR,
         }
     }
@@ -67,6 +48,7 @@ impl ButtonVariant {
             (Self::Ghost, false) => 0.0,
             (Self::Active, false) => 0.1,
             (Self::Active, true) => 0.15,
+            (Self::ActiveAlt, _) => 0.1,
             (Self::Default, false) => 0.5,
             (Self::Default, true) => 0.8,
             (Self::Ghost, true) => 0.05,
@@ -76,7 +58,7 @@ impl ButtonVariant {
     }
     pub fn text_color(&self) -> Srgba {
         match self {
-            Self::Default | Self::Ghost => TEXT_BODY_COLOR,
+            Self::Default | Self::Ghost | Self::ActiveAlt => TEXT_BODY_COLOR,
             Self::Primary => TEXT_DISPLAY_COLOR,
             Self::Active => PRIMARY_COLOR.lighter(0.05),
         }
@@ -85,17 +67,19 @@ impl ButtonVariant {
         match self {
             Self::Default | Self::Ghost => tailwind::ZINC_700,
             Self::Primary | Self::Active => PRIMARY_COLOR,
+            Self::ActiveAlt => TEXT_BODY_COLOR,
         }
     }
     pub fn border(&self) -> Val {
         match self {
-            Self::Default => Val::Px(1.0),
+            Self::Default | Self::ActiveAlt => Val::Px(1.0),
             _ => Val::Px(0.0),
         }
     }
     pub fn border_opacity(&self, hovered: bool) -> f32 {
         match (self, hovered) {
             (Self::Ghost, false) => 0.0,
+            (Self::ActiveAlt, _) => 0.4,
             _ => 1.0,
         }
     }
@@ -105,7 +89,7 @@ impl ButtonSize {
     fn width(&self) -> Val {
         match self {
             Self::Icon => Val::Px(28.0),
-            _ => Val::Auto,
+            Self::MD => Val::Auto,
         }
     }
     fn height(&self) -> Val {
@@ -113,7 +97,6 @@ impl ButtonSize {
     }
     fn padding(&self) -> Val {
         match self {
-            Self::SM => px(6.0),
             Self::MD => px(12.0),
             Self::Icon => px(0.0),
         }
@@ -124,17 +107,11 @@ impl ButtonSize {
 }
 
 #[derive(Component)]
-struct ButtonMoreContainer;
-
-#[derive(Component)]
-struct ButtonMoreButton(Entity);
-
-#[derive(Component)]
-struct ButtonMoreIcon;
-
-#[derive(Component, Default)]
-struct ButtonOptions {
-    has_more: bool,
+struct ButtonConfig {
+    content: String,
+    left_icon: Option<String>,
+    right_icon: Option<String>,
+    initialized: bool,
 }
 
 #[derive(Default)]
@@ -143,7 +120,8 @@ pub struct ButtonProps {
     pub variant: ButtonVariant,
     pub size: ButtonSize,
     pub align_left: bool,
-    pub has_more: bool,
+    pub left_icon: Option<String>,
+    pub right_icon: Option<String>,
 }
 
 impl ButtonProps {
@@ -165,8 +143,12 @@ impl ButtonProps {
         self.align_left = true;
         self
     }
-    pub fn with_more(mut self) -> Self {
-        self.has_more = true;
+    pub fn with_left_icon(mut self, icon: impl Into<String>) -> Self {
+        self.left_icon = Some(icon.into());
+        self
+    }
+    pub fn with_right_icon(mut self, icon: impl Into<String>) -> Self {
+        self.right_icon = Some(icon.into());
         self
     }
 }
@@ -196,12 +178,12 @@ impl IconButtonProps {
         self.variant = variant;
         self
     }
-    pub fn size(mut self, size: ButtonSize) -> Self {
-        self.size = size;
-        self
-    }
     pub fn with_alpha(mut self, alpha: f32) -> Self {
         self.alpha = Some(alpha);
+        self
+    }
+    pub fn with_size(mut self, size: ButtonSize) -> Self {
+        self.size = size;
         self
     }
 }
@@ -223,6 +205,7 @@ fn button_base(variant: ButtonVariant, size: ButtonSize, align_left: bool) -> im
             padding: UiRect::horizontal(size.padding()),
             border: UiRect::all(variant.border()),
             border_radius: BorderRadius::all(CORNER_RADIUS_LG),
+            column_gap: px(6.0),
             justify_content: if align_left {
                 JustifyContent::Start
             } else {
@@ -245,83 +228,85 @@ fn button_base(variant: ButtonVariant, size: ButtonSize, align_left: bool) -> im
     )
 }
 
-pub fn button(props: ButtonProps, asset_server: &AssetServer) -> impl Bundle {
+pub fn button(props: ButtonProps) -> impl Bundle {
     let ButtonProps {
         content,
         variant,
         size,
         align_left,
-        has_more,
+        left_icon,
+        right_icon,
     } = props;
-    let font: Handle<Font> = asset_server.load(FONT_PATH);
 
     (
         button_base(variant, size, align_left),
-        ButtonOptions { has_more },
-        children![
-            (
-                Text::new(content),
-                TextFont {
-                    font: font.into(),
-                    font_size: TEXT_SIZE,
-                    weight: FontWeight::MEDIUM,
-                    ..default()
-                },
-                TextColor(variant.text_color().into()),
-                Node {
-                    flex_grow: if align_left { 1.0 } else { 0.0 },
-                    ..default()
-                },
-            ),
-            (
-                ButtonMoreContainer,
-                Node {
-                    position_type: PositionType::Absolute,
-                    right: px(0),
-                    top: px(0),
-                    width: px(28.0),
-                    height: px(28.0),
-                    ..default()
-                },
-            ),
-        ],
+        ButtonConfig {
+            content,
+            left_icon,
+            right_icon,
+            initialized: false,
+        },
     )
 }
 
-fn setup_more_button(
+fn setup_button(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    new_buttons: Query<(Entity, &ButtonVariant, &ButtonOptions, &Children), Added<EditorButton>>,
-    containers: Query<Entity, With<ButtonMoreContainer>>,
+    mut buttons: Query<
+        (Entity, &mut ButtonConfig, &ButtonVariant, &ButtonSize),
+        Added<ButtonConfig>,
+    >,
 ) {
-    for (button_entity, variant, options, button_children) in &new_buttons {
-        if !options.has_more {
+    let font: Handle<Font> = asset_server.load(FONT_PATH);
+
+    for (entity, mut config, variant, size) in &mut buttons {
+        if config.initialized {
             continue;
         }
+        config.initialized = true;
 
-        let Some(&container_entity) = button_children.get(1) else {
-            continue;
-        };
-        if containers.get(container_entity).is_err() {
-            continue;
-        }
+        commands.entity(entity).with_children(|parent| {
+            if let Some(ref icon_path) = config.left_icon {
+                parent.spawn((
+                    ImageNode::new(asset_server.load(icon_path))
+                        .with_color(variant.text_color().into()),
+                    Node {
+                        width: size.icon_size(),
+                        height: size.icon_size(),
+                        ..default()
+                    },
+                ));
+            }
 
-        let initial_display = if *variant == ButtonVariant::Ghost {
-            Display::None
-        } else {
-            Display::Flex
-        };
+            if !config.content.is_empty() {
+                parent.spawn((
+                    Text::new(&config.content),
+                    TextFont {
+                        font: font.clone(),
+                        font_size: TEXT_SIZE,
+                        weight: FontWeight::MEDIUM,
+                        ..default()
+                    },
+                    TextColor(variant.text_color().into()),
+                    Node {
+                        flex_grow: 1.0,
+                        ..default()
+                    },
+                ));
+            }
 
-        let more_entity = commands
-            .spawn(more_button(
-                button_entity,
-                *variant,
-                initial_display,
-                &asset_server,
-            ))
-            .id();
-
-        commands.entity(container_entity).add_child(more_entity);
+            if let Some(ref icon_path) = config.right_icon {
+                parent.spawn((
+                    ImageNode::new(asset_server.load(icon_path))
+                        .with_color(variant.text_color().into()),
+                    Node {
+                        width: size.icon_size(),
+                        height: size.icon_size(),
+                        ..default()
+                    },
+                ));
+            }
+        });
     }
 }
 
@@ -350,70 +335,6 @@ fn handle_hover(
     }
 }
 
-fn handle_more_hover(
-    mut more_buttons: Query<
-        (&Hovered, &ButtonMoreButton, &mut BackgroundColor, &Children),
-        Changed<Hovered>,
-    >,
-    parent_buttons: Query<&ButtonVariant>,
-    mut icons: Query<&mut ImageNode, With<ButtonMoreIcon>>,
-) {
-    for (hovered, more_button, mut bg, children) in &mut more_buttons {
-        let Ok(variant) = parent_buttons.get(more_button.0) else {
-            continue;
-        };
-
-        let Some(&icon_entity) = children.first() else {
-            continue;
-        };
-        let Ok(mut icon) = icons.get_mut(icon_entity) else {
-            continue;
-        };
-
-        if hovered.get() {
-            bg.0 = WHITE.with_alpha(0.01).into();
-            icon.color = Color::Srgba(variant.text_color().lighter(0.2));
-        } else {
-            bg.0 = Color::NONE;
-            icon.color = Color::Srgba(variant.text_color());
-        }
-    }
-}
-
-fn handle_more_visibility(
-    buttons: Query<
-        (&Hovered, &ButtonVariant, &ButtonOptions, &Children),
-        (Changed<Hovered>, With<EditorButton>),
-    >,
-    containers: Query<&Children, With<ButtonMoreContainer>>,
-    mut more_buttons: Query<&mut Node, With<ButtonMoreButton>>,
-) {
-    for (hovered, variant, options, button_children) in &buttons {
-        if !options.has_more || *variant != ButtonVariant::Ghost {
-            continue;
-        }
-
-        let Some(&container_entity) = button_children.get(1) else {
-            continue;
-        };
-        let Ok(container_children) = containers.get(container_entity) else {
-            continue;
-        };
-        let Some(&more_entity) = container_children.first() else {
-            continue;
-        };
-        let Ok(mut more_node) = more_buttons.get_mut(more_entity) else {
-            continue;
-        };
-
-        more_node.display = if hovered.get() {
-            Display::Flex
-        } else {
-            Display::None
-        };
-    }
-}
-
 fn handle_button_click(
     interactions: Query<(Entity, &Interaction), (Changed<Interaction>, With<EditorButton>)>,
     mut commands: Commands,
@@ -423,72 +344,6 @@ fn handle_button_click(
             commands.trigger(ButtonClickEvent { entity });
         }
     }
-}
-
-fn handle_more_click(
-    interactions: Query<(&Interaction, &ButtonMoreButton), Changed<Interaction>>,
-    mut commands: Commands,
-) {
-    for (interaction, more_button) in &interactions {
-        if *interaction == Interaction::Pressed {
-            commands.trigger(ButtonMoreEvent {
-                entity: more_button.0,
-            });
-        }
-    }
-}
-
-fn handle_button_right_click(
-    buttons: Query<(Entity, &Hovered, &ButtonOptions), With<EditorButton>>,
-    mouse: Res<ButtonInput<MouseButton>>,
-    mut commands: Commands,
-) {
-    if !mouse.just_pressed(MouseButton::Right) {
-        return;
-    }
-
-    for (entity, hovered, options) in &buttons {
-        if options.has_more && hovered.get() {
-            commands.trigger(ButtonMoreEvent { entity });
-        }
-    }
-}
-
-fn more_button(
-    parent_entity: Entity,
-    variant: ButtonVariant,
-    initial_display: Display,
-    asset_server: &AssetServer,
-) -> impl Bundle {
-    (
-        ButtonMoreButton(parent_entity),
-        Button,
-        Hovered::default(),
-        Pickable {
-            should_block_lower: true,
-            is_hoverable: true,
-        },
-        Node {
-            width: px(28.0),
-            height: px(28.0),
-            justify_content: JustifyContent::Center,
-            align_items: AlignItems::Center,
-            border_radius: BorderRadius::all(CORNER_RADIUS_LG),
-            display: initial_display,
-            ..default()
-        },
-        BackgroundColor(Color::NONE),
-        children![(
-            ButtonMoreIcon,
-            ImageNode::new(asset_server.load(ICON_MORE))
-                .with_color(Color::Srgba(variant.text_color())),
-            Node {
-                width: px(16.0),
-                height: px(16.0),
-                ..default()
-            },
-        )],
-    )
 }
 
 pub fn icon_button(props: IconButtonProps, asset_server: &AssetServer) -> impl Bundle {

@@ -62,7 +62,7 @@ fn play_pause_button(asset_server: &AssetServer) -> impl Bundle {
             IconButtonProps::new(PAUSE_ICON)
                 .color(tailwind::GREEN_500)
                 .variant(ButtonVariant::Ghost)
-                .size(ButtonSize::Icon),
+                .with_size(ButtonSize::Icon),
             asset_server,
         ),
     )
@@ -75,7 +75,7 @@ fn stop_button(asset_server: &AssetServer) -> impl Bundle {
             IconButtonProps::new(STOP_ICON)
                 .color(TEXT_BODY_COLOR)
                 .variant(ButtonVariant::Ghost)
-                .size(ButtonSize::Icon),
+                .with_size(ButtonSize::Icon),
             asset_server,
         ),
     )
@@ -88,7 +88,7 @@ fn loop_button(asset_server: &AssetServer) -> impl Bundle {
             IconButtonProps::new(LOOP_ICON)
                 .color(PRIMARY_COLOR)
                 .variant(ButtonVariant::Active)
-                .size(ButtonSize::Icon),
+                .with_size(ButtonSize::Icon),
             asset_server,
         ),
     )
