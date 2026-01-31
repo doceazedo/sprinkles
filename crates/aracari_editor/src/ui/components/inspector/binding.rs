@@ -159,7 +159,9 @@ enum FieldValue {
 impl FieldValue {
     fn with_kind(self, kind: FieldKind) -> Self {
         match (self, kind) {
-            (FieldValue::F32(v), FieldKind::F32Percent) => FieldValue::F32(v * 100.0),
+            (FieldValue::F32(v), FieldKind::F32Percent) => {
+                FieldValue::F32((v * 100.0 * 100.0).round() / 100.0)
+            }
             (FieldValue::U32(v), FieldKind::U32OrEmpty) if v == 0 => FieldValue::None,
             (FieldValue::OptionalU32(None), _) => FieldValue::None,
             (FieldValue::OptionalU32(Some(0)), FieldKind::OptionalU32) => FieldValue::None,
