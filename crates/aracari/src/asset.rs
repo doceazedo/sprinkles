@@ -365,20 +365,23 @@ pub struct StandardParticleMaterial {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub emissive_texture: Option<String>,
 
+    #[serde(default = "default_alpha_mode")]
+    pub alpha_mode: SerializableAlphaMode,
+
     #[serde(default = "default_perceptual_roughness")]
     pub perceptual_roughness: f32,
 
     #[serde(default, skip_serializing_if = "is_zero_f32")]
     pub metallic: f32,
 
+    #[serde(default = "default_reflectance")]
+    pub reflectance: f32,
+
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub metallic_roughness_texture: Option<String>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub normal_map_texture: Option<String>,
-
-    #[serde(default = "default_alpha_mode")]
-    pub alpha_mode: SerializableAlphaMode,
 
     #[serde(default, skip_serializing_if = "is_false")]
     pub double_sided: bool,
@@ -388,9 +391,6 @@ pub struct StandardParticleMaterial {
 
     #[serde(default = "default_fog_enabled", skip_serializing_if = "is_true")]
     pub fog_enabled: bool,
-
-    #[serde(default = "default_reflectance")]
-    pub reflectance: f32,
 }
 
 impl Default for StandardParticleMaterial {

@@ -48,6 +48,7 @@ struct VariantConfig {
     suffix_overrides: Vec<(&'static str, VectorSuffixes)>,
     row_layout: Option<Vec<Vec<&'static str>>>,
     default_value: Option<Box<dyn PartialReflect>>,
+    inner_struct_fields: Vec<(String, Option<VariantField>)>,
 }
 
 impl Default for VariantConfig {
@@ -58,6 +59,7 @@ impl Default for VariantConfig {
             suffix_overrides: Vec::new(),
             row_layout: None,
             default_value: None,
+            inner_struct_fields: Vec::new(),
         }
     }
 }
@@ -68,23 +70,52 @@ impl VariantConfig {
         self
     }
 
-    fn field(mut self, name: &'static str, field: VariantField) -> Self {
-        self.field_overrides.push((name, field));
-        self
-    }
+    fn fields_from<T: Typed>(mut self) -> Self {
+        let TypeInfo::Struct(struct_info) = T::type_info() else {
+            return self;
+        };
 
-    fn suffixes(mut self, name: &'static str, suffixes: VectorSuffixes) -> Self {
-        self.suffix_overrides.push((name, suffixes));
-        self
-    }
+        for field in struct_info.iter() {
+            let name = field.name();
+            let type_path = field.type_path();
+            let suffixes = self
+                .suffix_overrides
+                .iter()
+                .find(|(n, _)| *n == name)
+                .map(|(_, s)| *s);
 
-    fn rows(mut self, layout: Vec<Vec<&'static str>>) -> Self {
-        self.row_layout = Some(layout);
+            let variant_field = field_from_type_path(name, type_path, suffixes);
+            self.inner_struct_fields
+                .push((name.to_string(), variant_field));
+        }
         self
     }
 
     fn default_value<T: PartialReflect + Clone + 'static>(mut self, value: T) -> Self {
         self.default_value = Some(Box::new(value));
+        self
+    }
+
+    fn override_field(mut self, name: &'static str, field: VariantField) -> Self {
+        self.field_overrides.push((name, field));
+        self
+    }
+
+    fn override_combobox<T: Typed>(self, name: &'static str) -> Self {
+        let options = combobox_options_from_reflect::<T>()
+            .iter()
+            .map(|o| o.label.clone())
+            .collect::<Vec<_>>();
+        self.override_field(name, VariantField::combobox(name, options))
+    }
+
+    fn override_suffixes(mut self, name: &'static str, suffixes: VectorSuffixes) -> Self {
+        self.suffix_overrides.push((name, suffixes));
+        self
+    }
+
+    fn override_rows(mut self, layout: Vec<Vec<&'static str>>) -> Self {
+        self.row_layout = Some(layout);
         self
     }
 }
@@ -175,17 +206,23 @@ fn rows_from_variant_info(
                 })
                 .collect()
         }
-        VariantInfo::Tuple(tuple_info) => {
-            tuple_info
-                .iter()
-                .enumerate()
-                .filter_map(|(i, field)| {
-                    let name = format!("{}", i);
-                    let type_path = field.type_path();
-                    let variant_field = field_from_type_path(&name, type_path, None)?;
-                    Some((name, variant_field))
+        VariantInfo::Tuple(_) => {
+            config
+                .map(|c| {
+                    c.inner_struct_fields
+                        .iter()
+                        .filter_map(|(name, field)| {
+                            if let Some(override_field) = override_map.get(name.as_str()) {
+                                Some((name.clone(), (*override_field).clone()))
+                            } else {
+                                field
+                                    .as_ref()
+                                    .map(|f| (name.clone(), f.clone()))
+                            }
+                        })
+                        .collect()
                 })
-                .collect()
+                .unwrap_or_default()
         }
         VariantInfo::Unit(_) => return Vec::new(),
     };
@@ -253,16 +290,7 @@ fn mesh_variants() -> Vec<VariantDefinition> {
             "Quad",
             VariantConfig::default()
                 .icon(ICON_MESH_QUAD)
-                .field(
-                    "orientation",
-                    VariantField::combobox(
-                        "orientation",
-                        combobox_options_from_reflect::<QuadOrientation>()
-                            .iter()
-                            .map(|o| o.label.clone())
-                            .collect::<Vec<_>>(),
-                    ),
-                )
+                .override_combobox::<QuadOrientation>("orientation")
                 .default_value(ParticleMesh::Quad {
                     orientation: QuadOrientation::default(),
                 }),
@@ -285,7 +313,7 @@ fn mesh_variants() -> Vec<VariantDefinition> {
             "Cylinder",
             VariantConfig::default()
                 .icon(ICON_MESH_CYLINDER)
-                .rows(vec![
+                .override_rows(vec![
                     vec!["top_radius", "bottom_radius"],
                     vec!["height"],
                     vec!["radial_segments", "rings"],
@@ -306,7 +334,7 @@ fn mesh_variants() -> Vec<VariantDefinition> {
             "Prism",
             VariantConfig::default()
                 .icon(ICON_MESH_PRISM)
-                .suffixes("subdivide", VectorSuffixes::WHD)
+                .override_suffixes("subdivide", VectorSuffixes::WHD)
                 .default_value(ParticleMesh::Prism {
                     left_to_right: 0.5,
                     size: Vec3::splat(1.0),
@@ -321,16 +349,8 @@ fn material_variants() -> Vec<VariantDefinition> {
         (
             "Standard",
             VariantConfig::default()
-                .field(
-                    "alpha_mode",
-                    VariantField::combobox(
-                        "alpha_mode",
-                        combobox_options_from_reflect::<SerializableAlphaMode>()
-                            .iter()
-                            .map(|o| o.label.clone())
-                            .collect::<Vec<_>>(),
-                    ),
-                )
+                .fields_from::<StandardParticleMaterial>()
+                .override_combobox::<SerializableAlphaMode>("alpha_mode")
                 .default_value(DrawPassMaterial::Standard(
                     StandardParticleMaterial::default(),
                 )),
