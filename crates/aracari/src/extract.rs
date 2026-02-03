@@ -245,7 +245,7 @@ pub fn extract_particle_systems(
 
         let should_emit = runtime.emitting && runtime.is_past_delay(&emitter.time);
 
-        let draw_order = match emitter.drawing.draw_order {
+        let draw_order = match emitter.draw_pass.draw_order {
             DrawOrder::Index => 0,
             DrawOrder::Lifetime => 1,
             DrawOrder::ReverseLifetime => 2,

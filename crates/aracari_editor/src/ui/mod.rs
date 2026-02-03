@@ -17,6 +17,7 @@ impl Plugin for EditorUiPlugin {
         app.add_plugins(widgets::button::plugin)
             .add_plugins(widgets::checkbox::plugin)
             .add_plugins(widgets::combobox::plugin)
+            .add_plugins(widgets::inspector_field::plugin)
             .add_plugins(widgets::variant_edit::plugin)
             .add_plugins(widgets::panel::plugin)
             .add_plugins(widgets::panel_section::plugin)

@@ -2,8 +2,13 @@ use bevy::prelude::*;
 use inflector::Inflector;
 
 use super::checkbox::{CheckboxProps, checkbox};
+use super::combobox::{ComboBoxOptionData, combobox};
 use super::text_edit::{TextEditPrefix, TextEditProps, text_edit};
 use crate::ui::components::inspector::binding::{Field, FieldKind};
+
+pub fn plugin(app: &mut App) {
+    app.add_systems(Update, setup_combobox_fields);
+}
 
 const UPPERCASE_ACRONYMS: &[&str] = &["fps"];
 
@@ -34,6 +39,7 @@ pub struct InspectorFieldProps {
     placeholder: Option<String>,
     min: Option<f32>,
     max: Option<f32>,
+    combobox_options: Option<Vec<ComboBoxOptionData>>,
 }
 
 impl InspectorFieldProps {
@@ -47,6 +53,7 @@ impl InspectorFieldProps {
             placeholder: None,
             min: None,
             max: None,
+            combobox_options: None,
         }
     }
 
@@ -67,6 +74,13 @@ impl InspectorFieldProps {
 
     pub fn bool(mut self) -> Self {
         self.kind = FieldKind::Bool;
+        self
+    }
+
+    pub fn combobox(mut self, options: Vec<ComboBoxOptionData>) -> Self {
+        let option_labels: Vec<String> = options.iter().map(|o| o.label.clone()).collect();
+        self.kind = FieldKind::ComboBox { options: option_labels };
+        self.combobox_options = Some(options);
         self
     }
 
@@ -153,11 +167,19 @@ pub fn spawn_inspector_field(
     props: InspectorFieldProps,
     asset_server: &AssetServer,
 ) {
-    let field = Field::new(&props.path).with_kind(props.kind);
+    let field = Field::new(&props.path).with_kind(props.kind.clone());
     let label = props.inferred_label();
 
     if props.kind == FieldKind::Bool {
         spawner.spawn((field, checkbox(CheckboxProps::new(label), asset_server)));
+        return;
+    }
+
+    if let Some(options) = props.combobox_options {
+        spawner.spawn((
+            field,
+            combobox_field(label, options),
+        ));
         return;
     }
 
@@ -194,6 +216,65 @@ pub fn spawn_inspector_field(
     }
 
     spawner.spawn((field, text_edit(text_props)));
+}
+
+#[derive(Component)]
+struct ComboBoxFieldConfig {
+    label: String,
+    options: Vec<ComboBoxOptionData>,
+    initialized: bool,
+}
+
+fn combobox_field(label: String, options: Vec<ComboBoxOptionData>) -> impl Bundle {
+    (
+        ComboBoxFieldConfig {
+            label,
+            options,
+            initialized: false,
+        },
+        Node {
+            flex_direction: FlexDirection::Column,
+            row_gap: Val::Px(3.0),
+            flex_grow: 1.0,
+            flex_shrink: 1.0,
+            flex_basis: Val::Px(0.0),
+            ..default()
+        },
+    )
+}
+
+pub fn setup_combobox_fields(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut configs: Query<(Entity, &mut ComboBoxFieldConfig)>,
+) {
+    let font: Handle<Font> = asset_server.load(crate::ui::tokens::FONT_PATH);
+
+    for (entity, mut config) in &mut configs {
+        if config.initialized {
+            continue;
+        }
+        config.initialized = true;
+
+        let label_entity = commands
+            .spawn((
+                Text::new(&config.label),
+                TextFont {
+                    font: font.clone(),
+                    font_size: 11.0,
+                    weight: FontWeight::MEDIUM,
+                    ..default()
+                },
+                TextColor(crate::ui::tokens::TEXT_MUTED_COLOR.into()),
+            ))
+            .id();
+
+        let combobox_entity = commands.spawn(combobox(config.options.clone())).id();
+
+        commands
+            .entity(entity)
+            .add_children(&[label_entity, combobox_entity]);
+    }
 }
 
 pub fn fields_row() -> impl Bundle {

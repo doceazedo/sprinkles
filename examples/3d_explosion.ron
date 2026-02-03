@@ -11,27 +11,25 @@
                 explosiveness: 0.9,
                 fixed_fps: 30,
             ),
-            draw_passes: [
-                (
-                    mesh: Cylinder(
-                        top_radius: 0.1,
-                        bottom_radius: 0.0,
-                        height: 3.0,
-                        radial_segments: 16,
-                        rings: 4,
-                        cap_top: true,
-                        cap_bottom: true,
-                    ),
-                    material: Standard((
-                        base_color: (1.0, 1.0, 1.0, 1.0),
-                        emissive: (0.0, 0.0, 0.0, 0.0),
-                        perceptual_roughness: 0.5,
-                        alpha_mode: Blend,
-                        reflectance: 0.5,
-                    )),
-                    shadow_caster: false,
+            draw_pass: (
+                mesh: Cylinder(
+                    top_radius: 0.1,
+                    bottom_radius: 0.0,
+                    height: 3.0,
+                    radial_segments: 16,
+                    rings: 4,
+                    cap_top: true,
+                    cap_bottom: true,
                 ),
-            ],
+                material: Standard((
+                    base_color: (1.0, 1.0, 1.0, 1.0),
+                    emissive: (0.0, 0.0, 0.0, 0.0),
+                    perceptual_roughness: 0.5,
+                    alpha_mode: Blend,
+                    reflectance: 0.5,
+                )),
+                shadow_caster: false,
+            ),
             process: (
                 particle_flags: "ALIGN_Y_TO_VELOCITY",
                 spawn: (
@@ -105,21 +103,19 @@
                 explosiveness: 0.9,
                 fixed_fps: 30,
             ),
-            draw_passes: [
-                (
-                    mesh: Sphere(
-                        radius: 1.0,
-                    ),
-                    material: Standard((
-                        base_color: (1.0, 1.0, 1.0, 1.0),
-                        emissive: (0.0, 0.0, 0.0, 0.0),
-                        perceptual_roughness: 1.0,
-                        alpha_mode: Blend,
-                        reflectance: 0.5,
-                    )),
-                    shadow_caster: false,
+            draw_pass: (
+                mesh: Sphere(
+                    radius: 1.0,
                 ),
-            ],
+                material: Standard((
+                    base_color: (1.0, 1.0, 1.0, 1.0),
+                    emissive: (0.0, 0.0, 0.0, 0.0),
+                    perceptual_roughness: 1.0,
+                    alpha_mode: Blend,
+                    reflectance: 0.5,
+                )),
+                shadow_caster: false,
+            ),
             process: (
                 particle_flags: "",
                 spawn: (
@@ -203,21 +199,19 @@
                 explosiveness: 0.9,
                 fixed_fps: 30,
             ),
-            draw_passes: [
-                (
-                    mesh: Sphere(
-                        radius: 1.0,
-                    ),
-                    material: Standard((
-                        base_color: (1.0, 1.0, 1.0, 1.0),
-                        emissive: (0.0, 0.0, 0.0, 0.0),
-                        perceptual_roughness: 1.0,
-                        alpha_mode: Opaque,
-                        reflectance: 0.5,
-                    )),
-                    shadow_caster: false,
+            draw_pass: (
+                mesh: Sphere(
+                    radius: 1.0,
                 ),
-            ],
+                material: Standard((
+                    base_color: (1.0, 1.0, 1.0, 1.0),
+                    emissive: (0.0, 0.0, 0.0, 0.0),
+                    perceptual_roughness: 1.0,
+                    alpha_mode: Opaque,
+                    reflectance: 0.5,
+                )),
+                shadow_caster: false,
+            ),
             process: (
                 particle_flags: "",
                 spawn: (
@@ -295,27 +289,25 @@
                 explosiveness: 0.9,
                 fixed_fps: 30,
             ),
-            draw_passes: [
-                (
-                    mesh: Cylinder(
-                        top_radius: 0.2,
-                        bottom_radius: 0.0,
-                        height: 3.0,
-                        radial_segments: 16,
-                        rings: 4,
-                        cap_top: true,
-                        cap_bottom: true,
-                    ),
-                    material: Standard((
-                        base_color: (1.0, 1.0, 1.0, 1.0),
-                        emissive: (0.0, 0.0, 0.0, 0.0),
-                        perceptual_roughness: 0.5,
-                        alpha_mode: Blend,
-                        reflectance: 0.5,
-                    )),
-                    shadow_caster: false,
+            draw_pass: (
+                mesh: Cylinder(
+                    top_radius: 0.2,
+                    bottom_radius: 0.0,
+                    height: 3.0,
+                    radial_segments: 16,
+                    rings: 4,
+                    cap_top: true,
+                    cap_bottom: true,
                 ),
-            ],
+                material: Standard((
+                    base_color: (1.0, 1.0, 1.0, 1.0),
+                    emissive: (0.0, 0.0, 0.0, 0.0),
+                    perceptual_roughness: 0.5,
+                    alpha_mode: Blend,
+                    reflectance: 0.5,
+                )),
+                shadow_caster: false,
+            ),
             process: (
                 particle_flags: "ALIGN_Y_TO_VELOCITY",
                 spawn: (
@@ -393,24 +385,22 @@
                 one_shot: true,
                 fixed_fps: 30,
             ),
-            draw_passes: [
-                (
-                    mesh: Quad(
-                        orientation: FaceY,
-                    ),
-                    material: Standard((
-                        base_color: (1.0, 1.0, 1.0, 1.0),
-                        base_color_texture: Some("circle_01_a.png"),
-                        emissive: (0.0, 0.0, 0.0, 0.0),
-                        perceptual_roughness: 0.5,
-                        alpha_mode: Blend,
-                        double_sided: true,
-                        unlit: true,
-                        reflectance: 0.5,
-                    )),
-                    shadow_caster: false,
+            draw_pass: (
+                mesh: Quad(
+                    orientation: FaceY,
                 ),
-            ],
+                material: Standard((
+                    base_color: (1.0, 1.0, 1.0, 1.0),
+                    base_color_texture: Some("circle_01_a.png"),
+                    emissive: (0.0, 0.0, 0.0, 0.0),
+                    perceptual_roughness: 0.5,
+                    alpha_mode: Blend,
+                    double_sided: true,
+                    unlit: true,
+                    reflectance: 0.5,
+                )),
+                shadow_caster: false,
+            ),
             process: (
                 particle_flags: "",
                 spawn: (
@@ -462,24 +452,19 @@
                 explosiveness: 0.95,
                 fixed_fps: 30,
             ),
-            draw_passes: [
-                (
-                    mesh: Prism(
-                        left_to_right: 0.5,
-                        size: (1.0, 1.0, 1.0),
-                        subdivide_width: 0,
-                        subdivide_height: 0,
-                        subdivide_depth: 0,
-                    ),
-                    material: Standard((
-                        base_color: (1.0, 1.0, 1.0, 1.0),
-                        emissive: (0.0, 0.0, 0.0, 0.0),
-                        perceptual_roughness: 0.5,
-                        alpha_mode: Opaque,
-                        reflectance: 0.5,
-                    )),
+            draw_pass: (
+                mesh: Prism(
+                    left_to_right: 0.5,
+                    size: (1.0, 1.0, 1.0),
                 ),
-            ],
+                material: Standard((
+                    base_color: (1.0, 1.0, 1.0, 1.0),
+                    emissive: (0.0, 0.0, 0.0, 0.0),
+                    perceptual_roughness: 0.5,
+                    alpha_mode: Opaque,
+                    reflectance: 0.5,
+                )),
+            ),
             process: (
                 particle_flags: "ALIGN_Y_TO_VELOCITY",
                 spawn: (

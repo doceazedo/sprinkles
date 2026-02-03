@@ -5,7 +5,7 @@ use bevy::prelude::*;
 #[derive(Component)]
 pub struct EditorVectorEdit;
 
-#[derive(Default, Clone, Copy)]
+#[derive(Default, Debug, Clone, Copy)]
 pub enum VectorSuffixes {
     #[default]
     XYZ,

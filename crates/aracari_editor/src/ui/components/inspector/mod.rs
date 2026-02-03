@@ -1,4 +1,5 @@
 pub mod binding;
+mod draw_pass;
 mod time;
 
 use aracari::prelude::*;
@@ -8,12 +9,10 @@ use crate::state::{EditorState, Inspectable};
 use crate::ui::tokens::{BORDER_COLOR, FONT_PATH, TEXT_BODY_COLOR, TEXT_SIZE_LG};
 use crate::ui::widgets::button::{ButtonVariant, IconButtonProps, icon_button};
 use crate::ui::widgets::checkbox::{CheckboxProps, checkbox};
-use crate::ui::widgets::combobox::{ComboBoxOptionData, combobox};
-use crate::ui::widgets::variant_edit::{VariantEditProps, variant_edit};
 use crate::ui::widgets::panel::{PanelDirection, PanelProps, panel, panel_resize_handle};
 
 pub fn plugin(app: &mut App) {
-    app.add_plugins((binding::plugin, time::plugin))
+    app.add_plugins((binding::plugin, time::plugin, draw_pass::plugin))
         .add_systems(Update, (setup_inspector_panel, update_panel_title));
 }
 
@@ -64,29 +63,7 @@ fn setup_inspector_panel(
                     ))
                     .with_children(|content| {
                         content.spawn(time::time_section(&asset_server));
-                        content
-                            .spawn((
-                                Node {
-                                    width: percent(100),
-                                    padding: UiRect::all(px(12)),
-                                    flex_direction: FlexDirection::Column,
-                                    row_gap: px(8),
-                                    ..default()
-                                },
-                                children![combobox(vec![
-                                    ComboBoxOptionData::new("Emitter")
-                                        .with_icon("icons/ri-showers-fill.png"),
-                                    ComboBoxOptionData::new("Collider")
-                                        .with_icon("icons/ri-box-2-fill.png"),
-                                    ComboBoxOptionData::new("Time")
-                                        .with_icon("icons/ri-time-line.png"),
-                                ])],
-                            ))
-                            .with_child(variant_edit(
-                                VariantEditProps::new("icons/ri-seedling-fill.png", "Quad")
-                                    .with_label("Draw Pass Mesh")
-                                    .with_options(vec!["Quad", "Ribbon", "Custom Mesh"]),
-                            ));
+                        content.spawn(draw_pass::draw_pass_section(&asset_server));
                     });
             });
     }

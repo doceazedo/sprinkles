@@ -253,17 +253,30 @@ fn setup_button(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     mut buttons: Query<
-        (Entity, &mut ButtonConfig, &ButtonVariant, &ButtonSize),
+        (Entity, &mut ButtonConfig, &ButtonVariant, &ButtonSize, &mut Node),
         Added<ButtonConfig>,
     >,
 ) {
     let font: Handle<Font> = asset_server.load(FONT_PATH);
 
-    for (entity, mut config, variant, size) in &mut buttons {
+    for (entity, mut config, variant, size, mut node) in &mut buttons {
         if config.initialized {
             continue;
         }
         config.initialized = true;
+
+        let left_padding = if config.left_icon.is_some() {
+            px(6.0)
+        } else {
+            size.padding()
+        };
+        let right_padding = if config.right_icon.is_some() {
+            px(6.0)
+        } else {
+            size.padding()
+        };
+        node.padding = UiRect::axes(left_padding, node.padding.top);
+        node.padding.right = right_padding;
 
         commands.entity(entity).with_children(|parent| {
             if let Some(ref icon_path) = config.left_icon {

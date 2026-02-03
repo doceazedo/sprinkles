@@ -1,9 +1,11 @@
+use bevy::math::Rot2;
 use bevy::prelude::*;
 
 use crate::ui::widgets::button::{
     ButtonClickEvent, ButtonProps, ButtonSize, ButtonVariant, button, icon_button, IconButtonProps,
+    set_button_variant,
 };
-use crate::ui::widgets::popover::{PopoverPlacement, PopoverProps, popover};
+use crate::ui::widgets::popover::{EditorPopover, PopoverPlacement, PopoverProps, popover};
 
 const ICON_CHEVRON_DOWN: &str = "icons/ri-arrow-down-s-line.png";
 const ICON_MORE: &str = "icons/ri-more-fill.png";
@@ -11,7 +13,7 @@ const ICON_MORE: &str = "icons/ri-more-fill.png";
 pub fn plugin(app: &mut App) {
     app.add_observer(handle_trigger_click)
         .add_observer(handle_option_click)
-        .add_systems(Update, setup_combobox);
+        .add_systems(Update, (setup_combobox, handle_combobox_popover_closed));
 }
 
 #[derive(Component)]
@@ -22,6 +24,11 @@ pub struct ComboBoxTrigger(pub Entity);
 
 #[derive(Component)]
 pub struct ComboBoxPopover(pub Entity);
+
+#[derive(Component, Default)]
+struct ComboBoxState {
+    popover: Option<Entity>,
+}
 
 #[derive(Component, Clone)]
 struct ComboBoxOption {
@@ -80,15 +87,23 @@ pub struct ComboBoxChangeEvent {
 }
 
 pub fn combobox(options: Vec<impl Into<ComboBoxOptionData>>) -> impl Bundle {
+    combobox_with_selected(options, 0)
+}
+
+pub fn combobox_with_selected(
+    options: Vec<impl Into<ComboBoxOptionData>>,
+    selected: usize,
+) -> impl Bundle {
     (
         EditorComboBox,
         ComboBoxConfig {
             options: options.into_iter().map(Into::into).collect(),
-            selected: 0,
+            selected,
             icon: None,
             style: ComboBoxStyle::Default,
             initialized: false,
         },
+        ComboBoxState::default(),
         Node {
             width: percent(100),
             ..default()
@@ -106,6 +121,7 @@ pub fn combobox_icon(options: Vec<impl Into<ComboBoxOptionData>>) -> impl Bundle
             style: ComboBoxStyle::IconOnly,
             initialized: false,
         },
+        ComboBoxState::default(),
         Node::default(),
     )
 }
@@ -163,7 +179,14 @@ fn handle_trigger_click(
     mut commands: Commands,
     triggers: Query<&ComboBoxTrigger>,
     configs: Query<&ComboBoxConfig>,
+    mut states: Query<&mut ComboBoxState>,
     existing_popovers: Query<(Entity, &ComboBoxPopover)>,
+    all_popovers: Query<Entity, With<EditorPopover>>,
+    mut button_styles: Query<(&mut BackgroundColor, &mut BorderColor, &mut ButtonVariant)>,
+    children_query: Query<&Children>,
+    mut transforms: Query<&mut UiTransform>,
+    images: Query<(), With<ImageNode>>,
+    parents: Query<&ChildOf>,
 ) {
     let Ok(combo_trigger) = triggers.get(trigger.entity) else {
         return;
@@ -171,29 +194,81 @@ fn handle_trigger_click(
     let Ok(config) = configs.get(combo_trigger.0) else {
         return;
     };
+    let Ok(mut state) = states.get_mut(combo_trigger.0) else {
+        return;
+    };
 
+    // check if popover already exists for this combobox (toggle behavior)
     for (popover_entity, popover_ref) in &existing_popovers {
         if popover_ref.0 == combo_trigger.0 {
             commands.entity(popover_entity).try_despawn();
+            state.popover = None;
+            reset_combobox_trigger_style(
+                trigger.entity,
+                &mut button_styles,
+                &children_query,
+                &mut transforms,
+                &images,
+                &mut commands,
+            );
+            return;
+        }
+    }
+
+    // check if any other popover is open - if so, don't open a new one unless nested
+    let any_popover_open = !all_popovers.is_empty();
+    if any_popover_open {
+        // check if this combobox is nested inside an open popover
+        let is_nested = all_popovers
+            .iter()
+            .any(|popover| is_descendant_of(combo_trigger.0, popover, &parents));
+        if !is_nested {
             return;
         }
     }
 
     let combobox_entity = combo_trigger.0;
 
-    let mut popover_cmd = commands.spawn((
-        ComboBoxPopover(combobox_entity),
-        popover(
-            PopoverProps::new(trigger.entity)
-                .with_placement(PopoverPlacement::BottomStart)
-                .with_padding(4.0)
-                .with_z_index(200)
-                .with_node(Node {
-                    min_width: px(120.0),
-                    ..default()
-                }),
-        ),
-    ));
+    // set button to active state and rotate chevron
+    if let Ok((mut bg, mut border, mut variant)) = button_styles.get_mut(trigger.entity) {
+        *variant = ButtonVariant::ActiveAlt;
+        set_button_variant(ButtonVariant::ActiveAlt, &mut bg, &mut border);
+    }
+
+    // rotate chevron icon (last ImageNode child of the button)
+    if let Ok(button_children) = children_query.get(trigger.entity) {
+        for child in button_children.iter().rev() {
+            if images.get(child).is_ok() {
+                if let Ok(mut transform) = transforms.get_mut(child) {
+                    transform.rotation = Rot2::degrees(180.0);
+                } else {
+                    commands.entity(child).insert(UiTransform {
+                        rotation: Rot2::degrees(180.0),
+                        ..default()
+                    });
+                }
+                break;
+            }
+        }
+    }
+
+    let popover_entity = commands
+        .spawn((
+            ComboBoxPopover(combobox_entity),
+            popover(
+                PopoverProps::new(trigger.entity)
+                    .with_placement(PopoverPlacement::BottomStart)
+                    .with_padding(4.0)
+                    .with_z_index(200)
+                    .with_node(Node {
+                        min_width: px(120.0),
+                        ..default()
+                    }),
+            ),
+        ))
+        .id();
+
+    state.popover = Some(popover_entity);
 
     for (index, option) in config.options.iter().enumerate() {
         let variant = if config.style == ComboBoxStyle::Default && index == config.selected {
@@ -208,7 +283,7 @@ fn handle_trigger_click(
             button_props = button_props.with_left_icon(icon_path);
         }
 
-        popover_cmd.with_child((
+        commands.entity(popover_entity).with_child((
             ComboBoxOption {
                 combobox: combobox_entity,
                 index,
@@ -216,6 +291,87 @@ fn handle_trigger_click(
             },
             button(button_props),
         ));
+    }
+}
+
+fn is_descendant_of(entity: Entity, ancestor: Entity, parents: &Query<&ChildOf>) -> bool {
+    let mut current = entity;
+    for _ in 0..50 {
+        if current == ancestor {
+            return true;
+        }
+        if let Ok(child_of) = parents.get(current) {
+            current = child_of.parent();
+        } else {
+            return false;
+        }
+    }
+    false
+}
+
+fn reset_combobox_trigger_style(
+    trigger_entity: Entity,
+    button_styles: &mut Query<(&mut BackgroundColor, &mut BorderColor, &mut ButtonVariant)>,
+    children_query: &Query<&Children>,
+    transforms: &mut Query<&mut UiTransform>,
+    images: &Query<(), With<ImageNode>>,
+    commands: &mut Commands,
+) {
+    if let Ok((mut bg, mut border, mut variant)) = button_styles.get_mut(trigger_entity) {
+        *variant = ButtonVariant::Default;
+        set_button_variant(ButtonVariant::Default, &mut bg, &mut border);
+    }
+
+    // reset chevron rotation
+    if let Ok(button_children) = children_query.get(trigger_entity) {
+        for child in button_children.iter().rev() {
+            if images.get(child).is_ok() {
+                if let Ok(mut transform) = transforms.get_mut(child) {
+                    transform.rotation = Rot2::degrees(0.0);
+                } else {
+                    commands.entity(child).insert(UiTransform::default());
+                }
+                break;
+            }
+        }
+    }
+}
+
+fn handle_combobox_popover_closed(
+    mut commands: Commands,
+    mut states: Query<(&mut ComboBoxState, &Children), With<EditorComboBox>>,
+    popovers: Query<Entity, With<EditorPopover>>,
+    triggers: Query<Entity, With<ComboBoxTrigger>>,
+    mut button_styles: Query<(&mut BackgroundColor, &mut BorderColor, &mut ButtonVariant)>,
+    children_query: Query<&Children>,
+    mut transforms: Query<&mut UiTransform>,
+    images: Query<(), With<ImageNode>>,
+) {
+    for (mut state, combobox_children) in &mut states {
+        let Some(popover_entity) = state.popover else {
+            continue;
+        };
+
+        if popovers.get(popover_entity).is_ok() {
+            continue;
+        }
+
+        state.popover = None;
+
+        // find the trigger button entity (first child of combobox)
+        for child in combobox_children.iter() {
+            if triggers.get(child).is_ok() {
+                reset_combobox_trigger_style(
+                    child,
+                    &mut button_styles,
+                    &children_query,
+                    &mut transforms,
+                    &images,
+                    &mut commands,
+                );
+                break;
+            }
+        }
     }
 }
 

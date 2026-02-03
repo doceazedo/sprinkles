@@ -83,10 +83,10 @@ impl Plugin for AracariPlugin {
 
 // re-exports
 pub use asset::{
-    DrawOrder, DrawPassMaterial, EmitterData, EmitterDrawPass, EmitterDrawing, EmitterTime,
-    ParticleFlags, ParticleMesh, ParticleProcessCollision, ParticleProcessCollisionMode,
-    ParticleProcessConfig, ParticleSystemDimension, ParticlesColliderShape3D, QuadOrientation,
-    SerializableAlphaMode, StandardParticleMaterial,
+    DrawOrder, DrawPassMaterial, EmitterData, EmitterDrawPass, EmitterTime, ParticleFlags,
+    ParticleMesh, ParticleProcessCollision, ParticleProcessCollisionMode, ParticleProcessConfig,
+    ParticleSystemDimension, ParticlesColliderShape3D, QuadOrientation, SerializableAlphaMode,
+    StandardParticleMaterial,
 };
 pub use material::ParticleMaterialExtension;
 pub use runtime::{

@@ -215,20 +215,14 @@ fn create_cylinder_mesh(
     mesh
 }
 
-fn create_prism_mesh(
-    left_to_right: f32,
-    size: Vec3,
-    subdivide_width: u32,
-    subdivide_height: u32,
-    subdivide_depth: u32,
-) -> Mesh {
+fn create_prism_mesh(left_to_right: f32, size: Vec3, subdivide: Vec3) -> Mesh {
     // a prism/wedge shape: wide at bottom, narrows to a single edge at top
     // 5 faces: front, back, left (slanted), right (slanted), bottom (no top - it's an edge)
 
     let start_pos = size * -0.5;
-    let subdivide_w = subdivide_width as usize;
-    let subdivide_h = subdivide_height as usize;
-    let subdivide_d = subdivide_depth as usize;
+    let subdivide_w = subdivide.x as usize;
+    let subdivide_h = subdivide.y as usize;
+    let subdivide_d = subdivide.z as usize;
 
     let mut positions: Vec<[f32; 3]> = Vec::new();
     let mut normals: Vec<[f32; 3]> = Vec::new();
@@ -472,16 +466,8 @@ fn create_base_mesh(config: &ParticleMesh) -> Mesh {
         ParticleMesh::Prism {
             left_to_right,
             size,
-            subdivide_width,
-            subdivide_height,
-            subdivide_depth,
-        } => create_prism_mesh(
-            *left_to_right,
-            *size,
-            *subdivide_width,
-            *subdivide_height,
-            *subdivide_depth,
-        ),
+            subdivide,
+        } => create_prism_mesh(*left_to_right, *size, *subdivide),
     }
 }
 
@@ -624,13 +610,9 @@ pub fn setup_particle_systems(
 
             let sorted_particles_buffer_handle = buffers.add(ShaderStorageBuffer::from(particles));
 
-            let (current_mesh, current_material, shadow_caster) = if let Some(draw_pass) =
-                emitter.draw_passes.first()
-            {
-                (draw_pass.mesh.clone(), draw_pass.material.clone(), draw_pass.shadow_caster)
-            } else {
-                (ParticleMesh::default(), DrawPassMaterial::default(), true)
-            };
+            let current_mesh = emitter.draw_pass.mesh.clone();
+            let current_material = emitter.draw_pass.material.clone();
+            let shadow_caster = emitter.draw_pass.shadow_caster;
 
             let particle_mesh_handle = create_particle_mesh(&current_mesh, amount, &mut meshes);
 
@@ -767,11 +749,7 @@ pub fn sync_particle_mesh(
             continue;
         };
 
-        let new_mesh = if let Some(draw_pass) = emitter_data.draw_passes.first() {
-            draw_pass.mesh.clone()
-        } else {
-            ParticleMesh::default()
-        };
+        let new_mesh = emitter_data.draw_pass.mesh.clone();
 
         if current_config.0 != new_mesh {
             let new_mesh_handle =
@@ -825,11 +803,7 @@ pub fn sync_particle_material(
             continue;
         };
 
-        let new_material = if let Some(draw_pass) = emitter_data.draw_passes.first() {
-            draw_pass.material.clone()
-        } else {
-            DrawPassMaterial::default()
-        };
+        let new_material = emitter_data.draw_pass.material.clone();
 
         if current_config.0.cache_key() != new_material.cache_key() {
             let sorted_particles_handle = {

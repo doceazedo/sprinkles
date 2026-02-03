@@ -10,8 +10,8 @@ pub use crate::AracariPlugin;
 // asset types
 pub use crate::asset::{
     AnimatedVelocity, DrawOrder, DrawPassMaterial, EmissionShape, EmitterData, EmitterDrawPass,
-    EmitterDrawing, EmitterTime, Gradient as ParticleGradient, GradientInterpolation, GradientStop,
-    ParticleFlags, ParticleMesh, ParticleProcessAccelerations, ParticleProcessAnimVelocities,
+    EmitterTime, Gradient as ParticleGradient, GradientInterpolation, GradientStop, ParticleFlags,
+    ParticleMesh, ParticleProcessAccelerations, ParticleProcessAnimVelocities,
     ParticleProcessCollision, ParticleProcessCollisionMode, ParticleProcessConfig,
     ParticleProcessDisplay, ParticleProcessDisplayColor, ParticleProcessDisplayScale,
     ParticleProcessSpawn, ParticleProcessSpawnPosition, ParticleProcessSpawnVelocity,

@@ -156,26 +156,6 @@ impl EmitterTime {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
-pub struct EmitterDrawing {
-    #[serde(default, skip_serializing_if = "DrawOrder::is_default")]
-    pub draw_order: DrawOrder,
-}
-
-impl Default for EmitterDrawing {
-    fn default() -> Self {
-        Self {
-            draw_order: DrawOrder::default(),
-        }
-    }
-}
-
-impl EmitterDrawing {
-    fn is_default(&self) -> bool {
-        self.draw_order.is_default()
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct EmitterData {
     pub name: String,
     #[serde(default = "default_enabled", skip_serializing_if = "is_true")]
@@ -190,11 +170,8 @@ pub struct EmitterData {
     #[serde(default)]
     pub time: EmitterTime,
 
-    #[serde(default, skip_serializing_if = "EmitterDrawing::is_default")]
-    pub drawing: EmitterDrawing,
-
     #[serde(default)]
-    pub draw_passes: Vec<EmitterDrawPass>,
+    pub draw_pass: EmitterDrawPass,
 
     #[serde(default)]
     pub process: ParticleProcessConfig,
@@ -216,8 +193,7 @@ impl Default for EmitterData {
             position: Vec3::ZERO,
             amount: 8,
             time: EmitterTime::default(),
-            drawing: EmitterDrawing::default(),
-            draw_passes: vec![EmitterDrawPass::default()],
+            draw_pass: EmitterDrawPass::default(),
             process: ParticleProcessConfig::default(),
         }
     }
@@ -225,6 +201,8 @@ impl Default for EmitterData {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct EmitterDrawPass {
+    #[serde(default, skip_serializing_if = "DrawOrder::is_default")]
+    pub draw_order: DrawOrder,
     pub mesh: ParticleMesh,
     #[serde(default)]
     pub material: DrawPassMaterial,
@@ -239,6 +217,7 @@ fn default_shadow_caster() -> bool {
 impl Default for EmitterDrawPass {
     fn default() -> Self {
         Self {
+            draw_order: DrawOrder::default(),
             mesh: ParticleMesh::default(),
             material: DrawPassMaterial::default(),
             shadow_caster: true,
@@ -281,12 +260,8 @@ pub enum ParticleMesh {
         left_to_right: f32,
         #[serde(default = "default_prism_size")]
         size: Vec3,
-        #[serde(default)]
-        subdivide_width: u32,
-        #[serde(default)]
-        subdivide_height: u32,
-        #[serde(default)]
-        subdivide_depth: u32,
+        #[serde(default, skip_serializing_if = "is_zero_vec3")]
+        subdivide: Vec3,
     },
 }
 
