@@ -1,7 +1,7 @@
 #import bevy_render::maths::PI
 #import aracari::common::{
     Particle,
-    SplineCurve,
+    CurveUniform,
     PARTICLE_FLAG_ACTIVE,
     EMITTER_FLAG_DISABLE_Z,
     hash,
@@ -13,7 +13,7 @@ struct AnimatedVelocity {
     max: f32,
     _pad0: f32,
     _pad1: f32,
-    curve: SplineCurve,
+    curve: CurveUniform,
 }
 
 struct EmitterParams {
@@ -68,7 +68,7 @@ struct EmitterParams {
     scale_min: f32,
     scale_max: f32,
 
-    scale_curve: SplineCurve,
+    scale_curve: CurveUniform,
 
     use_initial_color_gradient: u32,
     turbulence_enabled: u32,
@@ -77,8 +77,8 @@ struct EmitterParams {
 
     initial_color: vec4<f32>,
 
-    alpha_curve: SplineCurve,
-    emission_curve: SplineCurve,
+    alpha_curve: CurveUniform,
+    emission_curve: CurveUniform,
 
     // turbulence
     turbulence_noise_strength: f32,
@@ -89,7 +89,7 @@ struct EmitterParams {
     turbulence_noise_speed: vec3<f32>,
     turbulence_influence_max: f32,
 
-    turbulence_influence_curve: SplineCurve,
+    turbulence_influence_curve: CurveUniform,
 
     radial_velocity: AnimatedVelocity,
 
@@ -466,7 +466,7 @@ fn get_turbulence_influence(seed: u32) -> f32 {
 fn sample_spline_curve(
     tex: texture_2d<f32>,
     samp: sampler,
-    curve: SplineCurve,
+    curve: CurveUniform,
     t: f32
 ) -> f32 {
     let raw = textureSampleLevel(tex, samp, vec2(t, 0.5), 0.0).r;

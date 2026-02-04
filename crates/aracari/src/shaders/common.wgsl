@@ -8,7 +8,7 @@ struct Particle {
     alignment_dir: vec4<f32>,  // xyz direction for ALIGN_Y_TO_VELOCITY, w unused
 }
 
-struct SplineCurve {
+struct CurveUniform {
     enabled: u32,
     min_value: f32,
     max_value: f32,

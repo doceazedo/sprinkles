@@ -565,7 +565,7 @@ impl DrawPassMaterial {
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Reflect)]
 pub struct Range {
     #[serde(default, skip_serializing_if = "is_zero_f32")]
     pub min: f32,
@@ -656,7 +656,7 @@ pub struct EmitterScale {
     #[serde(default = "default_scale_range")]
     pub range: Range,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub curve: Option<SplineCurveConfig>,
+    pub curve: Option<CurveConfig>,
 }
 
 impl Default for EmitterScale {
@@ -673,9 +673,9 @@ pub struct EmitterColors {
     #[serde(default)]
     pub initial_color: SolidOrGradientColor,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub alpha_curve: Option<SplineCurveConfig>,
+    pub alpha_curve: Option<CurveConfig>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub emission_curve: Option<SplineCurveConfig>,
+    pub emission_curve: Option<CurveConfig>,
 }
 
 impl Default for EmitterColors {
@@ -701,7 +701,7 @@ pub struct AnimatedVelocity {
     #[serde(default, skip_serializing_if = "Range::is_zero")]
     pub value: Range,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub curve: Option<SplineCurveConfig>,
+    pub curve: Option<CurveConfig>,
 }
 
 impl Default for AnimatedVelocity {
@@ -790,7 +790,7 @@ pub struct EmitterTurbulence {
     #[serde(default = "default_turbulence_influence")]
     pub influence: Range,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub influence_curve: Option<SplineCurveConfig>,
+    pub influence_curve: Option<CurveConfig>,
 }
 
 impl Default for EmitterTurbulence {
@@ -846,115 +846,195 @@ impl Default for EmitterCollision {
 }
 
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Reflect)]
-pub struct Knot {
-    pub position: f32,
-    pub value: f32,
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Default, Reflect)]
+pub enum CurveMode {
+    #[default]
+    SingleCurve,
+    DoubleCurve,
+    Hold,
+    Stairs,
+    SmoothStairs,
 }
 
-impl Knot {
-    pub fn new(position: f32, value: f32) -> Self {
-        Self { position, value }
+fn default_tension() -> f64 {
+    0.0
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Reflect)]
+pub struct CurvePoint {
+    pub position: f32,
+    pub value: f64,
+    #[serde(default)]
+    pub mode: CurveMode,
+    #[serde(default = "default_tension")]
+    pub tension: f64,
+}
+
+impl CurvePoint {
+    pub fn new(position: f32, value: f64) -> Self {
+        Self {
+            position,
+            value,
+            mode: CurveMode::default(),
+            tension: 0.0,
+        }
+    }
+
+    pub fn with_mode(mut self, mode: CurveMode) -> Self {
+        self.mode = mode;
+        self
+    }
+
+    pub fn with_tension(mut self, tension: f64) -> Self {
+        self.tension = tension;
+        self
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default, Reflect)]
-pub enum SplineCurve {
-    Custom(Vec<Knot>),
-
-    #[default]
-    Constant,
-
-    // increase curves (0 -> 1)
-    LinearIn,
-    SineIn,
-    SineOut,
-    SineInOut,
-    QuadIn,
-    QuadOut,
-    QuadInOut,
-    CubicIn,
-    CubicOut,
-    CubicInOut,
-    QuartIn,
-    QuartOut,
-    QuartInOut,
-    QuintIn,
-    QuintOut,
-    QuintInOut,
-    ExpoIn,
-    ExpoOut,
-    ExpoInOut,
-    CircIn,
-    CircOut,
-    CircInOut,
-    BackIn,
-    BackOut,
-    BackInOut,
-    ElasticIn,
-    ElasticOut,
-    ElasticInOut,
-    BounceIn,
-    BounceOut,
-    BounceInOut,
-
-    // decrease curves (1 -> 0)
-    LinearReverse,
-    SineInReverse,
-    SineOutReverse,
-    SineInOutReverse,
-    QuadInReverse,
-    QuadOutReverse,
-    QuadInOutReverse,
-    CubicInReverse,
-    CubicOutReverse,
-    CubicInOutReverse,
-    QuartInReverse,
-    QuartOutReverse,
-    QuartInOutReverse,
-    QuintInReverse,
-    QuintOutReverse,
-    QuintInOutReverse,
-    ExpoInReverse,
-    ExpoOutReverse,
-    ExpoInOutReverse,
-    CircInReverse,
-    CircOutReverse,
-    CircInOutReverse,
-    BackInReverse,
-    BackOutReverse,
-    BackInOutReverse,
-    ElasticInReverse,
-    ElasticOutReverse,
-    ElasticInOutReverse,
-    BounceInReverse,
-    BounceOutReverse,
-    BounceInOutReverse,
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Reflect)]
+pub struct CurveTexture {
+    pub points: Vec<CurvePoint>,
+    #[serde(default)]
+    pub range: Range,
 }
 
-impl SplineCurve {
-    pub fn cache_key(&self) -> u64 {
-        use std::hash::{Hash, Hasher};
-
-        let mut hasher = std::collections::hash_map::DefaultHasher::new();
-        match self {
-            Self::Custom(knots) => {
-                0u8.hash(&mut hasher);
-                for knot in knots {
-                    knot.position.to_bits().hash(&mut hasher);
-                    knot.value.to_bits().hash(&mut hasher);
-                }
-            }
-            _ => {
-                std::mem::discriminant(self).hash(&mut hasher);
-            }
+impl Default for CurveTexture {
+    fn default() -> Self {
+        Self {
+            points: vec![
+                CurvePoint::new(0.0, 1.0),
+                CurvePoint::new(1.0, 1.0),
+            ],
+            range: Range::default(),
         }
+    }
+}
+
+impl CurveTexture {
+    pub fn new(points: Vec<CurvePoint>) -> Self {
+        Self {
+            points,
+            range: Range::default(),
+        }
+    }
+
+    pub fn with_range(mut self, range: Range) -> Self {
+        self.range = range;
+        self
+    }
+
+    pub fn cache_key(&self) -> u64 {
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        for point in &self.points {
+            point.position.to_bits().hash(&mut hasher);
+            (point.value as f32).to_bits().hash(&mut hasher);
+            std::mem::discriminant(&point.mode).hash(&mut hasher);
+            (point.tension as f32).to_bits().hash(&mut hasher);
+        }
+        self.range.min.to_bits().hash(&mut hasher);
+        self.range.max.to_bits().hash(&mut hasher);
         hasher.finish()
     }
 
     pub fn is_constant(&self) -> bool {
-        matches!(self, Self::Constant)
+        if self.points.len() < 2 {
+            return true;
+        }
+        let first_value = self.points[0].value;
+        self.points.iter().all(|p| (p.value - first_value).abs() < f64::EPSILON)
     }
+
+    pub fn sample(&self, t: f32) -> f32 {
+        if self.points.is_empty() {
+            return 1.0;
+        }
+        if self.points.len() == 1 {
+            return self.points[0].value as f32;
+        }
+
+        let t = t.clamp(0.0, 1.0);
+
+        let mut left_idx = 0;
+        let mut right_idx = self.points.len() - 1;
+
+        for (i, point) in self.points.iter().enumerate() {
+            if point.position <= t {
+                left_idx = i;
+            }
+        }
+        for (i, point) in self.points.iter().enumerate() {
+            if point.position >= t {
+                right_idx = i;
+                break;
+            }
+        }
+
+        let left = &self.points[left_idx];
+        let right = &self.points[right_idx];
+
+        if left_idx == right_idx {
+            return left.value as f32;
+        }
+
+        let segment_range = right.position - left.position;
+        if segment_range <= 0.0 {
+            return left.value as f32;
+        }
+
+        let local_t = (t - left.position) / segment_range;
+        let curved_t = apply_curve(local_t, right.mode, right.tension as f32);
+
+        (left.value + (right.value - left.value) * curved_t as f64) as f32
+    }
+}
+
+fn apply_curve(t: f32, mode: CurveMode, tension: f32) -> f32 {
+    match mode {
+        CurveMode::SingleCurve => apply_tension(t, tension),
+        CurveMode::DoubleCurve => {
+            if t < 0.5 {
+                let local_t = t * 2.0;
+                apply_tension(local_t, tension) * 0.5
+            } else {
+                let local_t = (t - 0.5) * 2.0;
+                0.5 + apply_tension(local_t, -tension) * 0.5
+            }
+        }
+        CurveMode::Hold => 0.0,
+        CurveMode::Stairs => {
+            let steps = tension_to_steps(tension);
+            (t * steps as f32).floor() / (steps - 1).max(1) as f32
+        }
+        CurveMode::SmoothStairs => {
+            let steps = tension_to_steps(tension);
+            let step_size = 1.0 / steps as f32;
+            let current_step = (t / step_size).floor();
+            let local_t = (t - current_step * step_size) / step_size;
+            let smooth_t = local_t * local_t * (3.0 - 2.0 * local_t);
+            let start = current_step / (steps - 1).max(1) as f32;
+            let end = (current_step + 1.0).min(steps as f32 - 1.0) / (steps - 1).max(1) as f32;
+            start + (end - start) * smooth_t
+        }
+    }
+}
+
+fn apply_tension(t: f32, tension: f32) -> f32 {
+    if tension.abs() < f32::EPSILON {
+        return t;
+    }
+    let exp = 1.0 / (1.0 - tension.abs() * 0.999);
+    if tension > 0.0 {
+        t.powf(exp)
+    } else {
+        1.0 - (1.0 - t).powf(exp)
+    }
+}
+
+fn tension_to_steps(tension: f32) -> u32 {
+    let tension = tension.clamp(0.0, 1.0);
+    let min_steps = 1u32;
+    let max_steps = 64u32;
+    min_steps + ((max_steps - min_steps) as f32 * tension) as u32
 }
 
 fn default_curve_min() -> f32 {
@@ -966,442 +1046,31 @@ fn default_curve_max() -> f32 {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
-pub struct SplineCurveConfig {
-    pub curve: SplineCurve,
+pub struct CurveConfig {
+    pub curve: CurveTexture,
     #[serde(default = "default_curve_min")]
     pub min_value: f32,
     #[serde(default = "default_curve_max")]
     pub max_value: f32,
 }
 
-impl Default for SplineCurveConfig {
+impl Default for CurveConfig {
     fn default() -> Self {
         Self {
-            curve: SplineCurve::default(),
+            curve: CurveTexture::default(),
             min_value: 0.0,
             max_value: 1.0,
         }
     }
 }
 
-impl SplineCurveConfig {
+impl CurveConfig {
     pub fn is_constant(&self) -> bool {
         self.curve.is_constant()
     }
 
     pub fn cache_key(&self) -> u64 {
         self.curve.cache_key()
-    }
-
-    pub fn to_knots(&self) -> Vec<Knot> {
-        self.curve.to_knots()
-    }
-}
-
-impl SplineCurve {
-    pub fn to_knots(&self) -> Vec<Knot> {
-        match self {
-            Self::Custom(knots) => knots.clone(),
-            Self::Constant => vec![Knot::new(0.0, 1.0), Knot::new(1.0, 1.0)],
-            _ => {
-                const KNOT_COUNT: usize = 32;
-                let mut knots = Vec::with_capacity(KNOT_COUNT);
-                for i in 0..KNOT_COUNT {
-                    let t = i as f32 / (KNOT_COUNT - 1) as f32;
-                    let value = self.sample_preset(t);
-                    knots.push(Knot::new(t, value));
-                }
-                knots
-            }
-        }
-    }
-
-    fn sample_preset(&self, t: f32) -> f32 {
-        use std::f32::consts::{FRAC_PI_2, PI};
-
-        match self {
-            Self::Custom(_) => 1.0,
-            Self::Constant => 1.0,
-
-            Self::LinearIn => t,
-            Self::LinearReverse => 1.0 - t,
-
-            Self::SineIn => 1.0 - (t * FRAC_PI_2).cos(),
-            Self::SineOut => (t * FRAC_PI_2).sin(),
-            Self::SineInOut => -(PI * t).cos() * 0.5 + 0.5,
-
-            Self::SineInReverse => 1.0 - (1.0 - (t * FRAC_PI_2).cos()),
-            Self::SineOutReverse => 1.0 - (t * FRAC_PI_2).sin(),
-            Self::SineInOutReverse => 1.0 - (-(PI * t).cos() * 0.5 + 0.5),
-
-            Self::QuadIn => t * t,
-            Self::QuadOut => -t * (t - 2.0),
-            Self::QuadInOut => {
-                let t2 = t * 2.0;
-                if t2 < 1.0 {
-                    0.5 * t2 * t2
-                } else {
-                    -0.5 * ((t2 - 1.0) * (t2 - 3.0) - 1.0)
-                }
-            }
-
-            Self::QuadInReverse => 1.0 - t * t,
-            Self::QuadOutReverse => 1.0 - (-t * (t - 2.0)),
-            Self::QuadInOutReverse => {
-                let t2 = t * 2.0;
-                1.0 - if t2 < 1.0 {
-                    0.5 * t2 * t2
-                } else {
-                    -0.5 * ((t2 - 1.0) * (t2 - 3.0) - 1.0)
-                }
-            }
-
-            Self::CubicIn => t * t * t,
-            Self::CubicOut => {
-                let t1 = t - 1.0;
-                t1 * t1 * t1 + 1.0
-            }
-            Self::CubicInOut => {
-                let t2 = t * 2.0;
-                if t2 < 1.0 {
-                    0.5 * t2 * t2 * t2
-                } else {
-                    let t3 = t2 - 2.0;
-                    0.5 * (t3 * t3 * t3 + 2.0)
-                }
-            }
-
-            Self::CubicInReverse => 1.0 - t * t * t,
-            Self::CubicOutReverse => {
-                let t1 = t - 1.0;
-                1.0 - (t1 * t1 * t1 + 1.0)
-            }
-            Self::CubicInOutReverse => {
-                let t2 = t * 2.0;
-                1.0 - if t2 < 1.0 {
-                    0.5 * t2 * t2 * t2
-                } else {
-                    let t3 = t2 - 2.0;
-                    0.5 * (t3 * t3 * t3 + 2.0)
-                }
-            }
-
-            Self::QuartIn => t * t * t * t,
-            Self::QuartOut => {
-                let t1 = t - 1.0;
-                -(t1 * t1 * t1 * t1 - 1.0)
-            }
-            Self::QuartInOut => {
-                let t2 = t * 2.0;
-                if t2 < 1.0 {
-                    0.5 * t2 * t2 * t2 * t2
-                } else {
-                    let t3 = t2 - 2.0;
-                    -0.5 * (t3 * t3 * t3 * t3 - 2.0)
-                }
-            }
-
-            Self::QuartInReverse => 1.0 - t * t * t * t,
-            Self::QuartOutReverse => {
-                let t1 = t - 1.0;
-                1.0 - (-(t1 * t1 * t1 * t1 - 1.0))
-            }
-            Self::QuartInOutReverse => {
-                let t2 = t * 2.0;
-                1.0 - if t2 < 1.0 {
-                    0.5 * t2 * t2 * t2 * t2
-                } else {
-                    let t3 = t2 - 2.0;
-                    -0.5 * (t3 * t3 * t3 * t3 - 2.0)
-                }
-            }
-
-            Self::QuintIn => t * t * t * t * t,
-            Self::QuintOut => {
-                let t1 = t - 1.0;
-                t1 * t1 * t1 * t1 * t1 + 1.0
-            }
-            Self::QuintInOut => {
-                let t2 = t * 2.0;
-                if t2 < 1.0 {
-                    0.5 * t2 * t2 * t2 * t2 * t2
-                } else {
-                    let t3 = t2 - 2.0;
-                    0.5 * (t3 * t3 * t3 * t3 * t3 + 2.0)
-                }
-            }
-
-            Self::QuintInReverse => 1.0 - t * t * t * t * t,
-            Self::QuintOutReverse => {
-                let t1 = t - 1.0;
-                1.0 - (t1 * t1 * t1 * t1 * t1 + 1.0)
-            }
-            Self::QuintInOutReverse => {
-                let t2 = t * 2.0;
-                1.0 - if t2 < 1.0 {
-                    0.5 * t2 * t2 * t2 * t2 * t2
-                } else {
-                    let t3 = t2 - 2.0;
-                    0.5 * (t3 * t3 * t3 * t3 * t3 + 2.0)
-                }
-            }
-
-            Self::ExpoIn => {
-                if t == 0.0 {
-                    0.0
-                } else {
-                    2.0_f32.powf(10.0 * (t - 1.0)) - 0.001
-                }
-            }
-            Self::ExpoOut => {
-                if t == 1.0 {
-                    1.0
-                } else {
-                    1.001 * (1.0 - 2.0_f32.powf(-10.0 * t))
-                }
-            }
-            Self::ExpoInOut => {
-                if t == 0.0 {
-                    return 0.0;
-                }
-                if t == 1.0 {
-                    return 1.0;
-                }
-                let t2 = t * 2.0;
-                if t2 < 1.0 {
-                    0.5 * 2.0_f32.powf(10.0 * (t2 - 1.0)) - 0.0005
-                } else {
-                    0.5 * 1.0005 * (2.0 - 2.0_f32.powf(-10.0 * (t2 - 1.0)))
-                }
-            }
-
-            Self::ExpoInReverse => {
-                1.0 - if t == 0.0 {
-                    0.0
-                } else {
-                    2.0_f32.powf(10.0 * (t - 1.0)) - 0.001
-                }
-            }
-            Self::ExpoOutReverse => {
-                1.0 - if t == 1.0 {
-                    1.0
-                } else {
-                    1.001 * (1.0 - 2.0_f32.powf(-10.0 * t))
-                }
-            }
-            Self::ExpoInOutReverse => {
-                if t == 0.0 {
-                    return 1.0;
-                }
-                if t == 1.0 {
-                    return 0.0;
-                }
-                let t2 = t * 2.0;
-                1.0 - if t2 < 1.0 {
-                    0.5 * 2.0_f32.powf(10.0 * (t2 - 1.0)) - 0.0005
-                } else {
-                    0.5 * 1.0005 * (2.0 - 2.0_f32.powf(-10.0 * (t2 - 1.0)))
-                }
-            }
-
-            Self::CircIn => -(1.0 - t * t).sqrt() + 1.0,
-            Self::CircOut => {
-                let t1 = t - 1.0;
-                (1.0 - t1 * t1).sqrt()
-            }
-            Self::CircInOut => {
-                let t2 = t * 2.0;
-                if t2 < 1.0 {
-                    -0.5 * ((1.0 - t2 * t2).sqrt() - 1.0)
-                } else {
-                    let t3 = t2 - 2.0;
-                    0.5 * ((1.0 - t3 * t3).sqrt() + 1.0)
-                }
-            }
-
-            Self::CircInReverse => 1.0 - (-(1.0 - t * t).sqrt() + 1.0),
-            Self::CircOutReverse => {
-                let t1 = t - 1.0;
-                1.0 - (1.0 - t1 * t1).sqrt()
-            }
-            Self::CircInOutReverse => {
-                let t2 = t * 2.0;
-                1.0 - if t2 < 1.0 {
-                    -0.5 * ((1.0 - t2 * t2).sqrt() - 1.0)
-                } else {
-                    let t3 = t2 - 2.0;
-                    0.5 * ((1.0 - t3 * t3).sqrt() + 1.0)
-                }
-            }
-
-            Self::BackIn => {
-                const S: f32 = 1.70158;
-                t * t * ((S + 1.0) * t - S)
-            }
-            Self::BackOut => {
-                const S: f32 = 1.70158;
-                let t1 = t - 1.0;
-                t1 * t1 * ((S + 1.0) * t1 + S) + 1.0
-            }
-            Self::BackInOut => {
-                const S: f32 = 1.70158 * 1.525;
-                let t2 = t * 2.0;
-                if t2 < 1.0 {
-                    0.5 * (t2 * t2 * ((S + 1.0) * t2 - S))
-                } else {
-                    let t3 = t2 - 2.0;
-                    0.5 * (t3 * t3 * ((S + 1.0) * t3 + S) + 2.0)
-                }
-            }
-
-            Self::BackInReverse => {
-                const S: f32 = 1.70158;
-                1.0 - t * t * ((S + 1.0) * t - S)
-            }
-            Self::BackOutReverse => {
-                const S: f32 = 1.70158;
-                let t1 = t - 1.0;
-                1.0 - (t1 * t1 * ((S + 1.0) * t1 + S) + 1.0)
-            }
-            Self::BackInOutReverse => {
-                const S: f32 = 1.70158 * 1.525;
-                let t2 = t * 2.0;
-                1.0 - if t2 < 1.0 {
-                    0.5 * (t2 * t2 * ((S + 1.0) * t2 - S))
-                } else {
-                    let t3 = t2 - 2.0;
-                    0.5 * (t3 * t3 * ((S + 1.0) * t3 + S) + 2.0)
-                }
-            }
-
-            Self::ElasticIn => {
-                if t == 0.0 {
-                    return 0.0;
-                }
-                if t == 1.0 {
-                    return 1.0;
-                }
-                let p = 0.3;
-                let s = p / 4.0;
-                let t1 = t - 1.0;
-                let a = 2.0_f32.powf(10.0 * t1);
-                -(a * ((t1 - s) * (2.0 * PI) / p).sin())
-            }
-            Self::ElasticOut => {
-                if t == 0.0 {
-                    return 0.0;
-                }
-                if t == 1.0 {
-                    return 1.0;
-                }
-                let p = 0.3;
-                let s = p / 4.0;
-                2.0_f32.powf(-10.0 * t) * ((t - s) * (2.0 * PI) / p).sin() + 1.0
-            }
-            Self::ElasticInOut => {
-                if t == 0.0 {
-                    return 0.0;
-                }
-                if t == 1.0 {
-                    return 1.0;
-                }
-                let p = 0.3 * 1.5;
-                let s = p / 4.0;
-                let t2 = t * 2.0;
-                if t2 < 1.0 {
-                    let t3 = t2 - 1.0;
-                    let a = 2.0_f32.powf(10.0 * t3);
-                    -0.5 * (a * ((t3 - s) * (2.0 * PI) / p).sin())
-                } else {
-                    let t3 = t2 - 1.0;
-                    let a = 2.0_f32.powf(-10.0 * t3);
-                    a * ((t3 - s) * (2.0 * PI) / p).sin() * 0.5 + 1.0
-                }
-            }
-
-            Self::ElasticInReverse => {
-                if t == 0.0 {
-                    return 1.0;
-                }
-                if t == 1.0 {
-                    return 0.0;
-                }
-                let p = 0.3;
-                let s = p / 4.0;
-                let t1 = t - 1.0;
-                let a = 2.0_f32.powf(10.0 * t1);
-                1.0 - (-(a * ((t1 - s) * (2.0 * PI) / p).sin()))
-            }
-            Self::ElasticOutReverse => {
-                if t == 0.0 {
-                    return 1.0;
-                }
-                if t == 1.0 {
-                    return 0.0;
-                }
-                let p = 0.3;
-                let s = p / 4.0;
-                1.0 - (2.0_f32.powf(-10.0 * t) * ((t - s) * (2.0 * PI) / p).sin() + 1.0)
-            }
-            Self::ElasticInOutReverse => {
-                if t == 0.0 {
-                    return 1.0;
-                }
-                if t == 1.0 {
-                    return 0.0;
-                }
-                let p = 0.3 * 1.5;
-                let s = p / 4.0;
-                let t2 = t * 2.0;
-                1.0 - if t2 < 1.0 {
-                    let t3 = t2 - 1.0;
-                    let a = 2.0_f32.powf(10.0 * t3);
-                    -0.5 * (a * ((t3 - s) * (2.0 * PI) / p).sin())
-                } else {
-                    let t3 = t2 - 1.0;
-                    let a = 2.0_f32.powf(-10.0 * t3);
-                    a * ((t3 - s) * (2.0 * PI) / p).sin() * 0.5 + 1.0
-                }
-            }
-
-            Self::BounceIn => 1.0 - Self::bounce_out_value(1.0 - t),
-            Self::BounceOut => Self::bounce_out_value(t),
-            Self::BounceInOut => {
-                if t < 0.5 {
-                    (1.0 - Self::bounce_out_value(1.0 - t * 2.0)) * 0.5
-                } else {
-                    Self::bounce_out_value(t * 2.0 - 1.0) * 0.5 + 0.5
-                }
-            }
-
-            Self::BounceInReverse => Self::bounce_out_value(1.0 - t),
-            Self::BounceOutReverse => 1.0 - Self::bounce_out_value(t),
-            Self::BounceInOutReverse => {
-                1.0 - if t < 0.5 {
-                    (1.0 - Self::bounce_out_value(1.0 - t * 2.0)) * 0.5
-                } else {
-                    Self::bounce_out_value(t * 2.0 - 1.0) * 0.5 + 0.5
-                }
-            }
-        }
-    }
-
-    fn bounce_out_value(t: f32) -> f32 {
-        const N1: f32 = 7.5625;
-        const D1: f32 = 2.75;
-
-        if t < 1.0 / D1 {
-            N1 * t * t
-        } else if t < 2.0 / D1 {
-            let t1 = t - 1.5 / D1;
-            N1 * t1 * t1 + 0.75
-        } else if t < 2.5 / D1 {
-            let t1 = t - 2.25 / D1;
-            N1 * t1 * t1 + 0.9375
-        } else {
-            let t1 = t - 2.625 / D1;
-            N1 * t1 * t1 + 0.984375
-        }
     }
 }
 

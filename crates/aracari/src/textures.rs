@@ -8,7 +8,7 @@ use bevy::{
 use std::collections::HashMap;
 
 use crate::asset::{
-    Gradient, GradientInterpolation, Knot, ParticleSystemAsset, SolidOrGradientColor, SplineCurve,
+    CurveTexture, Gradient, GradientInterpolation, ParticleSystemAsset, SolidOrGradientColor,
 };
 use crate::runtime::ParticleSystem3D;
 
@@ -153,7 +153,7 @@ pub struct CurveTextureCache {
 impl CurveTextureCache {
     pub fn get_or_create(
         &mut self,
-        curve: &SplineCurve,
+        curve: &CurveTexture,
         images: &mut Assets<Image>,
     ) -> Handle<Image> {
         let key = curve.cache_key();
@@ -166,13 +166,12 @@ impl CurveTextureCache {
         handle
     }
 
-    pub fn get(&self, curve: &SplineCurve) -> Option<Handle<Image>> {
+    pub fn get(&self, curve: &CurveTexture) -> Option<Handle<Image>> {
         self.cache.get(&curve.cache_key()).cloned()
     }
 }
 
-fn bake_curve_texture(curve: &SplineCurve) -> Image {
-    let knots = curve.to_knots();
+fn bake_curve_texture(curve: &CurveTexture) -> Image {
     let mut data = Vec::with_capacity((TEXTURE_WIDTH * 4) as usize);
 
     for i in 0..TEXTURE_WIDTH {
@@ -181,7 +180,7 @@ fn bake_curve_texture(curve: &SplineCurve) -> Image {
         } else {
             0.0
         };
-        let value = sample_knots(&knots, t);
+        let value = curve.sample(t);
         let byte = (value.clamp(0.0, 1.0) * 255.0) as u8;
         data.push(byte); // R
         data.push(byte); // G
@@ -190,46 +189,6 @@ fn bake_curve_texture(curve: &SplineCurve) -> Image {
     }
 
     create_1d_texture(data, TextureFormat::Rgba8Unorm)
-}
-
-fn sample_knots(knots: &[Knot], t: f32) -> f32 {
-    if knots.is_empty() {
-        return 1.0;
-    }
-    if knots.len() == 1 {
-        return knots[0].value;
-    }
-
-    let t = t.clamp(0.0, 1.0);
-    let mut left_idx = 0;
-    let mut right_idx = knots.len() - 1;
-
-    for (i, knot) in knots.iter().enumerate() {
-        if knot.position <= t {
-            left_idx = i;
-        }
-    }
-    for (i, knot) in knots.iter().enumerate() {
-        if knot.position >= t {
-            right_idx = i;
-            break;
-        }
-    }
-
-    let left = &knots[left_idx];
-    let right = &knots[right_idx];
-
-    if left_idx == right_idx {
-        return left.value;
-    }
-
-    let range = right.position - left.position;
-    if range <= 0.0 {
-        return left.value;
-    }
-
-    let local_t = (t - left.position) / range;
-    left.value + (right.value - left.value) * local_t
 }
 
 #[derive(Resource, Clone, ExtractResource)]

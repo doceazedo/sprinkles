@@ -34,14 +34,14 @@ pub const COLLISION_MODE_HIDE_ON_CONTACT: u32 = 2;
 
 #[derive(Clone, Copy, Default, Pod, Zeroable, ShaderType)]
 #[repr(C)]
-pub struct SplineCurveUniform {
+pub struct CurveUniform {
     pub enabled: u32,
     pub min_value: f32,
     pub max_value: f32,
     pub _pad: u32,
 }
 
-impl SplineCurveUniform {
+impl CurveUniform {
     pub fn disabled() -> Self {
         Self {
             enabled: 0,
@@ -68,7 +68,7 @@ pub struct AnimatedVelocityUniform {
     pub max: f32,
     pub _pad0: f32,
     pub _pad1: f32,
-    pub curve: SplineCurveUniform,
+    pub curve: CurveUniform,
 }
 
 #[derive(Clone, Copy, Default, Pod, Zeroable, ShaderType)]
@@ -134,7 +134,7 @@ pub struct EmitterUniforms {
     pub scale_min: f32,
     pub scale_max: f32,
 
-    pub scale_curve: SplineCurveUniform,
+    pub scale_curve: CurveUniform,
 
     pub use_initial_color_gradient: u32,
     pub turbulence_enabled: u32,
@@ -143,8 +143,8 @@ pub struct EmitterUniforms {
 
     pub initial_color: [f32; 4],
 
-    pub alpha_curve: SplineCurveUniform,
-    pub emission_curve: SplineCurveUniform,
+    pub alpha_curve: CurveUniform,
+    pub emission_curve: CurveUniform,
 
     pub turbulence_noise_strength: f32,
     pub turbulence_noise_scale: f32,
@@ -154,7 +154,7 @@ pub struct EmitterUniforms {
     pub turbulence_noise_speed: [f32; 3],
     pub turbulence_influence_max: f32,
 
-    pub turbulence_influence_curve: SplineCurveUniform,
+    pub turbulence_influence_curve: CurveUniform,
 
     pub radial_velocity: AnimatedVelocityUniform,
 
@@ -332,9 +332,9 @@ pub fn extract_particle_systems(
 
             scale_curve: match &emitter.scale.curve {
                 Some(c) if !c.is_constant() => {
-                    SplineCurveUniform::enabled(c.min_value, c.max_value)
+                    CurveUniform::enabled(c.min_value, c.max_value)
                 }
-                _ => SplineCurveUniform::disabled(),
+                _ => CurveUniform::disabled(),
             },
 
             use_initial_color_gradient: match &emitter.colors.initial_color {
@@ -352,15 +352,15 @@ pub fn extract_particle_systems(
 
             alpha_curve: match &emitter.colors.alpha_curve {
                 Some(c) if !c.is_constant() => {
-                    SplineCurveUniform::enabled(c.min_value, c.max_value)
+                    CurveUniform::enabled(c.min_value, c.max_value)
                 }
-                _ => SplineCurveUniform::disabled(),
+                _ => CurveUniform::disabled(),
             },
             emission_curve: match &emitter.colors.emission_curve {
                 Some(c) if !c.is_constant() => {
-                    SplineCurveUniform::enabled(c.min_value, c.max_value)
+                    CurveUniform::enabled(c.min_value, c.max_value)
                 }
-                _ => SplineCurveUniform::disabled(),
+                _ => CurveUniform::disabled(),
             },
 
             turbulence_noise_strength: turbulence.map_or(1.0, |t| t.noise_strength),
@@ -374,8 +374,8 @@ pub fn extract_particle_systems(
             turbulence_influence_curve: turbulence
                 .and_then(|t| t.influence_curve.as_ref())
                 .filter(|c| !c.is_constant())
-                .map_or(SplineCurveUniform::disabled(), |c| {
-                    SplineCurveUniform::enabled(c.min_value, c.max_value)
+                .map_or(CurveUniform::disabled(), |c| {
+                    CurveUniform::enabled(c.min_value, c.max_value)
                 }),
 
             radial_velocity: AnimatedVelocityUniform {
@@ -385,9 +385,9 @@ pub fn extract_particle_systems(
                 _pad1: 0.0,
                 curve: match &emitter.velocities.radial_velocity.curve {
                     Some(c) if !c.is_constant() => {
-                        SplineCurveUniform::enabled(c.min_value, c.max_value)
+                        CurveUniform::enabled(c.min_value, c.max_value)
                     }
-                    _ => SplineCurveUniform::disabled(),
+                    _ => CurveUniform::disabled(),
                 },
             },
 

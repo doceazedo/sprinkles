@@ -41,7 +41,12 @@
                     max: 0.4,
                 ),
                 curve: Some((
-                    curve: SineInReverse,
+                    curve: (
+                        points: [
+                            (position: 0.0, value: 1.0),
+                            (position: 1.0, value: 0.0, tension: 0.5),
+                        ],
+                    ),
                     min_value: 0.0,
                     max_value: 1.0,
                 )),
@@ -51,7 +56,12 @@
                     color: (1.0, 0.9843137, 0.92156863, 1.0),
                 ),
                 alpha_curve: Some((
-                    curve: SineIn,
+                    curve: (
+                        points: [
+                            (position: 0.0, value: 0.0),
+                            (position: 1.0, value: 1.0, tension: 0.5),
+                        ],
+                    ),
                     min_value: 0.0,
                     max_value: 1.0,
                 )),
@@ -65,7 +75,12 @@
                         max: -5.0,
                     ),
                     curve: Some((
-                        curve: SineOutReverse,
+                        curve: (
+                            points: [
+                                (position: 0.0, value: 1.0),
+                                (position: 1.0, value: 0.0, tension: -0.5),
+                            ],
+                        ),
                         min_value: 0.0,
                         max_value: 1.0,
                     )),
@@ -119,7 +134,12 @@
                     max: 0.3,
                 ),
                 curve: Some((
-                    curve: LinearReverse,
+                    curve: (
+                        points: [
+                            (position: 0.0, value: 1.0),
+                            (position: 1.0, value: 0.0),
+                        ],
+                    ),
                     min_value: 0.0,
                     max_value: 1.0,
                 )),
@@ -140,7 +160,12 @@
                     ),
                 ),
                 alpha_curve: Some((
-                    curve: SineOutReverse,
+                    curve: (
+                        points: [
+                            (position: 0.0, value: 1.0),
+                            (position: 1.0, value: 0.0, tension: -0.5),
+                        ],
+                    ),
                     min_value: 0.0,
                     max_value: 1.0,
                 )),
@@ -165,7 +190,12 @@
                     max: 0.04,
                 ),
                 influence_curve: Some((
-                    curve: SineInOut,
+                    curve: (
+                        points: [
+                            (position: 0.0, value: 0.0),
+                            (position: 1.0, value: 1.0, mode: DoubleCurve, tension: 0.5),
+                        ],
+                    ),
                     min_value: 0.0,
                     max_value: 1.0,
                 )),
@@ -206,7 +236,12 @@
                     max: 0.4,
                 ),
                 curve: Some((
-                    curve: SineInOutReverse,
+                    curve: (
+                        points: [
+                            (position: 0.0, value: 1.0),
+                            (position: 1.0, value: 0.0, mode: DoubleCurve, tension: 0.5),
+                        ],
+                    ),
                     min_value: 0.0,
                     max_value: 1.0,
                 )),
@@ -227,7 +262,12 @@
                     ),
                 ),
                 emission_curve: Some((
-                    curve: SineOutReverse,
+                    curve: (
+                        points: [
+                            (position: 0.0, value: 1.0),
+                            (position: 1.0, value: 0.0, tension: -0.5),
+                        ],
+                    ),
                     min_value: 0.0,
                     max_value: 10.0,
                 )),
@@ -293,7 +333,12 @@
                     max: 0.4,
                 ),
                 curve: Some((
-                    curve: SineInOutReverse,
+                    curve: (
+                        points: [
+                            (position: 0.0, value: 1.0),
+                            (position: 1.0, value: 0.0, mode: DoubleCurve, tension: 0.5),
+                        ],
+                    ),
                     min_value: 0.0,
                     max_value: 1.0,
                 )),
@@ -314,7 +359,12 @@
                     ),
                 ),
                 emission_curve: Some((
-                    curve: SineOutReverse,
+                    curve: (
+                        points: [
+                            (position: 0.0, value: 1.0),
+                            (position: 1.0, value: 0.0, tension: -0.5),
+                        ],
+                    ),
                     min_value: 0.0,
                     max_value: 10.0,
                 )),
@@ -374,7 +424,12 @@
                     max: 6.0,
                 ),
                 curve: Some((
-                    curve: CubicOut,
+                    curve: (
+                        points: [
+                            (position: 0.0, value: 0.0),
+                            (position: 1.0, value: 1.0, tension: -0.7),
+                        ],
+                    ),
                     min_value: 0.0,
                     max_value: 1.0,
                 )),
@@ -384,7 +439,12 @@
                     color: (1.0, 1.0, 1.0, 1.0),
                 ),
                 alpha_curve: Some((
-                    curve: CubicOutReverse,
+                    curve: (
+                        points: [
+                            (position: 0.0, value: 1.0),
+                            (position: 1.0, value: 0.0, tension: -0.7),
+                        ],
+                    ),
                     min_value: 0.0,
                     max_value: 1.0,
                 )),
@@ -433,48 +493,13 @@
                     max: 0.1,
                 ),
                 curve: Some((
-                    curve: Custom([
-                        (
-                            position: 0.0,
-                            value: 1.0,
-                        ),
-                        (
-                            position: 0.8,
-                            value: 1.0,
-                        ),
-                        (
-                            position: 0.825,
-                            value: 0.962,
-                        ),
-                        (
-                            position: 0.85,
-                            value: 0.854,
-                        ),
-                        (
-                            position: 0.875,
-                            value: 0.691,
-                        ),
-                        (
-                            position: 0.9,
-                            value: 0.5,
-                        ),
-                        (
-                            position: 0.925,
-                            value: 0.309,
-                        ),
-                        (
-                            position: 0.95,
-                            value: 0.146,
-                        ),
-                        (
-                            position: 0.975,
-                            value: 0.038,
-                        ),
-                        (
-                            position: 1.0,
-                            value: 0.0,
-                        ),
-                    ]),
+                    curve: (
+                        points: [
+                            (position: 0.0, value: 1.0),
+                            (position: 0.8, value: 1.0, mode: Hold),
+                            (position: 1.0, value: 0.0, tension: -0.5),
+                        ],
+                    ),
                     min_value: 0.0,
                     max_value: 1.0,
                 )),
