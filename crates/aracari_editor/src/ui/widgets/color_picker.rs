@@ -71,7 +71,7 @@ impl Default for ColorPickerState {
     fn default() -> Self {
         Self {
             hue: 0.0,
-            saturation: 1.0,
+            saturation: 0.0,
             brightness: 1.0,
             alpha: 1.0,
             input_mode: ColorInputMode::Rgb,
@@ -96,6 +96,14 @@ impl ColorPickerState {
     pub fn to_rgba(&self) -> [f32; 4] {
         let (r, g, b) = hsv_to_rgb(self.hue, self.saturation, self.brightness);
         [r, g, b, self.alpha]
+    }
+
+    pub fn set_from_rgba(&mut self, rgba: [f32; 4]) {
+        let (h, s, v) = rgb_to_hsv(rgba[0], rgba[1], rgba[2]);
+        self.hue = h;
+        self.saturation = s;
+        self.brightness = v;
+        self.alpha = rgba[3];
     }
 
     pub fn to_srgba(&self) -> Srgba {
@@ -161,7 +169,7 @@ pub struct ColorPickerProps {
 impl ColorPickerProps {
     pub fn new() -> Self {
         Self {
-            color: [1.0, 0.0, 0.0, 1.0],
+            color: [1.0, 1.0, 1.0, 1.0],
             inline: false,
         }
     }
@@ -246,7 +254,7 @@ struct TriggerSwatchConfig {
 struct TriggerSwatch;
 
 #[derive(Component)]
-struct TriggerSwatchMaterial(Entity);
+pub struct TriggerSwatchMaterial(pub Entity);
 
 #[derive(Component)]
 struct TriggerLabel(Entity);

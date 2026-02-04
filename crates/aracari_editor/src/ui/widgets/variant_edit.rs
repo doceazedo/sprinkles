@@ -6,6 +6,7 @@ use crate::ui::widgets::button::{
     ButtonClickEvent, ButtonProps, ButtonVariant, EditorButton, button, set_button_variant,
 };
 use crate::ui::widgets::checkbox::{CheckboxProps, checkbox};
+use crate::ui::widgets::color_picker::{ColorPickerProps, color_picker};
 use crate::ui::widgets::combobox::{
     ComboBoxChangeEvent, ComboBoxOptionData, combobox, combobox_with_selected,
 };
@@ -25,6 +26,7 @@ pub enum VariantFieldKind {
     Bool,
     Vec3(VectorSuffixes),
     ComboBox { options: Vec<String> },
+    Color,
 }
 
 #[derive(Clone, Debug)]
@@ -68,6 +70,13 @@ impl VariantField {
             kind: VariantFieldKind::ComboBox {
                 options: options.into_iter().map(Into::into).collect(),
             },
+        }
+    }
+
+    pub fn color(name: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            kind: VariantFieldKind::Color,
         }
     }
 }
@@ -696,6 +705,27 @@ fn spawn_variant_fields_for_entity(
                         .with_child((binding, combobox(combobox_options)))
                         .id()
                 }
+                VariantFieldKind::Color => commands
+                    .spawn(Node {
+                        flex_direction: FlexDirection::Column,
+                        row_gap: px(3.0),
+                        flex_grow: 1.0,
+                        flex_shrink: 1.0,
+                        flex_basis: px(0.0),
+                        ..default()
+                    })
+                    .with_child((
+                        Text::new(label),
+                        TextFont {
+                            font: font.clone(),
+                            font_size: TEXT_SIZE_SM,
+                            weight: FontWeight::MEDIUM,
+                            ..default()
+                        },
+                        TextColor(TEXT_MUTED_COLOR.into()),
+                    ))
+                    .with_child((binding, color_picker(ColorPickerProps::new())))
+                    .id(),
             };
 
             commands.entity(row_entity).add_child(field_entity);

@@ -12,7 +12,6 @@ use crate::ui::widgets::checkbox::{CheckboxProps, checkbox};
 use crate::ui::widgets::inspector_field::{InspectorFieldProps, fields_row, spawn_inspector_field};
 use crate::ui::widgets::panel::{PanelDirection, PanelProps, panel, panel_resize_handle};
 use crate::ui::widgets::panel_section::{PanelSectionProps, PanelSectionSize, panel_section};
-use crate::ui::widgets::color_picker::{ColorPickerProps, color_picker};
 use crate::ui::widgets::variant_edit::{VariantEditProps, variant_edit};
 
 use binding::Field;
@@ -70,7 +69,6 @@ fn setup_inspector_panel(
                     .with_children(|content| {
                         content.spawn(time::time_section(&asset_server));
                         content.spawn(draw_pass::draw_pass_section(&asset_server));
-                        content.spawn(color_picker_test_row());
                     });
             });
     }
@@ -201,23 +199,6 @@ fn setup_inspector_section_fields(
             }
         });
     }
-}
-
-fn color_picker_test_row() -> impl Bundle {
-    (
-        Node {
-            width: percent(100),
-            padding: UiRect::axes(px(24.0), px(12.0)),
-            border: UiRect::top(px(1.0)),
-            flex_direction: FlexDirection::Column,
-            row_gap: px(6.0),
-            ..default()
-        },
-        BorderColor::all(BORDER_COLOR),
-        children![
-            color_picker(ColorPickerProps::new().with_color([1.0, 0.2, 0.5, 0.8])),
-        ],
-    )
 }
 
 fn update_panel_title(

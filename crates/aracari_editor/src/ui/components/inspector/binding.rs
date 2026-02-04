@@ -12,6 +12,9 @@ use bevy_ui_text_input::{
 
 use crate::state::{DirtyState, EditorState, Inspectable};
 use crate::ui::widgets::checkbox::CheckboxState;
+use crate::ui::widgets::color_picker::{
+    ColorPickerCommitEvent, ColorPickerState, EditorColorPicker, TriggerSwatchMaterial,
+};
 use crate::ui::widgets::combobox::ComboBoxChangeEvent;
 use crate::ui::widgets::text_edit::EditorTextEdit;
 use crate::ui::widgets::variant_edit::{
@@ -21,6 +24,34 @@ use crate::ui::widgets::variant_edit::{
 use crate::ui::widgets::vector_edit::EditorVectorEdit;
 
 const MAX_ANCESTOR_DEPTH: usize = 10;
+
+fn get_inspecting_emitter<'a>(
+    editor_state: &EditorState,
+    assets: &'a Assets<ParticleSystemAsset>,
+) -> Option<(u8, &'a EmitterData)> {
+    let inspecting = match &editor_state.inspecting {
+        Some(i) if i.kind == Inspectable::Emitter => i,
+        _ => return None,
+    };
+    let handle = editor_state.current_project.as_ref()?;
+    let asset = assets.get(handle)?;
+    let emitter = asset.emitters.get(inspecting.index as usize)?;
+    Some((inspecting.index, emitter))
+}
+
+fn get_inspecting_emitter_mut<'a>(
+    editor_state: &EditorState,
+    assets: &'a mut Assets<ParticleSystemAsset>,
+) -> Option<(u8, &'a mut EmitterData)> {
+    let inspecting = match &editor_state.inspecting {
+        Some(i) if i.kind == Inspectable::Emitter => i,
+        _ => return None,
+    };
+    let handle = editor_state.current_project.as_ref()?;
+    let asset = assets.get_mut(handle)?;
+    let emitter = asset.emitters.get_mut(inspecting.index as usize)?;
+    Some((inspecting.index, emitter))
+}
 
 fn find_ancestor<F>(
     mut entity: Entity,
@@ -44,12 +75,14 @@ pub fn plugin(app: &mut App) {
     app.init_resource::<BoundEmitter>()
         .add_observer(handle_variant_change)
         .add_observer(handle_combobox_change)
+        .add_observer(handle_variant_color_commit)
         .add_systems(
             Update,
             (
                 bind_values_to_inputs,
                 bind_variant_edits,
                 bind_variant_field_values,
+                bind_variant_color_pickers,
                 sync_input_on_blur,
                 sync_checkbox_changes_to_asset,
                 sync_variant_field_on_blur,
@@ -71,6 +104,7 @@ pub enum FieldKind {
     OptionalU32,
     Bool,
     ComboBox { options: Vec<String> },
+    Color,
 }
 
 #[derive(Component, Clone)]
@@ -79,17 +113,17 @@ pub struct Field {
     pub kind: FieldKind,
 }
 
-// marker: text input has been bound to a regular field
 #[derive(Component)]
 struct FieldBound;
 
-// marker: checkbox has been bound to a regular field
 #[derive(Component)]
 struct CheckboxBound;
 
-// marker: widget has been bound to a variant field (type info in VariantFieldBinding)
 #[derive(Component)]
 struct VariantFieldBound;
+
+#[derive(Component)]
+struct ColorPickerBound;
 
 impl Field {
     pub fn new(path: impl Into<String>) -> Self {
@@ -126,6 +160,7 @@ enum FieldValue {
     OptionalU32(Option<u32>),
     Bool(bool),
     Vec3(Vec3),
+    Color([f32; 4]),
 }
 
 impl FieldValue {
@@ -155,6 +190,13 @@ impl FieldValue {
     fn to_bool(&self) -> Option<bool> {
         match self {
             FieldValue::Bool(v) => Some(*v),
+            _ => None,
+        }
+    }
+
+    fn to_color(&self) -> Option<[f32; 4]> {
+        match self {
+            FieldValue::Color(c) => Some(*c),
             _ => None,
         }
     }
@@ -251,7 +293,7 @@ fn parse_field_value(text: &str, kind: &FieldKind) -> FieldValue {
                     .unwrap_or(FieldValue::None)
             }
         }
-        FieldKind::Bool | FieldKind::ComboBox { .. } => FieldValue::None,
+        FieldKind::Bool | FieldKind::ComboBox { .. } | FieldKind::Color => FieldValue::None,
     }
 }
 
@@ -270,6 +312,9 @@ fn reflect_to_field_value(value: &dyn PartialReflect, kind: &FieldKind) -> Field
     }
     if let Some(v) = value.try_downcast_ref::<Option<u32>>() {
         return FieldValue::OptionalU32(*v);
+    }
+    if let Some(v) = value.try_downcast_ref::<[f32; 4]>() {
+        return FieldValue::Color(*v);
     }
     if let ReflectRef::Enum(enum_ref) = value.reflect_ref() {
         return FieldValue::U32(enum_ref.variant_index() as u32);
@@ -316,6 +361,14 @@ fn apply_field_value_to_reflect(target: &mut dyn PartialReflect, value: &FieldVa
             if let Some(field) = target.try_downcast_mut::<Vec3>() {
                 if (*field - *v).length() > f32::EPSILON {
                     *field = *v;
+                    return true;
+                }
+            }
+        }
+        FieldValue::Color(c) => {
+            if let Some(field) = target.try_downcast_mut::<[f32; 4]>() {
+                if *field != *c {
+                    *field = *c;
                     return true;
                 }
             }
@@ -435,6 +488,7 @@ impl From<&VariantFieldKind> for FieldKind {
             VariantFieldKind::ComboBox { options } => FieldKind::ComboBox {
                 options: options.clone(),
             },
+            VariantFieldKind::Color => FieldKind::Color,
         }
     }
 }
@@ -446,32 +500,19 @@ fn bind_variant_edits(
     new_variant_edits: Query<Entity, Added<EditorVariantEdit>>,
     mut last_bound_emitter: Local<Option<u8>>,
 ) {
-    let inspecting = match &editor_state.inspecting {
-        Some(i) if i.kind == Inspectable::Emitter => i,
-        _ => {
-            *last_bound_emitter = None;
-            return;
-        }
+    let Some((index, emitter)) = get_inspecting_emitter(&editor_state, &assets) else {
+        *last_bound_emitter = None;
+        return;
     };
 
-    let emitter_changed = *last_bound_emitter != Some(inspecting.index);
+    let emitter_changed = *last_bound_emitter != Some(index);
     let has_new_variant_edits = !new_variant_edits.is_empty();
 
     if !emitter_changed && !has_new_variant_edits {
         return;
     }
 
-    let Some(handle) = &editor_state.current_project else {
-        return;
-    };
-    let Some(asset) = assets.get(handle) else {
-        return;
-    };
-    let Some(emitter) = asset.emitters.get(inspecting.index as usize) else {
-        return;
-    };
-
-    *last_bound_emitter = Some(inspecting.index);
+    *last_bound_emitter = Some(index);
 
     for (field, mut config) in &mut variant_edits {
         let Some(new_index) =
@@ -498,18 +539,7 @@ fn bind_variant_field_values(
     parents: Query<&ChildOf>,
     vector_edit_children: Query<&Children, With<EditorVectorEdit>>,
 ) {
-    let inspecting = match &editor_state.inspecting {
-        Some(i) if i.kind == Inspectable::Emitter => i,
-        _ => return,
-    };
-
-    let Some(handle) = &editor_state.current_project else {
-        return;
-    };
-    let Some(asset) = assets.get(handle) else {
-        return;
-    };
-    let Some(emitter) = asset.emitters.get(inspecting.index as usize) else {
+    let Some((_, emitter)) = get_inspecting_emitter(&editor_state, &assets) else {
         return;
     };
 
@@ -607,18 +637,7 @@ fn handle_variant_change(
         return;
     };
 
-    let inspecting = match &editor_state.inspecting {
-        Some(i) if i.kind == Inspectable::Emitter => i,
-        _ => return,
-    };
-
-    let Some(handle) = &editor_state.current_project else {
-        return;
-    };
-    let Some(asset) = assets.get_mut(handle) else {
-        return;
-    };
-    let Some(emitter) = asset.emitters.get_mut(inspecting.index as usize) else {
+    let Some((_, emitter)) = get_inspecting_emitter_mut(&editor_state, &mut assets) else {
         return;
     };
 
@@ -668,18 +687,7 @@ fn sync_variant_field_on_blur(
         return;
     };
 
-    let inspecting = match &editor_state.inspecting {
-        Some(i) if i.kind == Inspectable::Emitter => i,
-        _ => return,
-    };
-
-    let Some(handle) = &editor_state.current_project else {
-        return;
-    };
-    let Some(asset) = assets.get_mut(handle) else {
-        return;
-    };
-    let Some(emitter) = asset.emitters.get_mut(inspecting.index as usize) else {
+    let Some((_, emitter)) = get_inspecting_emitter_mut(&editor_state, &mut assets) else {
         return;
     };
 
@@ -720,7 +728,7 @@ fn sync_variant_field_on_blur(
             }
             FieldValue::Vec3(vec)
         }
-        VariantFieldKind::ComboBox { .. } => FieldValue::None,
+        VariantFieldKind::ComboBox { .. } | VariantFieldKind::Color => FieldValue::None,
     };
 
     if matches!(value, FieldValue::None) {
@@ -760,15 +768,12 @@ fn bind_values_to_inputs(
     parents: Query<&ChildOf>,
     variant_edit_query: Query<(), With<EditorVariantEdit>>,
 ) {
-    let inspecting = match &editor_state.inspecting {
-        Some(i) if i.kind == Inspectable::Emitter => i,
-        _ => {
-            bound_emitter.0 = None;
-            return;
-        }
+    let Some((index, emitter)) = get_inspecting_emitter(&editor_state, &assets) else {
+        bound_emitter.0 = None;
+        return;
     };
 
-    let emitter_changed = bound_emitter.0 != Some(inspecting.index);
+    let emitter_changed = bound_emitter.0 != Some(index);
     let has_new_checkboxes = !checkbox_set.p0().is_empty();
     let has_new_fields = !new_fields.is_empty() || !new_text_edits.is_empty();
     let should_rebind = emitter_changed || has_new_fields || has_new_checkboxes;
@@ -777,17 +782,7 @@ fn bind_values_to_inputs(
         return;
     }
 
-    let Some(handle) = &editor_state.current_project else {
-        return;
-    };
-    let Some(asset) = assets.get(handle) else {
-        return;
-    };
-    let Some(emitter) = asset.emitters.get(inspecting.index as usize) else {
-        return;
-    };
-
-    bound_emitter.0 = Some(inspecting.index);
+    bound_emitter.0 = Some(index);
 
     for (entity, child_of, mut queue) in &mut text_edits {
         let Some(field) = find_ancestor_field(child_of.parent(), &fields, &parents) else {
@@ -896,22 +891,11 @@ fn sync_input_on_blur(
         return;
     };
 
-    let inspecting = match &editor_state.inspecting {
-        Some(i) if i.kind == Inspectable::Emitter => i,
-        _ => return,
-    };
-
-    let Some(handle) = &editor_state.current_project else {
-        return;
-    };
-    let Some(asset) = assets.get_mut(handle) else {
-        return;
-    };
-    let Some(emitter) = asset.emitters.get_mut(inspecting.index as usize) else {
-        return;
-    };
-
     let Some(field) = find_ancestor_field(child_of.parent(), &fields, &parents) else {
+        return;
+    };
+
+    let Some((_, emitter)) = get_inspecting_emitter_mut(&editor_state, &mut assets) else {
         return;
     };
 
@@ -940,18 +924,7 @@ fn sync_checkbox_changes_to_asset(
     mut emitter_runtimes: Query<&mut EmitterRuntime>,
     mut last_checkbox_states: Local<HashMap<Entity, bool>>,
 ) {
-    let inspecting = match &editor_state.inspecting {
-        Some(i) if i.kind == Inspectable::Emitter => i,
-        _ => return,
-    };
-
-    let Some(handle) = &editor_state.current_project else {
-        return;
-    };
-    let Some(asset) = assets.get_mut(handle) else {
-        return;
-    };
-    let Some(emitter) = asset.emitters.get_mut(inspecting.index as usize) else {
+    let Some((_, emitter)) = get_inspecting_emitter_mut(&editor_state, &mut assets) else {
         return;
     };
 
@@ -985,18 +958,7 @@ fn sync_variant_checkbox_changes(
     mut emitter_runtimes: Query<&mut EmitterRuntime>,
     mut last_states: Local<HashMap<Entity, bool>>,
 ) {
-    let inspecting = match &editor_state.inspecting {
-        Some(i) if i.kind == Inspectable::Emitter => i,
-        _ => return,
-    };
-
-    let Some(handle) = &editor_state.current_project else {
-        return;
-    };
-    let Some(asset) = assets.get_mut(handle) else {
-        return;
-    };
-    let Some(emitter) = asset.emitters.get_mut(inspecting.index as usize) else {
+    let Some((_, emitter)) = get_inspecting_emitter_mut(&editor_state, &mut assets) else {
         return;
     };
 
@@ -1038,18 +1000,7 @@ fn handle_combobox_change(
         return;
     }
 
-    let inspecting = match &editor_state.inspecting {
-        Some(i) if i.kind == Inspectable::Emitter => i,
-        _ => return,
-    };
-
-    let Some(handle) = &editor_state.current_project else {
-        return;
-    };
-    let Some(asset) = assets.get_mut(handle) else {
-        return;
-    };
-    let Some(emitter) = asset.emitters.get_mut(inspecting.index as usize) else {
+    let Some((_, emitter)) = get_inspecting_emitter_mut(&editor_state, &mut assets) else {
         return;
     };
 
@@ -1144,4 +1095,81 @@ fn set_enum_variant_by_name(target: &mut dyn PartialReflect, variant_name: &str)
     let dynamic_enum = DynamicEnum::new(variant_name, DynamicVariant::Unit);
     target.apply(&dynamic_enum);
     true
+}
+
+fn bind_variant_color_pickers(
+    mut commands: Commands,
+    editor_state: Res<EditorState>,
+    assets: Res<Assets<ParticleSystemAsset>>,
+    mut color_pickers: Query<
+        (Entity, &mut ColorPickerState, &VariantFieldBinding),
+        (With<EditorColorPicker>, Without<ColorPickerBound>),
+    >,
+    variant_edit_configs: Query<&VariantEditConfig>,
+    trigger_swatches: Query<&TriggerSwatchMaterial>,
+) {
+    let Some((_, emitter)) = get_inspecting_emitter(&editor_state, &assets) else {
+        return;
+    };
+
+    for (picker_entity, mut picker_state, binding) in &mut color_pickers {
+        if !matches!(binding.field_kind, VariantFieldKind::Color) {
+            continue;
+        }
+
+        let trigger_ready = trigger_swatches
+            .iter()
+            .any(|swatch| swatch.0 == picker_entity);
+        if !trigger_ready {
+            continue;
+        }
+
+        let Ok(config) = variant_edit_configs.get(binding.variant_edit) else {
+            continue;
+        };
+
+        let value = get_variant_field_value_by_reflection(
+            emitter,
+            &config.path,
+            &binding.field_name,
+            &binding.field_kind,
+        );
+
+        let Some(color) = value.and_then(|v| v.to_color()) else {
+            continue;
+        };
+
+        picker_state.set_from_rgba(color);
+        commands.entity(picker_entity).insert(ColorPickerBound);
+    }
+}
+
+fn handle_variant_color_commit(
+    trigger: On<ColorPickerCommitEvent>,
+    editor_state: Res<EditorState>,
+    mut assets: ResMut<Assets<ParticleSystemAsset>>,
+    mut dirty_state: ResMut<DirtyState>,
+    color_pickers: Query<&VariantFieldBinding, With<EditorColorPicker>>,
+    variant_edit_configs: Query<&VariantEditConfig>,
+    mut emitter_runtimes: Query<&mut EmitterRuntime>,
+) {
+    let Ok(binding) = color_pickers.get(trigger.entity) else {
+        return;
+    };
+
+    let Ok(config) = variant_edit_configs.get(binding.variant_edit) else {
+        return;
+    };
+
+    let Some((_, emitter)) = get_inspecting_emitter_mut(&editor_state, &mut assets) else {
+        return;
+    };
+
+    let value = FieldValue::Color(trigger.color);
+    let changed =
+        set_variant_field_value_by_reflection(emitter, &config.path, &binding.field_name, &value);
+
+    if changed {
+        mark_dirty_and_restart(&mut dirty_state, &mut emitter_runtimes, emitter.time.fixed_seed);
+    }
 }

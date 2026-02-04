@@ -256,6 +256,7 @@ fn field_from_type_path(
         "f32" => Some(VariantField::f32(name)),
         "u32" => Some(VariantField::u32(name)),
         "bool" => Some(VariantField::bool(name)),
+        "[f32; 4]" => Some(VariantField::color(name)),
         path if path.contains("Vec3") => {
             Some(VariantField::vec3(name, suffixes.unwrap_or(VectorSuffixes::XYZ)))
         }
