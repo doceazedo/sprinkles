@@ -5,6 +5,12 @@ use crate::ui::tokens::{BORDER_COLOR, FONT_PATH, TEXT_BODY_COLOR, TEXT_SIZE};
 
 const ICON_CHECK: &str = "icons/ri-check-fill.png";
 
+#[derive(Event)]
+pub struct CheckboxCommitEvent {
+    pub entity: Entity,
+    pub checked: bool,
+}
+
 pub fn plugin(app: &mut App) {
     app.add_systems(
         Update,
@@ -126,19 +132,25 @@ fn handle_checkbox_hover(
 }
 
 fn handle_checkbox_click(
+    mut commands: Commands,
     mut checkboxes: Query<
-        (&Interaction, &mut CheckboxState, &Children),
+        (Entity, &Interaction, &mut CheckboxState, &Children),
         (Changed<Interaction>, With<EditorCheckbox>),
     >,
     boxes: Query<&Children, With<CheckboxBox>>,
     mut icons: Query<&mut Node, With<CheckboxIcon>>,
 ) {
-    for (interaction, mut state, checkbox_children) in &mut checkboxes {
+    for (checkbox_entity, interaction, mut state, checkbox_children) in &mut checkboxes {
         if *interaction != Interaction::Pressed {
             continue;
         }
 
         state.checked = !state.checked;
+
+        commands.trigger(CheckboxCommitEvent {
+            entity: checkbox_entity,
+            checked: state.checked,
+        });
 
         let Some(&box_entity) = checkbox_children.first() else {
             continue;

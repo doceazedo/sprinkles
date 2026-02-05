@@ -15,6 +15,12 @@ use crate::ui::tokens::{
 };
 
 const DEFAULT_DRAG_ICON: &str = "icons/ri-expand-horizontal-s-line.png";
+
+#[derive(Event)]
+pub struct TextEditCommitEvent {
+    pub entity: Entity,
+    pub text: String,
+}
 const INPUT_HEIGHT: f32 = 28.0;
 const AFFIX_SIZE: u64 = 16;
 
@@ -554,6 +560,7 @@ fn handle_unfocus(
 }
 
 fn handle_clamp_on_unfocus(
+    mut commands: Commands,
     focus: Res<InputFocus>,
     mut prev_focus: Local<Option<Entity>>,
     mut text_edits: Query<
@@ -581,11 +588,19 @@ fn handle_clamp_on_unfocus(
     else {
         return;
     };
+
+    let text = strip_suffix(&buffer.get_text(), suffix);
+
+    // emit commit event for all text edits on blur
+    commands.trigger(TextEditCommitEvent {
+        entity: was_focused,
+        text: text.clone(),
+    });
+
     if !variant.is_numeric() {
         return;
     }
 
-    let text = strip_suffix(&buffer.get_text(), suffix);
     if text.is_empty() && allow_empty.is_some() {
         return;
     }
