@@ -22,10 +22,17 @@ impl VectorSuffixes {
         }
     }
 
-    fn size(&self) -> f32 {
+    fn text_size(&self) -> f32 {
         match self {
             Self::Range => TEXT_SIZE_SM,
             _ => TEXT_SIZE,
+        }
+    }
+
+    pub fn vector_size(&self) -> VectorSize {
+        match self {
+            Self::Range => VectorSize::Vec2,
+            Self::XYZ | Self::WHD => VectorSize::Vec3,
         }
     }
 }
@@ -38,7 +45,7 @@ pub enum VectorSize {
 }
 
 impl VectorSize {
-    fn count(&self) -> usize {
+    pub fn count(&self) -> usize {
         match self {
             Self::Vec2 => 2,
             Self::Vec3 => 3,
@@ -111,7 +118,7 @@ pub fn vector_edit(props: VectorEditProps) -> impl Bundle {
                     .numeric_f32()
                     .with_prefix(TextEditPrefix::Label {
                         label: suffixes.get(i).to_string(),
-                        size: suffixes.size(),
+                        size: suffixes.text_size(),
                     });
 
             if i == 0 {

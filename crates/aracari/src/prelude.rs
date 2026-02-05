@@ -15,7 +15,7 @@ pub use crate::asset::{
     Gradient as ParticleGradient, GradientInterpolation, GradientStop, ParticleFlags,
     ParticleMesh, ParticleSystemAsset, ParticleSystemDimension, ParticlesColliderShape3D,
     QuadOrientation, Range as ParticleRange, SerializableAlphaMode, SolidOrGradientColor,
-    CurveConfig, CurveEasing, CurveMode, CurvePoint, CurveTexture, StandardParticleMaterial,
+    CurveEasing, CurveMode, CurvePoint, CurveTexture, StandardParticleMaterial,
 };
 
 // runtime types

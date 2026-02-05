@@ -243,7 +243,7 @@ pub fn field_from_type_path(
         "bool" => Some(FieldDef::bool(name)),
         "[f32; 4]" => Some(FieldDef::color(name)),
         path if path.contains("Vec3") => {
-            Some(FieldDef::vec3(name, suffixes.unwrap_or(VectorSuffixes::XYZ)))
+            Some(FieldDef::vector(name, suffixes.unwrap_or(VectorSuffixes::XYZ)))
         }
         _ => None,
     }

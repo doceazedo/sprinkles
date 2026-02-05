@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 use super::checkbox::{CheckboxProps, checkbox};
 use super::combobox::{ComboBoxOptionData, combobox};
+use super::curve_edit::{CurveEditProps, curve_edit};
 use super::text_edit::{TextEditPrefix, TextEditProps, text_edit};
 use super::vector_edit::{VectorEditProps, VectorSuffixes, vector_edit};
 use crate::ui::components::inspector::binding::Field;
@@ -63,8 +64,13 @@ impl InspectorFieldProps {
         self
     }
 
-    pub fn vec3(mut self, suffixes: VectorSuffixes) -> Self {
-        self.kind = FieldKind::Vec3(suffixes);
+    pub fn vector(mut self, suffixes: VectorSuffixes) -> Self {
+        self.kind = FieldKind::Vector(suffixes);
+        self
+    }
+
+    pub fn curve(mut self) -> Self {
+        self.kind = FieldKind::Curve;
         self
     }
 
@@ -166,10 +172,23 @@ pub fn spawn_inspector_field(
         return;
     }
 
-    if let FieldKind::Vec3(suffixes) = props.kind {
+    if let FieldKind::Vector(suffixes) = props.kind {
         spawner.spawn((
             field,
-            vector_edit(VectorEditProps::default().with_label(label).with_suffixes(suffixes)),
+            vector_edit(
+                VectorEditProps::default()
+                    .with_label(label)
+                    .with_size(suffixes.vector_size())
+                    .with_suffixes(suffixes),
+            ),
+        ));
+        return;
+    }
+
+    if props.kind == FieldKind::Curve {
+        spawner.spawn((
+            field,
+            curve_edit(CurveEditProps::new().with_label(label)),
         ));
         return;
     }

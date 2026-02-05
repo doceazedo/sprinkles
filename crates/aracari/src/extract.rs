@@ -134,7 +134,7 @@ pub struct EmitterUniforms {
     pub scale_min: f32,
     pub scale_max: f32,
 
-    pub scale_curve: CurveUniform,
+    pub scale_over_lifetime: CurveUniform,
 
     pub use_initial_color_gradient: u32,
     pub turbulence_enabled: u32,
@@ -191,7 +191,7 @@ pub struct ExtractedEmitterData {
     pub camera_forward: [f32; 3],
     pub emitter_transform: Mat4,
     pub gradient_texture_handle: Option<Handle<Image>>,
-    pub curve_texture_handle: Option<Handle<Image>>,
+    pub scale_over_lifetime_texture_handle: Option<Handle<Image>>,
     pub alpha_curve_texture_handle: Option<Handle<Image>>,
     pub emission_curve_texture_handle: Option<Handle<Image>>,
     pub turbulence_influence_curve_texture_handle: Option<Handle<Image>>,
@@ -330,9 +330,9 @@ pub fn extract_particle_systems(
             scale_min: emitter.scale.range.min,
             scale_max: emitter.scale.range.max,
 
-            scale_curve: match &emitter.scale.curve {
+            scale_over_lifetime: match &emitter.scale.scale_over_lifetime {
                 Some(c) if !c.is_constant() => {
-                    CurveUniform::enabled(c.min_value, c.max_value)
+                    CurveUniform::enabled(c.range.min, c.range.max)
                 }
                 _ => CurveUniform::disabled(),
             },
@@ -352,13 +352,13 @@ pub fn extract_particle_systems(
 
             alpha_curve: match &emitter.colors.alpha_curve {
                 Some(c) if !c.is_constant() => {
-                    CurveUniform::enabled(c.min_value, c.max_value)
+                    CurveUniform::enabled(c.range.min, c.range.max)
                 }
                 _ => CurveUniform::disabled(),
             },
             emission_curve: match &emitter.colors.emission_curve {
                 Some(c) if !c.is_constant() => {
-                    CurveUniform::enabled(c.min_value, c.max_value)
+                    CurveUniform::enabled(c.range.min, c.range.max)
                 }
                 _ => CurveUniform::disabled(),
             },
@@ -375,7 +375,7 @@ pub fn extract_particle_systems(
                 .and_then(|t| t.influence_curve.as_ref())
                 .filter(|c| !c.is_constant())
                 .map_or(CurveUniform::disabled(), |c| {
-                    CurveUniform::enabled(c.min_value, c.max_value)
+                    CurveUniform::enabled(c.range.min, c.range.max)
                 }),
 
             radial_velocity: AnimatedVelocityUniform {
@@ -385,7 +385,7 @@ pub fn extract_particle_systems(
                 _pad1: 0.0,
                 curve: match &emitter.velocities.radial_velocity.curve {
                     Some(c) if !c.is_constant() => {
-                        CurveUniform::enabled(c.min_value, c.max_value)
+                        CurveUniform::enabled(c.range.min, c.range.max)
                     }
                     _ => CurveUniform::disabled(),
                 },
@@ -432,31 +432,31 @@ pub fn extract_particle_systems(
             SolidOrGradientColor::Solid { .. } => None,
         };
 
-        let curve_texture_handle = emitter
+        let scale_over_lifetime_texture_handle = emitter
             .scale
-            .curve
+            .scale_over_lifetime
             .as_ref()
             .filter(|c| !c.is_constant())
-            .and_then(|c| curve_cache.get(&c.curve));
+            .and_then(|c| curve_cache.get(c));
 
         let alpha_curve_texture_handle = emitter
             .colors
             .alpha_curve
             .as_ref()
             .filter(|c| !c.is_constant())
-            .and_then(|c| curve_cache.get(&c.curve));
+            .and_then(|c| curve_cache.get(c));
 
         let emission_curve_texture_handle = emitter
             .colors
             .emission_curve
             .as_ref()
             .filter(|c| !c.is_constant())
-            .and_then(|c| curve_cache.get(&c.curve));
+            .and_then(|c| curve_cache.get(c));
 
         let turbulence_influence_curve_texture_handle = turbulence
             .and_then(|t| t.influence_curve.as_ref())
             .filter(|c| !c.is_constant())
-            .and_then(|c| curve_cache.get(&c.curve));
+            .and_then(|c| curve_cache.get(c));
 
         let radial_velocity_curve_texture_handle = emitter
             .velocities
@@ -464,7 +464,7 @@ pub fn extract_particle_systems(
             .curve
             .as_ref()
             .filter(|c| !c.is_constant())
-            .and_then(|c| curve_cache.get(&c.curve));
+            .and_then(|c| curve_cache.get(c));
 
         extracted.emitters.push((
             entity,
@@ -479,7 +479,7 @@ pub fn extract_particle_systems(
                 camera_forward: camera_forward.into(),
                 emitter_transform: global_transform.to_matrix(),
                 gradient_texture_handle,
-                curve_texture_handle,
+                scale_over_lifetime_texture_handle,
                 alpha_curve_texture_handle,
                 emission_curve_texture_handle,
                 turbulence_influence_curve_texture_handle,

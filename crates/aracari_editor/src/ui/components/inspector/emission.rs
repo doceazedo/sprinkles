@@ -17,12 +17,12 @@ pub fn emission_section(asset_server: &AssetServer) -> impl Bundle {
             vec![
                 vec![
                     InspectorFieldProps::new("emission.offset")
-                        .vec3(VectorSuffixes::XYZ)
+                        .vector(VectorSuffixes::XYZ)
                         .into(),
                 ],
                 vec![
                     InspectorFieldProps::new("emission.scale")
-                        .vec3(VectorSuffixes::XYZ)
+                        .vector(VectorSuffixes::XYZ)
                         .into(),
                 ],
                 vec![InspectorItem::Variant {

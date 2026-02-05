@@ -1,6 +1,7 @@
 pub mod binding;
 mod draw_pass;
 mod emission;
+mod scale;
 mod time;
 pub mod types;
 pub mod utils;
@@ -18,14 +19,13 @@ use crate::ui::widgets::checkbox::{CheckboxProps, checkbox};
 use crate::ui::widgets::inspector_field::{InspectorFieldProps, fields_row, spawn_inspector_field};
 use crate::ui::widgets::panel::{PanelDirection, PanelProps, panel, panel_resize_handle, panel_scrollbar};
 use crate::ui::widgets::panel_section::{PanelSectionProps, PanelSectionSize, panel_section};
-use crate::ui::widgets::curve_edit::{CurveEditProps, curve_edit};
 use crate::ui::widgets::variant_edit::{VariantEditProps, variant_edit};
 
 use binding::Field;
 
 pub fn plugin(app: &mut App) {
-    app.add_plugins((binding::plugin, time::plugin, emission::plugin, draw_pass::plugin))
-        .add_systems(Update, (setup_inspector_panel, update_panel_title, setup_inspector_section_fields, setup_curve_test_section));
+    app.add_plugins((binding::plugin, time::plugin, emission::plugin, draw_pass::plugin, scale::plugin))
+        .add_systems(Update, (setup_inspector_panel, update_panel_title, setup_inspector_section_fields));
 }
 
 #[derive(Component)]
@@ -78,7 +78,7 @@ fn setup_inspector_panel(
                         content.spawn(time::time_section(&asset_server));
                         content.spawn(draw_pass::draw_pass_section(&asset_server));
                         content.spawn(emission::emission_section(&asset_server));
-                        content.spawn(curve_test_section(&asset_server));
+                        content.spawn(scale::scale_section(&asset_server));
                     });
             });
     }
@@ -208,37 +208,6 @@ fn setup_inspector_section_fields(
                 });
             }
         });
-    }
-}
-
-#[derive(Component)]
-struct CurveTestSection {
-    initialized: bool,
-}
-
-fn curve_test_section(asset_server: &AssetServer) -> impl Bundle {
-    (
-        CurveTestSection { initialized: false },
-        panel_section(
-            PanelSectionProps::new("Curve Test")
-                .collapsible()
-                .with_size(PanelSectionSize::XL),
-            asset_server,
-        ),
-    )
-}
-
-fn setup_curve_test_section(
-    mut commands: Commands,
-    mut sections: Query<(Entity, &mut CurveTestSection)>,
-) {
-    for (entity, mut section) in &mut sections {
-        if section.initialized {
-            continue;
-        }
-        section.initialized = true;
-
-        commands.entity(entity).with_child(curve_edit(CurveEditProps::new()));
     }
 }
 

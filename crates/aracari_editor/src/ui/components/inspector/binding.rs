@@ -16,6 +16,7 @@ use crate::ui::widgets::color_picker::{
     ColorPickerCommitEvent, ColorPickerState, EditorColorPicker, TriggerSwatchMaterial,
 };
 use crate::ui::widgets::combobox::ComboBoxChangeEvent;
+use crate::ui::widgets::curve_edit::{CurveEditCommitEvent, CurveEditState, EditorCurveEdit};
 use crate::ui::widgets::text_edit::EditorTextEdit;
 use crate::ui::widgets::variant_edit::{
     EditorVariantEdit, VariantComboBox, VariantDefinition, VariantEditConfig, VariantFieldBinding,
@@ -77,10 +78,12 @@ pub fn plugin(app: &mut App) {
         .add_observer(handle_variant_change)
         .add_observer(handle_combobox_change)
         .add_observer(handle_variant_color_commit)
+        .add_observer(handle_curve_edit_commit)
         .add_systems(
             Update,
             (
                 bind_values_to_inputs,
+                bind_curve_edit_values,
                 bind_variant_edits,
                 bind_variant_field_values,
                 bind_variant_color_pickers,
@@ -113,6 +116,9 @@ struct VariantFieldBound;
 
 #[derive(Component)]
 struct ColorPickerBound;
+
+#[derive(Component)]
+struct CurveEditBound;
 
 impl Field {
     pub fn new(path: impl Into<String>) -> Self {
@@ -149,6 +155,7 @@ enum FieldValue {
     OptionalU32(Option<u32>),
     Bool(bool),
     Vec3(Vec3),
+    Range(f32, f32),
     Color([f32; 4]),
 }
 
@@ -282,9 +289,11 @@ fn parse_field_value(text: &str, kind: &FieldKind) -> FieldValue {
                     .unwrap_or(FieldValue::None)
             }
         }
-        FieldKind::Bool | FieldKind::Vec3(_) | FieldKind::ComboBox { .. } | FieldKind::Color => {
-            FieldValue::None
-        }
+        FieldKind::Bool
+        | FieldKind::Vector(_)
+        | FieldKind::ComboBox { .. }
+        | FieldKind::Color
+        | FieldKind::Curve => FieldValue::None,
     }
 }
 
@@ -306,6 +315,9 @@ fn reflect_to_field_value(value: &dyn PartialReflect, kind: &FieldKind) -> Field
     }
     if let Some(v) = value.try_downcast_ref::<[f32; 4]>() {
         return FieldValue::Color(*v);
+    }
+    if let Some(v) = value.try_downcast_ref::<ParticleRange>() {
+        return FieldValue::Range(v.min, v.max);
     }
     if let ReflectRef::Enum(enum_ref) = value.reflect_ref() {
         return FieldValue::U32(enum_ref.variant_index() as u32);
@@ -352,6 +364,16 @@ fn apply_field_value_to_reflect(target: &mut dyn PartialReflect, value: &FieldVa
             if let Some(field) = target.try_downcast_mut::<Vec3>() {
                 if (*field - *v).length() > f32::EPSILON {
                     *field = *v;
+                    return true;
+                }
+            }
+        }
+        FieldValue::Range(min, max) => {
+            if let Some(field) = target.try_downcast_mut::<ParticleRange>() {
+                if (field.min - min).abs() > f32::EPSILON || (field.max - max).abs() > f32::EPSILON
+                {
+                    field.min = *min;
+                    field.max = *max;
                     return true;
                 }
             }
@@ -678,11 +700,11 @@ fn sync_variant_field_on_blur(
             .map(FieldValue::U32)
             .unwrap_or(FieldValue::None),
         FieldKind::Bool => FieldValue::None,
-        FieldKind::Vec3(suffixes) => {
+        FieldKind::Vector(suffixes) => {
             let Ok(vec_children) = vector_edits.get(binding_entity) else {
                 return;
             };
-            let kind = FieldKind::Vec3(*suffixes);
+            let kind = FieldKind::Vector(*suffixes);
             let Some(FieldValue::Vec3(mut vec)) = get_variant_field_value_by_reflection(
                 emitter,
                 &config.path,
@@ -702,7 +724,9 @@ fn sync_variant_field_on_blur(
             }
             FieldValue::Vec3(vec)
         }
-        FieldKind::ComboBox { .. } | FieldKind::Color => FieldValue::None,
+        FieldKind::ComboBox { .. } | FieldKind::Color | FieldKind::Curve => {
+            FieldValue::None
+        }
     };
 
     if matches!(value, FieldValue::None) {
@@ -768,12 +792,10 @@ fn bind_values_to_inputs(
             continue;
         }
 
-        // handle Vec3 fields by finding the component index
-        if let FieldKind::Vec3(_) = &field.kind {
+        // handle Vector fields by finding the component index
+        if let FieldKind::Vector(suffixes) = &field.kind {
             let value = get_field_value_by_reflection(emitter, &field.path, &field.kind);
-            let Some(vec) = value.to_vec3() else {
-                continue;
-            };
+            let component_count = suffixes.vector_size().count();
 
             // find the vector edit ancestor and determine component index
             if let Some(vec_edit_entity) =
@@ -782,12 +804,23 @@ fn bind_values_to_inputs(
                 })
             {
                 if let Ok(vec_children) = vector_edit_children.get(vec_edit_entity) {
-                    for (idx, vec_child) in vec_children.iter().enumerate().take(3) {
+                    for (idx, vec_child) in vec_children.iter().enumerate().take(component_count) {
                         if find_ancestor_entity(child_of.parent(), vec_child, &parents) {
-                            let text = format_f32(get_vec3_component(vec, idx));
-                            queue.add(TextInputAction::Edit(TextInputEdit::SelectAll));
-                            queue.add(TextInputAction::Edit(TextInputEdit::Paste(text)));
-                            commands.entity(entity).insert(FieldBound);
+                            let component_value = match &value {
+                                FieldValue::Vec3(vec) => Some(get_vec3_component(*vec, idx)),
+                                FieldValue::Range(min, max) => match idx {
+                                    0 => Some(*min),
+                                    1 => Some(*max),
+                                    _ => None,
+                                },
+                                _ => None,
+                            };
+                            if let Some(v) = component_value {
+                                let text = format_f32(v);
+                                queue.add(TextInputAction::Edit(TextInputEdit::SelectAll));
+                                queue.add(TextInputAction::Edit(TextInputEdit::Paste(text)));
+                                commands.entity(entity).insert(FieldBound);
+                            }
                             break;
                         }
                     }
@@ -905,12 +938,10 @@ fn sync_input_on_blur(
 
     let text = buffer.get_text();
 
-    // handle Vec3 fields
-    if let FieldKind::Vec3(_) = &field.kind {
+    // handle Vector fields
+    if let FieldKind::Vector(suffixes) = &field.kind {
         let current_value = get_field_value_by_reflection(emitter, &field.path, &field.kind);
-        let Some(mut vec) = current_value.to_vec3() else {
-            return;
-        };
+        let component_count = suffixes.vector_size().count();
 
         // find which component this text input belongs to
         let vec_edit_entity = find_ancestor(child_of.parent(), &parents, MAX_ANCESTOR_DEPTH, |e| {
@@ -924,7 +955,7 @@ fn sync_input_on_blur(
         };
 
         let mut component_idx = None;
-        for (idx, vec_child) in vec_children.iter().enumerate().take(3) {
+        for (idx, vec_child) in vec_children.iter().enumerate().take(component_count) {
             if find_ancestor_entity(child_of.parent(), vec_child, &parents) {
                 component_idx = Some(idx);
                 break;
@@ -935,16 +966,29 @@ fn sync_input_on_blur(
             return;
         };
 
-        if let Ok(v) = text.trim().parse::<f32>() {
-            set_vec3_component(&mut vec, idx, v);
-            let value = FieldValue::Vec3(vec);
-            if set_field_value_by_reflection(emitter, &field.path, &value) {
-                mark_dirty_and_restart(
-                    &mut dirty_state,
-                    &mut emitter_runtimes,
-                    emitter.time.fixed_seed,
-                );
+        let Ok(v) = text.trim().parse::<f32>() else {
+            return;
+        };
+
+        let new_value = match current_value {
+            FieldValue::Vec3(mut vec) => {
+                set_vec3_component(&mut vec, idx, v);
+                FieldValue::Vec3(vec)
             }
+            FieldValue::Range(min, max) => match idx {
+                0 => FieldValue::Range(v, max),
+                1 => FieldValue::Range(min, v),
+                _ => return,
+            },
+            _ => return,
+        };
+
+        if set_field_value_by_reflection(emitter, &field.path, &new_value) {
+            mark_dirty_and_restart(
+                &mut dirty_state,
+                &mut emitter_runtimes,
+                emitter.time.fixed_seed,
+            );
         }
         return;
     }
@@ -1219,6 +1263,118 @@ fn handle_variant_color_commit(
         set_variant_field_value_by_reflection(emitter, &config.path, &binding.field_name, &value);
 
     if changed {
+        mark_dirty_and_restart(&mut dirty_state, &mut emitter_runtimes, emitter.time.fixed_seed);
+    }
+}
+
+fn bind_curve_edit_values(
+    mut commands: Commands,
+    editor_state: Res<EditorState>,
+    assets: Res<Assets<ParticleSystemAsset>>,
+    new_curve_edits: Query<Entity, Added<EditorCurveEdit>>,
+    mut curve_edits: Query<(Entity, Option<&ChildOf>, &mut CurveEditState), With<EditorCurveEdit>>,
+    fields: Query<&Field>,
+    parents: Query<&ChildOf>,
+    variant_edit_query: Query<(), With<EditorVariantEdit>>,
+    mut last_bound_emitter: Local<Option<u8>>,
+) {
+    let Some((index, emitter)) = get_inspecting_emitter(&editor_state, &assets) else {
+        *last_bound_emitter = None;
+        return;
+    };
+
+    let emitter_changed = *last_bound_emitter != Some(index);
+    let has_new_curve_edits = !new_curve_edits.is_empty();
+    let should_rebind = emitter_changed || has_new_curve_edits;
+
+    if !should_rebind {
+        return;
+    }
+
+    *last_bound_emitter = Some(index);
+
+    for (entity, child_of, mut state) in &mut curve_edits {
+        let Some(field) = find_field_for_entity(entity, &fields, &parents) else {
+            continue;
+        };
+
+        if let Some(child_of) = child_of {
+            if is_descendant_of_variant_edit(child_of.parent(), &variant_edit_query, &parents) {
+                continue;
+            }
+        }
+
+        if field.kind != FieldKind::Curve {
+            continue;
+        }
+
+        let reflect_path = ReflectPath::new(&field.path);
+        let Ok(value) = emitter.reflect_path(reflect_path.as_str()) else {
+            continue;
+        };
+
+        // try binding directly to CurveTexture
+        if let Some(curve_texture) = value.try_downcast_ref::<CurveTexture>() {
+            state.set_curve(curve_texture.clone());
+            commands.entity(entity).insert(CurveEditBound);
+            continue;
+        }
+
+        // try binding to Option<CurveTexture>
+        if let Some(curve_opt) = value.try_downcast_ref::<Option<CurveTexture>>() {
+            if let Some(curve) = curve_opt {
+                state.set_curve(curve.clone());
+            }
+            // mark as bound even if None so we can create the curve on commit
+            commands.entity(entity).insert(CurveEditBound);
+        }
+    }
+}
+
+fn handle_curve_edit_commit(
+    trigger: On<CurveEditCommitEvent>,
+    editor_state: Res<EditorState>,
+    mut assets: ResMut<Assets<ParticleSystemAsset>>,
+    mut dirty_state: ResMut<DirtyState>,
+    curve_edits: Query<Option<&ChildOf>, With<CurveEditBound>>,
+    fields: Query<&Field>,
+    parents: Query<&ChildOf>,
+    mut emitter_runtimes: Query<&mut EmitterRuntime>,
+) {
+    if curve_edits.get(trigger.entity).is_err() {
+        return;
+    }
+
+    let Some(field) = find_field_for_entity(trigger.entity, &fields, &parents) else {
+        return;
+    };
+
+    let Some((_, emitter)) = get_inspecting_emitter_mut(&editor_state, &mut assets) else {
+        return;
+    };
+
+    let reflect_path = ReflectPath::new(&field.path);
+    let Ok(target) = emitter.reflect_path_mut(reflect_path.as_str()) else {
+        return;
+    };
+
+    // handle direct CurveTexture binding
+    if let Some(curve_texture) = target.try_downcast_mut::<CurveTexture>() {
+        *curve_texture = trigger.curve.clone();
+        mark_dirty_and_restart(&mut dirty_state, &mut emitter_runtimes, emitter.time.fixed_seed);
+        return;
+    }
+
+    // handle Option<CurveTexture> binding
+    if let Some(curve_opt) = target.try_downcast_mut::<Option<CurveTexture>>() {
+        match curve_opt {
+            Some(curve) => {
+                *curve = trigger.curve.clone();
+            }
+            None => {
+                *curve_opt = Some(trigger.curve.clone());
+            }
+        }
         mark_dirty_and_restart(&mut dirty_state, &mut emitter_runtimes, emitter.time.fixed_seed);
     }
 }

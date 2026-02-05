@@ -682,12 +682,13 @@ fn spawn_field_widget(
             .spawn((binding, checkbox(CheckboxProps::new(label), asset_server)))
             .id(),
 
-        FieldKind::Vec3(suffixes) => commands
+        FieldKind::Vector(suffixes) => commands
             .spawn((
                 binding,
                 vector_edit(
                     VectorEditProps::default()
                         .with_label(label)
+                        .with_size(suffixes.vector_size())
                         .with_suffixes(*suffixes),
                 ),
             ))
@@ -702,6 +703,9 @@ fn spawn_field_widget(
         FieldKind::Color => {
             spawn_labeled_field(commands, asset_server, &label, binding, color_picker(ColorPickerProps::new()))
         }
+
+        // not expected in variant fields
+        FieldKind::Curve => commands.spawn_empty().id(),
     }
 }
 

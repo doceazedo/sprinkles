@@ -68,7 +68,7 @@ struct EmitterParams {
     scale_min: f32,
     scale_max: f32,
 
-    scale_curve: CurveUniform,
+    scale_over_lifetime: CurveUniform,
 
     use_initial_color_gradient: u32,
     turbulence_enabled: u32,
@@ -136,8 +136,8 @@ const COLLISION_EPSILON: f32 = 0.001;
 @group(0) @binding(1) var<storage, read_write> particles: array<Particle>;
 @group(0) @binding(2) var gradient_texture: texture_2d<f32>;
 @group(0) @binding(3) var gradient_sampler: sampler;
-@group(0) @binding(4) var curve_texture: texture_2d<f32>;
-@group(0) @binding(5) var curve_sampler: sampler;
+@group(0) @binding(4) var scale_over_lifetime_texture: texture_2d<f32>;
+@group(0) @binding(5) var scale_over_lifetime_sampler: sampler;
 @group(0) @binding(6) var alpha_curve_texture: texture_2d<f32>;
 @group(0) @binding(7) var alpha_curve_sampler: sampler;
 @group(0) @binding(8) var emission_curve_texture: texture_2d<f32>;
@@ -488,14 +488,14 @@ fn get_turbulence_influence_at_lifetime(base_influence: f32, age: f32, lifetime:
 }
 
 fn get_scale_at_lifetime(initial_scale: f32, age: f32, lifetime: f32) -> f32 {
-    if (params.scale_curve.enabled == 0u) {
+    if (params.scale_over_lifetime.enabled == 0u) {
         return initial_scale;
     }
     let t = clamp(age / lifetime, 0.0, 1.0);
     let curve_value = sample_spline_curve(
-        curve_texture,
-        curve_sampler,
-        params.scale_curve,
+        scale_over_lifetime_texture,
+        scale_over_lifetime_sampler,
+        params.scale_over_lifetime,
         t
     );
     return initial_scale * curve_value;

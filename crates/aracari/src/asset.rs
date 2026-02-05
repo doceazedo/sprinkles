@@ -568,15 +568,19 @@ impl DrawPassMaterial {
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Reflect)]
 pub struct Range {
-    #[serde(default, skip_serializing_if = "is_zero_f32")]
+    #[serde(default)]
     pub min: f32,
-    #[serde(default, skip_serializing_if = "is_zero_f32")]
+    #[serde(default = "default_one_f32")]
     pub max: f32,
+}
+
+fn default_one_f32() -> f32 {
+    1.0
 }
 
 impl Default for Range {
     fn default() -> Self {
-        Self { min: 0.0, max: 0.0 }
+        Self { min: 0.0, max: 1.0 }
     }
 }
 
@@ -596,6 +600,10 @@ impl Range {
 
     fn is_zero(&self) -> bool {
         self.min == 0.0 && self.max == 0.0
+    }
+
+    fn zero() -> Self {
+        Self { min: 0.0, max: 0.0 }
     }
 }
 
@@ -666,14 +674,14 @@ pub struct EmitterScale {
     #[serde(default = "default_scale_range")]
     pub range: Range,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub curve: Option<CurveConfig>,
+    pub scale_over_lifetime: Option<CurveTexture>,
 }
 
 impl Default for EmitterScale {
     fn default() -> Self {
         Self {
             range: default_scale_range(),
-            curve: None,
+            scale_over_lifetime: None,
         }
     }
 }
@@ -683,9 +691,9 @@ pub struct EmitterColors {
     #[serde(default)]
     pub initial_color: SolidOrGradientColor,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub alpha_curve: Option<CurveConfig>,
+    pub alpha_curve: Option<CurveTexture>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub emission_curve: Option<CurveConfig>,
+    pub emission_curve: Option<CurveTexture>,
 }
 
 impl Default for EmitterColors {
@@ -708,16 +716,16 @@ fn default_spread() -> f32 {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct AnimatedVelocity {
-    #[serde(default, skip_serializing_if = "Range::is_zero")]
+    #[serde(default = "Range::zero", skip_serializing_if = "Range::is_zero")]
     pub value: Range,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub curve: Option<CurveConfig>,
+    pub curve: Option<CurveTexture>,
 }
 
 impl Default for AnimatedVelocity {
     fn default() -> Self {
         Self {
-            value: Range::default(),
+            value: Range::zero(),
             curve: None,
         }
     }
@@ -731,7 +739,7 @@ pub struct EmitterVelocities {
     pub spread: f32,
     #[serde(default, skip_serializing_if = "is_zero_f32")]
     pub flatness: f32,
-    #[serde(default, skip_serializing_if = "Range::is_zero")]
+    #[serde(default = "Range::zero", skip_serializing_if = "Range::is_zero")]
     pub initial_velocity: Range,
     #[serde(default)]
     pub radial_velocity: AnimatedVelocity,
@@ -747,7 +755,7 @@ impl Default for EmitterVelocities {
             direction: Vec3::X,
             spread: 45.0,
             flatness: 0.0,
-            initial_velocity: Range::default(),
+            initial_velocity: Range::zero(),
             radial_velocity: AnimatedVelocity::default(),
             velocity_pivot: Vec3::ZERO,
             inherit_velocity_ratio: 0.0,
@@ -800,7 +808,7 @@ pub struct EmitterTurbulence {
     #[serde(default = "default_turbulence_influence")]
     pub influence: Range,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub influence_curve: Option<CurveConfig>,
+    pub influence_curve: Option<CurveTexture>,
 }
 
 impl Default for EmitterTurbulence {
@@ -1142,42 +1150,6 @@ fn tension_to_steps(tension: f32) -> u32 {
     2 + (64.0 * tension) as u32
 }
 
-fn default_curve_min() -> f32 {
-    0.0
-}
-
-fn default_curve_max() -> f32 {
-    1.0
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
-pub struct CurveConfig {
-    pub curve: CurveTexture,
-    #[serde(default = "default_curve_min")]
-    pub min_value: f32,
-    #[serde(default = "default_curve_max")]
-    pub max_value: f32,
-}
-
-impl Default for CurveConfig {
-    fn default() -> Self {
-        Self {
-            curve: CurveTexture::default(),
-            min_value: 0.0,
-            max_value: 1.0,
-        }
-    }
-}
-
-impl CurveConfig {
-    pub fn is_constant(&self) -> bool {
-        self.curve.is_constant()
-    }
-
-    pub fn cache_key(&self) -> u64 {
-        self.curve.cache_key()
-    }
-}
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq, Hash, Reflect)]
 pub enum GradientInterpolation {

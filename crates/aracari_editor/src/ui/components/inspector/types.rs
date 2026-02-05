@@ -9,9 +9,10 @@ pub enum FieldKind {
     U32OrEmpty,
     OptionalU32,
     Bool,
-    Vec3(VectorSuffixes),
+    Vector(VectorSuffixes),
     ComboBox { options: Vec<String> },
     Color,
+    Curve,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -58,8 +59,8 @@ impl FieldDef {
         Self::new(name).with_kind(FieldKind::Bool)
     }
 
-    pub fn vec3(name: impl Into<String>, suffixes: VectorSuffixes) -> Self {
-        Self::new(name).with_kind(FieldKind::Vec3(suffixes))
+    pub fn vector(name: impl Into<String>, suffixes: VectorSuffixes) -> Self {
+        Self::new(name).with_kind(FieldKind::Vector(suffixes))
     }
 
     pub fn combobox(name: impl Into<String>, options: Vec<impl Into<String>>) -> Self {

@@ -177,8 +177,8 @@ pub fn prepare_particle_compute_bind_groups(
             .and_then(|h| gpu_images.get(h))
             .or(fallback_gradient_gpu_image);
 
-        let curve_gpu_image = emitter_data
-            .curve_texture_handle
+        let scale_over_lifetime_gpu_image = emitter_data
+            .scale_over_lifetime_texture_handle
             .as_ref()
             .and_then(|h| gpu_images.get(h))
             .or(fallback_curve_gpu_image);
@@ -211,7 +211,7 @@ pub fn prepare_particle_compute_bind_groups(
             continue;
         };
 
-        let Some(curve_image) = curve_gpu_image else {
+        let Some(scale_over_lifetime_image) = scale_over_lifetime_gpu_image else {
             continue;
         };
 
@@ -251,7 +251,7 @@ pub fn prepare_particle_compute_bind_groups(
                 gpu_buffer.buffer.as_entire_binding(),
                 &gradient_image.texture_view,
                 &gradient_sampler.0,
-                &curve_image.texture_view,
+                &scale_over_lifetime_image.texture_view,
                 &curve_sampler.0,
                 &alpha_curve_image.texture_view,
                 &curve_sampler.0,

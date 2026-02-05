@@ -1366,12 +1366,18 @@ fn handle_flip_click(
 }
 
 fn sync_trigger_label(
-    states: Query<(Entity, &CurveEditState), Changed<CurveEditState>>,
-    triggers: Query<(&CurveEditTrigger, &Children)>,
+    states: Query<&CurveEditState>,
+    changed_states: Query<Entity, Changed<CurveEditState>>,
+    triggers: Query<(Entity, &CurveEditTrigger, &Children)>,
+    new_trigger_children: Query<Entity, (With<CurveEditTrigger>, Added<Children>)>,
     mut texts: Query<&mut Text>,
 ) {
-    for (curve_edit_entity, state) in &states {
-        for (trigger, children) in &triggers {
+    // sync when state changes
+    for curve_edit_entity in &changed_states {
+        let Ok(state) = states.get(curve_edit_entity) else {
+            continue;
+        };
+        for (_, trigger, children) in &triggers {
             if trigger.0 != curve_edit_entity {
                 continue;
             }
@@ -1380,6 +1386,26 @@ fn sync_trigger_label(
                     **text = state.label().to_string();
                     break;
                 }
+            }
+        }
+    }
+
+    // sync when trigger children are first available (button setup just ran)
+    for trigger_entity in &new_trigger_children {
+        let Ok((_, trigger, children)) = triggers.get(trigger_entity) else {
+            continue;
+        };
+        let curve_edit_entity = trigger.0;
+        if changed_states.get(curve_edit_entity).is_ok() {
+            continue; // already handled above
+        }
+        let Ok(state) = states.get(curve_edit_entity) else {
+            continue;
+        };
+        for child in children.iter() {
+            if let Ok(mut text) = texts.get_mut(child) {
+                **text = state.label().to_string();
+                break;
             }
         }
     }
