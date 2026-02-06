@@ -140,8 +140,16 @@ pub fn variants_from_reflect<T: Typed + Default + PartialReflect + Clone + 'stat
             }
 
             if let Some(ref default_val) = cfg.default_value {
-                if let Ok(cloned) = default_val.reflect_clone() {
-                    def = def.with_default_boxed(cloned.into_partial_reflect());
+                match default_val.reflect_clone() {
+                    Ok(cloned) => {
+                        def = def.with_default_boxed(cloned.into_partial_reflect());
+                    }
+                    Err(err) => {
+                        warn!(
+                            "variants_from_reflect: reflect_clone failed for variant '{}': {:?}",
+                            name, err
+                        );
+                    }
                 }
             }
         }
@@ -242,6 +250,9 @@ pub fn field_from_type_path(
         "u32" => Some(FieldDef::u32(name)),
         "bool" => Some(FieldDef::bool(name)),
         "[f32; 4]" => Some(FieldDef::color(name)),
+        path if path.contains("Gradient") && !path.contains("Interpolation") => {
+            Some(FieldDef::gradient(name))
+        }
         path if path.contains("Vec3") => {
             Some(FieldDef::vector(name, suffixes.unwrap_or(VectorSuffixes::XYZ)))
         }

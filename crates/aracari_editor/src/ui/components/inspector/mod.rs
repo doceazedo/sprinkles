@@ -1,4 +1,5 @@
 pub mod binding;
+mod colors;
 mod draw_pass;
 mod emission;
 mod scale;
@@ -24,7 +25,7 @@ use crate::ui::widgets::variant_edit::{VariantEditProps, variant_edit};
 use binding::Field;
 
 pub fn plugin(app: &mut App) {
-    app.add_plugins((binding::plugin, time::plugin, emission::plugin, draw_pass::plugin, scale::plugin))
+    app.add_plugins((binding::plugin, time::plugin, emission::plugin, draw_pass::plugin, scale::plugin, colors::plugin))
         .add_systems(Update, (setup_inspector_panel, update_panel_title, setup_inspector_section_fields));
 }
 
@@ -79,6 +80,7 @@ fn setup_inspector_panel(
                         content.spawn(draw_pass::draw_pass_section(&asset_server));
                         content.spawn(emission::emission_section(&asset_server));
                         content.spawn(scale::scale_section(&asset_server));
+                        content.spawn(colors::colors_section(&asset_server));
                     });
             });
     }

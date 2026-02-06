@@ -12,6 +12,7 @@ pub enum FieldKind {
     Vector(VectorSuffixes),
     ComboBox { options: Vec<String> },
     Color,
+    Gradient,
     Curve,
 }
 
@@ -71,6 +72,10 @@ impl FieldDef {
 
     pub fn color(name: impl Into<String>) -> Self {
         Self::new(name).with_kind(FieldKind::Color)
+    }
+
+    pub fn gradient(name: impl Into<String>) -> Self {
+        Self::new(name).with_kind(FieldKind::Gradient)
     }
 
     pub fn with_kind(mut self, kind: FieldKind) -> Self {

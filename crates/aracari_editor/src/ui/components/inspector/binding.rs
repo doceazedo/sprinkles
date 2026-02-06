@@ -10,13 +10,18 @@ use bevy_ui_text_input::{
 use crate::state::{DirtyState, EditorState, Inspectable};
 use crate::ui::widgets::checkbox::{CheckboxCommitEvent, CheckboxState};
 use crate::ui::widgets::color_picker::{
-    ColorPickerCommitEvent, ColorPickerState, EditorColorPicker, TriggerSwatchMaterial,
+    CheckerboardMaterial, ColorPickerChangeEvent, ColorPickerCommitEvent, ColorPickerState,
+    EditorColorPicker, TriggerSwatchMaterial,
 };
 use crate::ui::widgets::combobox::ComboBoxChangeEvent;
 use crate::ui::widgets::curve_edit::{CurveEditCommitEvent, CurveEditState, EditorCurveEdit};
+use crate::ui::widgets::gradient_edit::{
+    EditorGradientEdit, GradientEditCommitEvent, GradientEditState, GradientMaterial,
+};
 use crate::ui::widgets::text_edit::{EditorTextEdit, TextEditCommitEvent};
 use crate::ui::widgets::variant_edit::{
-    EditorVariantEdit, VariantComboBox, VariantDefinition, VariantEditConfig, VariantFieldBinding,
+    EditorVariantEdit, VariantComboBox, VariantDefinition, VariantEditConfig, VariantEditSwatchSlot,
+    VariantFieldBinding,
 };
 use crate::ui::widgets::vector_edit::EditorVectorEdit;
 
@@ -77,6 +82,8 @@ pub fn plugin(app: &mut App) {
         .add_observer(handle_combobox_change)
         .add_observer(handle_variant_color_commit)
         .add_observer(handle_curve_edit_commit)
+        .add_observer(handle_variant_gradient_commit)
+        .add_observer(sync_variant_swatch_from_color)
         .add_systems(
             Update,
             (
@@ -85,6 +92,10 @@ pub fn plugin(app: &mut App) {
                 bind_variant_edits,
                 bind_variant_field_values,
                 bind_variant_color_pickers,
+                bind_variant_gradient_edits,
+                setup_variant_swatch,
+                sync_variant_swatch_from_gradient,
+                respawn_variant_swatch_on_switch,
             ),
         );
 }
@@ -466,6 +477,7 @@ fn parse_field_value(text: &str, kind: &FieldKind) -> FieldValue {
         | FieldKind::Vector(_)
         | FieldKind::ComboBox { .. }
         | FieldKind::Color
+        | FieldKind::Gradient
         | FieldKind::Curve => FieldValue::None,
     }
 }
@@ -529,6 +541,48 @@ fn get_variant_index_by_reflection(
     variants.iter().position(|v| v.name == variant_name)
 }
 
+fn resolve_variant_field_ref<'a>(
+    value: &'a dyn PartialReflect,
+    field_name: &str,
+) -> Option<&'a dyn PartialReflect> {
+    let ReflectRef::Enum(enum_ref) = value.reflect_ref() else {
+        return None;
+    };
+    if let Some(field) = enum_ref.field(field_name) {
+        return Some(field);
+    }
+    if let Some(inner) = enum_ref.field_at(0) {
+        if let ReflectRef::Struct(struct_ref) = inner.reflect_ref() {
+            return struct_ref.field(field_name);
+        }
+    }
+    None
+}
+
+fn with_variant_field_mut<F, R>(
+    value: &mut dyn PartialReflect,
+    field_name: &str,
+    f: F,
+) -> Option<R>
+where
+    F: FnOnce(&mut dyn PartialReflect) -> R,
+{
+    let ReflectMut::Enum(enum_mut) = value.reflect_mut() else {
+        return None;
+    };
+    if let Some(field) = enum_mut.field_mut(field_name) {
+        return Some(f(field));
+    }
+    if let Some(inner) = enum_mut.field_at_mut(0) {
+        if let ReflectMut::Struct(struct_mut) = inner.reflect_mut() {
+            if let Some(field) = struct_mut.field_mut(field_name) {
+                return Some(f(field));
+            }
+        }
+    }
+    None
+}
+
 fn get_variant_field_value_by_reflection(
     emitter: &EmitterData,
     path: &str,
@@ -537,24 +591,8 @@ fn get_variant_field_value_by_reflection(
 ) -> Option<FieldValue> {
     let reflect_path = ReflectPath::new(path);
     let value = emitter.reflect_path(reflect_path.as_str()).ok()?;
-
-    let ReflectRef::Enum(enum_ref) = value.reflect_ref() else {
-        return None;
-    };
-
-    if let Some(field) = enum_ref.field(field_name) {
-        return Some(reflect_to_field_value(field, kind));
-    }
-
-    if let Some(inner) = enum_ref.field_at(0) {
-        if let ReflectRef::Struct(struct_ref) = inner.reflect_ref() {
-            if let Some(field) = struct_ref.field(field_name) {
-                return Some(reflect_to_field_value(field, kind));
-            }
-        }
-    }
-
-    None
+    let field = resolve_variant_field_ref(value, field_name)?;
+    Some(reflect_to_field_value(field, kind))
 }
 
 fn set_variant_field_value_by_reflection(
@@ -567,24 +605,10 @@ fn set_variant_field_value_by_reflection(
     let Ok(target) = emitter.reflect_path_mut(reflect_path.as_str()) else {
         return false;
     };
-
-    let ReflectMut::Enum(enum_mut) = target.reflect_mut() else {
-        return false;
-    };
-
-    if let Some(field) = enum_mut.field_mut(field_name) {
-        return apply_field_value_to_reflect(field, value);
-    }
-
-    if let Some(inner) = enum_mut.field_at_mut(0) {
-        if let ReflectMut::Struct(struct_mut) = inner.reflect_mut() {
-            if let Some(field) = struct_mut.field_mut(field_name) {
-                return apply_field_value_to_reflect(field, value);
-            }
-        }
-    }
-
-    false
+    with_variant_field_mut(target, field_name, |field| {
+        apply_field_value_to_reflect(field, value)
+    })
+    .unwrap_or(false)
 }
 
 fn create_variant_from_definition(
@@ -593,6 +617,10 @@ fn create_variant_from_definition(
     variant_def: &VariantDefinition,
 ) -> bool {
     let Some(default_value) = variant_def.create_default() else {
+        warn!(
+            "create_variant_from_definition: create_default() returned None for variant '{}' at path '{}'",
+            variant_def.name, path
+        );
         return false;
     };
 
@@ -1045,24 +1073,10 @@ fn set_variant_field_enum_by_name(
     let Ok(target) = emitter.reflect_path_mut(reflect_path.as_str()) else {
         return false;
     };
-
-    let ReflectMut::Enum(enum_mut) = target.reflect_mut() else {
-        return false;
-    };
-
-    if let Some(field) = enum_mut.field_mut(field_name) {
-        return set_enum_variant_by_name(field, variant_name);
-    }
-
-    if let Some(inner) = enum_mut.field_at_mut(0) {
-        if let ReflectMut::Struct(struct_mut) = inner.reflect_mut() {
-            if let Some(field) = struct_mut.field_mut(field_name) {
-                return set_enum_variant_by_name(field, variant_name);
-            }
-        }
-    }
-
-    false
+    with_variant_field_mut(target, field_name, |field| {
+        set_enum_variant_by_name(field, variant_name)
+    })
+    .unwrap_or(false)
 }
 
 fn set_field_enum_by_name(emitter: &mut EmitterData, path: &str, variant_name: &str) -> bool {
@@ -1470,7 +1484,7 @@ fn handle_variant_text_commit(
             }
             FieldValue::Vec3(vec)
         }
-        FieldKind::ComboBox { .. } | FieldKind::Color | FieldKind::Curve => FieldValue::None,
+        FieldKind::ComboBox { .. } | FieldKind::Color | FieldKind::Gradient | FieldKind::Curve => FieldValue::None,
     };
 
     if matches!(value, FieldValue::None) {
@@ -1529,5 +1543,303 @@ fn handle_checkbox_commit(
         if set_field_value_by_reflection(emitter, &field.path, &value) {
             mark_dirty_and_restart(&mut dirty_state, &mut emitter_runtimes, emitter.time.fixed_seed);
         }
+    }
+}
+
+fn bind_variant_gradient_edits(
+    mut commands: Commands,
+    editor_state: Res<EditorState>,
+    assets: Res<Assets<ParticleSystemAsset>>,
+    mut gradient_edits: Query<
+        (Entity, &mut GradientEditState, &VariantFieldBinding),
+        (With<EditorGradientEdit>, Without<Bound>),
+    >,
+    variant_edit_configs: Query<&VariantEditConfig>,
+) {
+    let Some((_, emitter)) = get_inspecting_emitter(&editor_state, &assets) else {
+        return;
+    };
+
+    for (entity, mut state, binding) in &mut gradient_edits {
+        if !matches!(binding.field_kind, FieldKind::Gradient) {
+            continue;
+        }
+
+        let Ok(config) = variant_edit_configs.get(binding.variant_edit) else {
+            continue;
+        };
+
+        let reflect_path = ReflectPath::new(&config.path);
+        let Ok(value) = emitter.reflect_path(reflect_path.as_str()) else {
+            continue;
+        };
+
+        let gradient = resolve_variant_field_ref(value, &binding.field_name)
+            .and_then(|f| f.try_downcast_ref::<ParticleGradient>().cloned());
+
+        if let Some(gradient) = gradient {
+            state.gradient = gradient;
+            commands
+                .entity(entity)
+                .insert(Bound::variant(entity));
+        }
+    }
+}
+
+fn handle_variant_gradient_commit(
+    trigger: On<GradientEditCommitEvent>,
+    editor_state: Res<EditorState>,
+    mut assets: ResMut<Assets<ParticleSystemAsset>>,
+    mut dirty_state: ResMut<DirtyState>,
+    gradient_edits: Query<&VariantFieldBinding, With<EditorGradientEdit>>,
+    variant_edit_configs: Query<&VariantEditConfig>,
+    mut emitter_runtimes: Query<&mut EmitterRuntime>,
+) {
+    let Ok(binding) = gradient_edits.get(trigger.entity) else {
+        return;
+    };
+
+    let Ok(config) = variant_edit_configs.get(binding.variant_edit) else {
+        return;
+    };
+
+    let Some((_, emitter)) = get_inspecting_emitter_mut(&editor_state, &mut assets) else {
+        return;
+    };
+
+    let reflect_path = ReflectPath::new(&config.path);
+    let Ok(target) = emitter.reflect_path_mut(reflect_path.as_str()) else {
+        return;
+    };
+
+    let changed = with_variant_field_mut(target, &binding.field_name, |field| {
+        field.apply(&trigger.gradient);
+    })
+    .is_some();
+
+    if changed {
+        mark_dirty_and_restart(&mut dirty_state, &mut emitter_runtimes, emitter.time.fixed_seed);
+    }
+}
+
+#[derive(Component)]
+struct VariantSwatchOwner(Entity);
+
+#[derive(Component)]
+struct SolidSwatchMaterial(Entity);
+
+#[derive(Component)]
+struct GradientSwatchNode(Entity);
+
+fn swatch_fill_node() -> Node {
+    Node {
+        position_type: PositionType::Absolute,
+        width: percent(100),
+        height: percent(100),
+        ..default()
+    }
+}
+
+fn spawn_swatch_material(
+    commands: &mut Commands,
+    variant_edit_entity: Entity,
+    color_value: &SolidOrGradientColor,
+    checkerboard_materials: &mut Assets<CheckerboardMaterial>,
+    gradient_materials: &mut Assets<GradientMaterial>,
+) -> Entity {
+    match color_value {
+        SolidOrGradientColor::Solid { color } => commands
+            .spawn((
+                SolidSwatchMaterial(variant_edit_entity),
+                MaterialNode(checkerboard_materials.add(CheckerboardMaterial {
+                    color: Vec4::new(color[0], color[1], color[2], color[3]),
+                    size: 4.0,
+                    border_radius: 4.0,
+                })),
+                swatch_fill_node(),
+            ))
+            .id(),
+        SolidOrGradientColor::Gradient { gradient } => commands
+            .spawn((
+                GradientSwatchNode(variant_edit_entity),
+                MaterialNode(gradient_materials.add(GradientMaterial::swatch(gradient))),
+                swatch_fill_node(),
+            ))
+            .id(),
+    }
+}
+
+fn setup_variant_swatch(
+    mut commands: Commands,
+    editor_state: Res<EditorState>,
+    assets: Res<Assets<ParticleSystemAsset>>,
+    swatch_slots: Query<(Entity, &VariantEditSwatchSlot), Added<VariantEditSwatchSlot>>,
+    variant_edit_configs: Query<(&VariantEditConfig, &Field), With<EditorVariantEdit>>,
+    mut checkerboard_materials: ResMut<Assets<CheckerboardMaterial>>,
+    mut gradient_materials: ResMut<Assets<GradientMaterial>>,
+) {
+    if swatch_slots.is_empty() {
+        return;
+    }
+
+    let emitter = get_inspecting_emitter(&editor_state, &assets).map(|(_, e)| e);
+
+    for (slot_entity, slot) in &swatch_slots {
+        let variant_edit_entity = slot.0;
+        let Ok((_config, field)) = variant_edit_configs.get(variant_edit_entity) else {
+            continue;
+        };
+
+        let Some(emitter) = emitter else {
+            continue;
+        };
+
+        let reflect_path = ReflectPath::new(&field.path);
+        let Ok(value) = emitter.reflect_path(reflect_path.as_str()) else {
+            continue;
+        };
+
+        let Some(color_value) = value.try_downcast_ref::<SolidOrGradientColor>() else {
+            continue;
+        };
+
+        commands
+            .entity(slot_entity)
+            .insert(VariantSwatchOwner(variant_edit_entity));
+
+        let material_entity = spawn_swatch_material(
+            &mut commands,
+            variant_edit_entity,
+            color_value,
+            &mut checkerboard_materials,
+            &mut gradient_materials,
+        );
+        commands.entity(slot_entity).add_child(material_entity);
+    }
+}
+
+fn sync_variant_swatch_from_color(
+    trigger: On<ColorPickerChangeEvent>,
+    variant_field_bindings: Query<&VariantFieldBinding>,
+    solid_swatches: Query<(&SolidSwatchMaterial, &MaterialNode<CheckerboardMaterial>)>,
+    mut checkerboard_materials: ResMut<Assets<CheckerboardMaterial>>,
+    parents: Query<&ChildOf>,
+) {
+    let binding = find_ancestor(trigger.entity, &parents, MAX_ANCESTOR_DEPTH, |e| {
+        variant_field_bindings.get(e).is_ok()
+    })
+    .and_then(|e| variant_field_bindings.get(e).ok());
+
+    let Some(binding) = binding else {
+        return;
+    };
+
+    if !matches!(binding.field_kind, FieldKind::Color) {
+        return;
+    }
+
+    let variant_edit = binding.variant_edit;
+
+    for (solid, mat_node) in &solid_swatches {
+        if solid.0 != variant_edit {
+            continue;
+        }
+        if let Some(mat) = checkerboard_materials.get_mut(&mat_node.0) {
+            let c = trigger.color;
+            mat.color = Vec4::new(c[0], c[1], c[2], c[3]);
+        }
+    }
+}
+
+fn sync_variant_swatch_from_gradient(
+    mut commands: Commands,
+    gradient_edits: Query<
+        (Entity, &GradientEditState, &VariantFieldBinding),
+        (With<EditorGradientEdit>, Changed<GradientEditState>),
+    >,
+    swatches: Query<(Entity, &VariantSwatchOwner, &Children)>,
+    gradient_nodes: Query<Entity, With<GradientSwatchNode>>,
+    mut gradient_materials: ResMut<Assets<GradientMaterial>>,
+) {
+    for (_, state, binding) in &gradient_edits {
+        if !matches!(binding.field_kind, FieldKind::Gradient) {
+            continue;
+        }
+
+        let variant_edit = binding.variant_edit;
+
+        let Some((swatch_entity, _, swatch_children)) = swatches
+            .iter()
+            .find(|(_, owner, _)| owner.0 == variant_edit)
+        else {
+            continue;
+        };
+
+        for child in swatch_children.iter() {
+            if gradient_nodes.get(child).is_ok() {
+                commands.entity(child).try_despawn();
+            }
+        }
+
+        let material_entity = commands
+            .spawn((
+                GradientSwatchNode(variant_edit),
+                MaterialNode(
+                    gradient_materials
+                        .add(GradientMaterial::swatch(&state.gradient)),
+                ),
+                swatch_fill_node(),
+            ))
+            .id();
+        commands.entity(swatch_entity).add_child(material_entity);
+    }
+}
+
+fn respawn_variant_swatch_on_switch(
+    mut commands: Commands,
+    editor_state: Res<EditorState>,
+    assets: Res<Assets<ParticleSystemAsset>>,
+    changed_configs: Query<(Entity, &VariantEditConfig, &Field), Changed<VariantEditConfig>>,
+    swatches: Query<(Entity, &VariantSwatchOwner, &Children)>,
+    mut checkerboard_materials: ResMut<Assets<CheckerboardMaterial>>,
+    mut gradient_materials: ResMut<Assets<GradientMaterial>>,
+) {
+    let Some((_, emitter)) = get_inspecting_emitter(&editor_state, &assets) else {
+        return;
+    };
+
+    for (variant_edit_entity, config, field) in &changed_configs {
+        if !config.show_swatch_slot {
+            continue;
+        }
+
+        let Some((swatch_entity, _, swatch_children)) = swatches
+            .iter()
+            .find(|(_, owner, _)| owner.0 == variant_edit_entity)
+        else {
+            continue;
+        };
+
+        for child in swatch_children.iter() {
+            commands.entity(child).try_despawn();
+        }
+
+        let reflect_path = ReflectPath::new(&field.path);
+        let Ok(value) = emitter.reflect_path(reflect_path.as_str()) else {
+            continue;
+        };
+
+        let Some(color_value) = value.try_downcast_ref::<SolidOrGradientColor>() else {
+            continue;
+        };
+
+        let material_entity = spawn_swatch_material(
+            &mut commands,
+            variant_edit_entity,
+            color_value,
+            &mut checkerboard_materials,
+            &mut gradient_materials,
+        );
+        commands.entity(swatch_entity).add_child(material_entity);
     }
 }

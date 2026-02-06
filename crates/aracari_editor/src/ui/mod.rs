@@ -29,6 +29,7 @@ impl Plugin for EditorUiPlugin {
             .add_plugins(widgets::color_picker::plugin)
             .add_plugins(widgets::combobox::plugin)
             .add_plugins(widgets::curve_edit::plugin)
+            .add_plugins(widgets::gradient_edit::plugin)
             .add_plugins(widgets::inspector_field::plugin)
             .add_plugins(widgets::variant_edit::plugin)
             .add_plugins(widgets::panel::plugin)

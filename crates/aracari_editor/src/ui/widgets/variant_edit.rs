@@ -18,11 +18,18 @@ use crate::ui::widgets::popover::{
     EditorPopover, PopoverHeaderProps, PopoverPlacement, PopoverProps, popover, popover_content,
     popover_header,
 };
+use crate::ui::widgets::gradient_edit::{GradientEditProps, gradient_edit};
 use crate::ui::widgets::text_edit::{TextEditProps, text_edit};
 use crate::ui::widgets::vector_edit::{VectorEditProps, vector_edit};
 
 const ICON_MORE: &str = "icons/ri-more-fill.png";
 
+#[derive(Clone, Default)]
+pub enum VariantContentMode {
+    #[default]
+    AutoFields,
+    CustomContent,
+}
 
 pub struct VariantDefinition {
     pub name: String,
@@ -33,15 +40,24 @@ pub struct VariantDefinition {
 
 impl Clone for VariantDefinition {
     fn clone(&self) -> Self {
+        let cloned_default = self.default_value.as_ref().and_then(|v| {
+            match v.as_ref().reflect_clone() {
+                Ok(cloned) => Some(cloned.into_partial_reflect()),
+                Err(err) => {
+                    warn!(
+                        "VariantDefinition::clone: reflect_clone failed for variant '{}': {:?}",
+                        self.name, err
+                    );
+                    None
+                }
+            }
+        });
+
         Self {
             name: self.name.clone(),
             icon: self.icon.clone(),
             rows: self.rows.clone(),
-            default_value: self
-                .default_value
-                .as_ref()
-                .and_then(|v| v.as_ref().reflect_clone().ok())
-                .map(|v| v.into_partial_reflect()),
+            default_value: cloned_default,
         }
     }
 }
@@ -88,10 +104,21 @@ impl VariantDefinition {
     }
 
     pub fn create_default(&self) -> Option<Box<dyn PartialReflect>> {
-        self.default_value
-            .as_ref()
-            .and_then(|v| v.as_ref().reflect_clone().ok())
-            .map(|v| v.into_partial_reflect())
+        let Some(default_value) = self.default_value.as_ref() else {
+            warn!("VariantDefinition::create_default: no default_value stored for variant '{}'", self.name);
+            return None;
+        };
+
+        match default_value.as_ref().reflect_clone() {
+            Ok(cloned) => Some(cloned.into_partial_reflect()),
+            Err(err) => {
+                warn!(
+                    "VariantDefinition::create_default: reflect_clone failed for variant '{}': {:?}",
+                    self.name, err
+                );
+                None
+            }
+        }
     }
 
     pub fn from_reflect<T: Typed>(variant_name: &str) -> Option<Self> {
@@ -157,6 +184,9 @@ pub struct VariantEditConfig {
     pub popover_title: Option<String>,
     pub variants: Vec<VariantDefinition>,
     pub selected_index: usize,
+    pub popover_width: Option<f32>,
+    pub content_mode: VariantContentMode,
+    pub show_swatch_slot: bool,
     initialized: bool,
 }
 
@@ -167,7 +197,10 @@ struct VariantEditPopover(Entity);
 struct VariantEditLeftIcon(Entity);
 
 #[derive(Component)]
-struct VariantFieldsContainer(Entity);
+pub struct VariantEditSwatchSlot(pub Entity);
+
+#[derive(Component)]
+pub struct VariantFieldsContainer(pub Entity);
 
 #[derive(Component)]
 pub struct VariantComboBox(pub Entity);
@@ -191,6 +224,9 @@ pub struct VariantEditProps {
     pub popover_title: Option<String>,
     pub variants: Vec<VariantDefinition>,
     pub selected_index: usize,
+    pub popover_width: Option<f32>,
+    pub content_mode: VariantContentMode,
+    pub show_swatch_slot: bool,
 }
 
 impl VariantEditProps {
@@ -201,6 +237,9 @@ impl VariantEditProps {
             popover_title: None,
             variants: Vec::new(),
             selected_index: 0,
+            popover_width: Some(256.0),
+            content_mode: VariantContentMode::default(),
+            show_swatch_slot: false,
         }
     }
 
@@ -223,6 +262,21 @@ impl VariantEditProps {
         self.selected_index = index;
         self
     }
+
+    pub fn with_popover_width(mut self, width: Option<f32>) -> Self {
+        self.popover_width = width;
+        self
+    }
+
+    pub fn with_content_mode(mut self, mode: VariantContentMode) -> Self {
+        self.content_mode = mode;
+        self
+    }
+
+    pub fn with_swatch_slot(mut self, show: bool) -> Self {
+        self.show_swatch_slot = show;
+        self
+    }
 }
 
 pub fn variant_edit(props: VariantEditProps) -> impl Bundle {
@@ -232,6 +286,9 @@ pub fn variant_edit(props: VariantEditProps) -> impl Bundle {
         popover_title,
         variants,
         selected_index,
+        popover_width,
+        content_mode,
+        show_swatch_slot,
     } = props;
 
     (
@@ -242,6 +299,9 @@ pub fn variant_edit(props: VariantEditProps) -> impl Bundle {
             popover_title,
             variants,
             selected_index,
+            popover_width,
+            content_mode,
+            show_swatch_slot,
             initialized: false,
         },
         VariantEditState::default(),
@@ -258,6 +318,8 @@ pub fn variant_edit(props: VariantEditProps) -> impl Bundle {
 
 #[derive(Component)]
 struct VariantEditButton;
+
+const SWATCH_SIZE: f32 = 16.0;
 
 fn setup_variant_edit(
     mut commands: Commands,
@@ -305,31 +367,46 @@ fn setup_variant_edit(
             .spawn((VariantEditButton, button(button_props)))
             .id();
 
-        // spawn the left icon separately so we can track and update it
-        let has_icon = icon.is_some();
-        let icon_path = icon.unwrap_or_else(|| ICON_MORE.to_string());
-        let left_icon_entity = commands
-            .spawn((
-                VariantEditLeftIcon(entity),
-                ImageNode::new(asset_server.load(&icon_path))
-                    .with_color(Color::Srgba(TEXT_BODY_COLOR)),
-                Node {
-                    width: px(16.0),
-                    height: px(16.0),
-                    display: if has_icon {
-                        Display::Flex
-                    } else {
-                        Display::None
+        if config.show_swatch_slot {
+            let swatch_slot = commands
+                .spawn((
+                    VariantEditSwatchSlot(entity),
+                    Node {
+                        width: px(SWATCH_SIZE),
+                        height: px(SWATCH_SIZE),
+                        border_radius: BorderRadius::all(px(4.0)),
+                        overflow: Overflow::clip(),
+                        ..default()
                     },
-                    ..default()
-                },
-            ))
-            .id();
-
-        // insert the left icon as the first child of the button
-        commands
-            .entity(button_entity)
-            .insert_children(0, &[left_icon_entity]);
+                ))
+                .id();
+            commands
+                .entity(button_entity)
+                .insert_children(0, &[swatch_slot]);
+        } else {
+            let has_icon = icon.is_some();
+            let icon_path = icon.unwrap_or_else(|| ICON_MORE.to_string());
+            let left_icon_entity = commands
+                .spawn((
+                    VariantEditLeftIcon(entity),
+                    ImageNode::new(asset_server.load(&icon_path))
+                        .with_color(Color::Srgba(TEXT_BODY_COLOR)),
+                    Node {
+                        width: px(16.0),
+                        height: px(16.0),
+                        display: if has_icon {
+                            Display::Flex
+                        } else {
+                            Display::None
+                        },
+                        ..default()
+                    },
+                ))
+                .id();
+            commands
+                .entity(button_entity)
+                .insert_children(0, &[left_icon_entity]);
+        }
 
         commands.entity(entity).add_child(button_entity);
     }
@@ -372,18 +449,20 @@ fn sync_variant_edit_button(
             }
         }
 
-        // update the left icon via the marker component
-        for (left_icon, mut image, mut node) in &mut left_icons {
-            if left_icon.0 != entity {
-                continue;
+        // update the left icon via the marker component (skip if using swatch slot)
+        if !config.show_swatch_slot {
+            for (left_icon, mut image, mut node) in &mut left_icons {
+                if left_icon.0 != entity {
+                    continue;
+                }
+                if let Some(ref icon_path) = selected_variant.icon {
+                    image.image = asset_server.load(icon_path);
+                    node.display = Display::Flex;
+                } else {
+                    node.display = Display::None;
+                }
+                break;
             }
-            if let Some(ref icon_path) = selected_variant.icon {
-                image.image = asset_server.load(icon_path);
-                node.display = Display::Flex;
-            } else {
-                node.display = Display::None;
-            }
-            break;
         }
 
         if text_updated {
@@ -474,23 +553,31 @@ fn handle_variant_edit_click(
         .collect();
 
     let selected_variant = config.variants.get(config.selected_index);
-    let has_fields = selected_variant
-        .map(|v| !v.rows.is_empty())
-        .unwrap_or(false);
+    let has_auto_fields = matches!(config.content_mode, VariantContentMode::AutoFields)
+        && selected_variant.map(|v| !v.rows.is_empty()).unwrap_or(false);
+    let has_custom_content = matches!(config.content_mode, VariantContentMode::CustomContent);
+    let show_fields_container = has_auto_fields || has_custom_content;
+
+    let default_width = 256.0;
+    let popover_props = PopoverProps::new(trigger.entity)
+        .with_placement(PopoverPlacement::Left)
+        .with_padding(0.0);
+
+    let popover_props = if let Some(width) = config.popover_width {
+        popover_props.with_node(Node {
+            width: px(width),
+            min_width: px(default_width),
+            ..default()
+        })
+    } else {
+        popover_props.with_node(Node {
+            min_width: px(default_width),
+            ..default()
+        })
+    };
 
     let popover_entity = commands
-        .spawn((
-            VariantEditPopover(entity),
-            popover(
-                PopoverProps::new(trigger.entity)
-                    .with_placement(PopoverPlacement::Left)
-                    .with_padding(0.0)
-                    .with_node(Node {
-                        width: px(256.0),
-                        ..default()
-                    }),
-            ),
-        ))
+        .spawn((VariantEditPopover(entity), popover(popover_props)))
         .id();
 
     commands
@@ -505,7 +592,7 @@ fn handle_variant_edit_click(
                     Node {
                         width: percent(100),
                         padding: UiRect::all(px(12.0)),
-                        border: if has_fields {
+                        border: if show_fields_container {
                             UiRect::bottom(px(1.0))
                         } else {
                             UiRect::ZERO
@@ -519,7 +606,7 @@ fn handle_variant_edit_click(
                     combobox_with_selected(options, config.selected_index),
                 ));
 
-            if has_fields {
+            if show_fields_container {
                 let fields_container = parent
                     .spawn((
                         VariantFieldsContainer(entity),
@@ -527,15 +614,18 @@ fn handle_variant_edit_click(
                     ))
                     .id();
 
-                if let Some(variant) = selected_variant {
-                    let mut cmds = parent.commands();
-                    spawn_variant_fields_for_entity(
-                        &mut cmds,
-                        fields_container,
-                        entity,
-                        &variant.rows,
-                        &asset_server,
-                    );
+                // only auto-spawn fields in AutoFields mode
+                if has_auto_fields {
+                    if let Some(variant) = selected_variant {
+                        let mut cmds = parent.commands();
+                        spawn_variant_fields_for_entity(
+                            &mut cmds,
+                            fields_container,
+                            entity,
+                            &variant.rows,
+                            &asset_server,
+                        );
+                    }
                 }
             }
         });
@@ -591,43 +681,47 @@ fn handle_variant_combobox_change(
         }
     }
 
-    // update the left icon via the marker component
-    for (left_icon, mut image, mut node) in &mut left_icons {
-        if left_icon.0 != variant_edit_entity {
-            continue;
+    // update the left icon via the marker component (skip if using swatch slot)
+    if !config.show_swatch_slot {
+        for (left_icon, mut image, mut node) in &mut left_icons {
+            if left_icon.0 != variant_edit_entity {
+                continue;
+            }
+            if let Some(ref icon_path) = selected_variant.icon {
+                image.image = asset_server.load(icon_path);
+                node.display = Display::Flex;
+            } else {
+                node.display = Display::None;
+            }
+            break;
         }
-        if let Some(ref icon_path) = selected_variant.icon {
-            image.image = asset_server.load(icon_path);
-            node.display = Display::Flex;
-        } else {
-            node.display = Display::None;
-        }
-        break;
     }
 
-    // find and update the fields container
-    for (container_entity, container) in &fields_containers {
-        if container.0 != variant_edit_entity {
-            continue;
-        }
-
-        // despawn old children
-        if let Ok(children) = children_query.get(container_entity) {
-            for child in children.iter() {
-                commands.entity(child).try_despawn();
+    // find and update the fields container (only in AutoFields mode)
+    if matches!(config.content_mode, VariantContentMode::AutoFields) {
+        for (container_entity, container) in &fields_containers {
+            if container.0 != variant_edit_entity {
+                continue;
             }
+
+            // despawn old children
+            if let Ok(children) = children_query.get(container_entity) {
+                for child in children.iter() {
+                    commands.entity(child).try_despawn();
+                }
+            }
+
+            // spawn new fields
+            spawn_variant_fields_for_entity(
+                &mut commands,
+                container_entity,
+                variant_edit_entity,
+                &selected_variant.rows,
+                &asset_server,
+            );
+
+            break;
         }
-
-        // spawn new fields
-        spawn_variant_fields_for_entity(
-            &mut commands,
-            container_entity,
-            variant_edit_entity,
-            &selected_variant.rows,
-            &asset_server,
-        );
-
-        break;
     }
 }
 
@@ -702,6 +796,10 @@ fn spawn_field_widget(
 
         FieldKind::Color => {
             spawn_labeled_field(commands, asset_server, &label, binding, color_picker(ColorPickerProps::new()))
+        }
+
+        FieldKind::Gradient => {
+            spawn_labeled_field(commands, asset_server, &label, binding, gradient_edit(GradientEditProps::new()))
         }
 
         // not expected in variant fields

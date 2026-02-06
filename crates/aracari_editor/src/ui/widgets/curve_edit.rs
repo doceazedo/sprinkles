@@ -102,7 +102,7 @@ impl CurveEditState {
     }
 
     pub fn label(&self) -> &str {
-        self.curve.name.as_deref().unwrap_or("Custom curve")
+        self.curve.name.as_deref().unwrap_or("Curve")
     }
 }
 

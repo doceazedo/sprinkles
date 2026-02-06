@@ -3,6 +3,7 @@ pub mod checkbox;
 pub mod color_picker;
 pub mod combobox;
 pub mod curve_edit;
+pub mod gradient_edit;
 pub mod inspector_field;
 pub mod panel;
 pub mod panel_section;
