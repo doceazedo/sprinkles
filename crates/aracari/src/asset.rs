@@ -691,17 +691,17 @@ pub struct EmitterColors {
     #[serde(default)]
     pub initial_color: SolidOrGradientColor,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub alpha_curve: Option<CurveTexture>,
+    pub alpha_over_lifetime: Option<CurveTexture>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub emission_curve: Option<CurveTexture>,
+    pub emission_over_lifetime: Option<CurveTexture>,
 }
 
 impl Default for EmitterColors {
     fn default() -> Self {
         Self {
             initial_color: SolidOrGradientColor::default(),
-            alpha_curve: None,
-            emission_curve: None,
+            alpha_over_lifetime: None,
+            emission_over_lifetime: None,
         }
     }
 }

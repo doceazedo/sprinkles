@@ -21,7 +21,6 @@ pub fn scale_section(asset_server: &AssetServer) -> impl Bundle {
                 vec![
                     InspectorFieldProps::new("scale.scale_over_lifetime")
                         .curve()
-                        .with_label("Scale Over Lifetime")
                         .into(),
                 ],
             ],

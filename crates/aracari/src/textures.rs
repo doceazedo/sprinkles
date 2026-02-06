@@ -212,12 +212,12 @@ pub fn prepare_curve_textures(
                     cache.get_or_create(curve, &mut images);
                 }
             }
-            if let Some(curve) = &emitter.colors.alpha_curve {
+            if let Some(curve) = &emitter.colors.alpha_over_lifetime {
                 if !curve.is_constant() {
                     cache.get_or_create(curve, &mut images);
                 }
             }
-            if let Some(curve) = &emitter.colors.emission_curve {
+            if let Some(curve) = &emitter.colors.emission_over_lifetime {
                 if !curve.is_constant() {
                     cache.get_or_create(curve, &mut images);
                 }

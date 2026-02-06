@@ -38,13 +38,11 @@ pub fn colors_section(asset_server: &AssetServer) -> impl Bundle {
                         .with_swatch_slot(true),
                 }],
                 vec![
-                    InspectorFieldProps::new("colors.alpha_curve")
+                    InspectorFieldProps::new("colors.alpha_over_lifetime")
                         .curve()
-                        .with_label("Alpha Curve")
                         .into(),
-                    InspectorFieldProps::new("colors.emission_curve")
+                    InspectorFieldProps::new("colors.emission_over_lifetime")
                         .curve()
-                        .with_label("Emission Curve")
                         .into(),
                 ],
             ],

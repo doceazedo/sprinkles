@@ -77,8 +77,8 @@ struct EmitterParams {
 
     initial_color: vec4<f32>,
 
-    alpha_curve: CurveUniform,
-    emission_curve: CurveUniform,
+    alpha_over_lifetime: CurveUniform,
+    emission_over_lifetime: CurveUniform,
 
     // turbulence
     turbulence_noise_strength: f32,
@@ -138,10 +138,10 @@ const COLLISION_EPSILON: f32 = 0.001;
 @group(0) @binding(3) var gradient_sampler: sampler;
 @group(0) @binding(4) var scale_over_lifetime_texture: texture_2d<f32>;
 @group(0) @binding(5) var scale_over_lifetime_sampler: sampler;
-@group(0) @binding(6) var alpha_curve_texture: texture_2d<f32>;
-@group(0) @binding(7) var alpha_curve_sampler: sampler;
-@group(0) @binding(8) var emission_curve_texture: texture_2d<f32>;
-@group(0) @binding(9) var emission_curve_sampler: sampler;
+@group(0) @binding(6) var alpha_over_lifetime_texture: texture_2d<f32>;
+@group(0) @binding(7) var alpha_over_lifetime_sampler: sampler;
+@group(0) @binding(8) var emission_over_lifetime_texture: texture_2d<f32>;
+@group(0) @binding(9) var emission_over_lifetime_sampler: sampler;
 @group(0) @binding(10) var turbulence_influence_curve_texture: texture_2d<f32>;
 @group(0) @binding(11) var turbulence_influence_curve_sampler: sampler;
 @group(0) @binding(12) var radial_velocity_curve_texture: texture_2d<f32>;
@@ -520,28 +520,28 @@ fn get_initial_color_rgb(seed: u32) -> vec3<f32> {
 }
 
 fn get_alpha_at_lifetime(initial_alpha: f32, age: f32, lifetime: f32) -> f32 {
-    if (params.alpha_curve.enabled == 0u) {
+    if (params.alpha_over_lifetime.enabled == 0u) {
         return initial_alpha;
     }
     let t = clamp(age / lifetime, 0.0, 1.0);
     let curve_value = sample_spline_curve(
-        alpha_curve_texture,
-        alpha_curve_sampler,
-        params.alpha_curve,
+        alpha_over_lifetime_texture,
+        alpha_over_lifetime_sampler,
+        params.alpha_over_lifetime,
         t
     );
     return initial_alpha * curve_value;
 }
 
 fn get_emission_at_lifetime(age: f32, lifetime: f32) -> f32 {
-    if (params.emission_curve.enabled == 0u) {
+    if (params.emission_over_lifetime.enabled == 0u) {
         return 1.0;
     }
     let t = clamp(age / lifetime, 0.0, 1.0);
     let curve_value = sample_spline_curve(
-        emission_curve_texture,
-        emission_curve_sampler,
-        params.emission_curve,
+        emission_over_lifetime_texture,
+        emission_over_lifetime_sampler,
+        params.emission_over_lifetime,
         t
     );
     return 1.0 + curve_value;

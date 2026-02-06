@@ -133,6 +133,7 @@ fn trigger_curve_events(commands: &mut Commands, entity: Entity, curve: &CurveTe
 #[derive(Default)]
 pub struct CurveEditProps {
     pub curve: Option<CurveTexture>,
+    pub label: Option<String>,
 }
 
 impl CurveEditProps {
@@ -144,10 +145,18 @@ impl CurveEditProps {
         self.curve = Some(curve);
         self
     }
+
+    pub fn with_label(mut self, label: impl Into<String>) -> Self {
+        self.label = Some(label.into());
+        self
+    }
 }
 
+#[derive(Component, Default)]
+pub struct CurveEditLabel(pub Option<String>);
+
 pub fn curve_edit(props: CurveEditProps) -> impl Bundle {
-    let CurveEditProps { curve } = props;
+    let CurveEditProps { curve, label } = props;
 
     let state = curve
         .map(CurveEditState::from_curve)
@@ -155,6 +164,7 @@ pub fn curve_edit(props: CurveEditProps) -> impl Bundle {
 
     (
         EditorCurveEdit,
+        CurveEditLabel(label),
         state,
         Node {
             flex_direction: FlexDirection::Column,
@@ -574,14 +584,17 @@ fn on_control_drag_end<C: CurveControl>(
 fn setup_curve_edit(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    curve_edits: Query<(Entity, &CurveEditState), Added<EditorCurveEdit>>,
+    curve_edits: Query<(Entity, &CurveEditState, Option<&CurveEditLabel>), Added<EditorCurveEdit>>,
 ) {
     let font: Handle<Font> = asset_server.load(FONT_PATH);
 
-    for (entity, state) in &curve_edits {
+    for (entity, state, edit_label) in &curve_edits {
+        let label_text = edit_label
+            .and_then(|l| l.0.as_deref())
+            .unwrap_or("Curve");
         let label_entity = commands
             .spawn((
-                Text::new("Curve"),
+                Text::new(label_text),
                 TextFont {
                     font: font.clone(),
                     font_size: TEXT_SIZE_SM,

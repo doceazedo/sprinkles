@@ -183,14 +183,14 @@ pub fn prepare_particle_compute_bind_groups(
             .and_then(|h| gpu_images.get(h))
             .or(fallback_curve_gpu_image);
 
-        let alpha_curve_gpu_image = emitter_data
-            .alpha_curve_texture_handle
+        let alpha_over_lifetime_gpu_image = emitter_data
+            .alpha_over_lifetime_texture_handle
             .as_ref()
             .and_then(|h| gpu_images.get(h))
             .or(fallback_curve_gpu_image);
 
-        let emission_curve_gpu_image = emitter_data
-            .emission_curve_texture_handle
+        let emission_over_lifetime_gpu_image = emitter_data
+            .emission_over_lifetime_texture_handle
             .as_ref()
             .and_then(|h| gpu_images.get(h))
             .or(fallback_curve_gpu_image);
@@ -215,7 +215,7 @@ pub fn prepare_particle_compute_bind_groups(
             continue;
         };
 
-        let Some(alpha_curve_image) = alpha_curve_gpu_image else {
+        let Some(alpha_over_lifetime_image) = alpha_over_lifetime_gpu_image else {
             continue;
         };
 
@@ -223,7 +223,7 @@ pub fn prepare_particle_compute_bind_groups(
             continue;
         };
 
-        let Some(emission_curve_image) = emission_curve_gpu_image else {
+        let Some(emission_over_lifetime_image) = emission_over_lifetime_gpu_image else {
             continue;
         };
 
@@ -253,9 +253,9 @@ pub fn prepare_particle_compute_bind_groups(
                 &gradient_sampler.0,
                 &scale_over_lifetime_image.texture_view,
                 &curve_sampler.0,
-                &alpha_curve_image.texture_view,
+                &alpha_over_lifetime_image.texture_view,
                 &curve_sampler.0,
-                &emission_curve_image.texture_view,
+                &emission_over_lifetime_image.texture_view,
                 &curve_sampler.0,
                 &turbulence_influence_curve_image.texture_view,
                 &curve_sampler.0,

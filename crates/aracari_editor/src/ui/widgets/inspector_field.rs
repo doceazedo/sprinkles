@@ -188,7 +188,7 @@ pub fn spawn_inspector_field(
     if props.kind == FieldKind::Curve {
         spawner.spawn((
             field,
-            curve_edit(CurveEditProps::new()),
+            curve_edit(CurveEditProps::new().with_label(label)),
         ));
         return;
     }

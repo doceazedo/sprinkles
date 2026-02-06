@@ -143,8 +143,8 @@ pub struct EmitterUniforms {
 
     pub initial_color: [f32; 4],
 
-    pub alpha_curve: CurveUniform,
-    pub emission_curve: CurveUniform,
+    pub alpha_over_lifetime: CurveUniform,
+    pub emission_over_lifetime: CurveUniform,
 
     pub turbulence_noise_strength: f32,
     pub turbulence_noise_scale: f32,
@@ -192,8 +192,8 @@ pub struct ExtractedEmitterData {
     pub emitter_transform: Mat4,
     pub gradient_texture_handle: Option<Handle<Image>>,
     pub scale_over_lifetime_texture_handle: Option<Handle<Image>>,
-    pub alpha_curve_texture_handle: Option<Handle<Image>>,
-    pub emission_curve_texture_handle: Option<Handle<Image>>,
+    pub alpha_over_lifetime_texture_handle: Option<Handle<Image>>,
+    pub emission_over_lifetime_texture_handle: Option<Handle<Image>>,
     pub turbulence_influence_curve_texture_handle: Option<Handle<Image>>,
     pub radial_velocity_curve_texture_handle: Option<Handle<Image>>,
 }
@@ -350,13 +350,13 @@ pub fn extract_particle_systems(
                 SolidOrGradientColor::Gradient { .. } => [1.0, 1.0, 1.0, 1.0],
             },
 
-            alpha_curve: match &emitter.colors.alpha_curve {
+            alpha_over_lifetime: match &emitter.colors.alpha_over_lifetime {
                 Some(c) if !c.is_constant() => {
                     CurveUniform::enabled(c.range.min, c.range.max)
                 }
                 _ => CurveUniform::disabled(),
             },
-            emission_curve: match &emitter.colors.emission_curve {
+            emission_over_lifetime: match &emitter.colors.emission_over_lifetime {
                 Some(c) if !c.is_constant() => {
                     CurveUniform::enabled(c.range.min, c.range.max)
                 }
@@ -439,16 +439,16 @@ pub fn extract_particle_systems(
             .filter(|c| !c.is_constant())
             .and_then(|c| curve_cache.get(c));
 
-        let alpha_curve_texture_handle = emitter
+        let alpha_over_lifetime_texture_handle = emitter
             .colors
-            .alpha_curve
+            .alpha_over_lifetime
             .as_ref()
             .filter(|c| !c.is_constant())
             .and_then(|c| curve_cache.get(c));
 
-        let emission_curve_texture_handle = emitter
+        let emission_over_lifetime_texture_handle = emitter
             .colors
-            .emission_curve
+            .emission_over_lifetime
             .as_ref()
             .filter(|c| !c.is_constant())
             .and_then(|c| curve_cache.get(c));
@@ -480,8 +480,8 @@ pub fn extract_particle_systems(
                 emitter_transform: global_transform.to_matrix(),
                 gradient_texture_handle,
                 scale_over_lifetime_texture_handle,
-                alpha_curve_texture_handle,
-                emission_curve_texture_handle,
+                alpha_over_lifetime_texture_handle,
+                emission_over_lifetime_texture_handle,
                 turbulence_influence_curve_texture_handle,
                 radial_velocity_curve_texture_handle,
             },

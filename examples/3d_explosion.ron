@@ -75,7 +75,7 @@
                 initial_color: Solid(
                     color: (1.0, 0.9843137, 0.92156863, 1.0),
                 ),
-                alpha_curve: Some((
+                alpha_over_lifetime: Some((
                     points: [
                         (
                             position: 0.0,
@@ -216,7 +216,7 @@
                         ],
                     ),
                 ),
-                alpha_curve: Some((
+                alpha_over_lifetime: Some((
                     points: [
                         (
                             position: 0.0,
@@ -357,7 +357,7 @@
                         ],
                     ),
                 ),
-                emission_curve: Some((
+                emission_over_lifetime: Some((
                     points: [
                         (
                             position: 0.0,
@@ -481,7 +481,7 @@
                         ],
                     ),
                 ),
-                emission_curve: Some((
+                emission_over_lifetime: Some((
                     points: [
                         (
                             position: 0.0,
@@ -587,7 +587,7 @@
                 initial_color: Solid(
                     color: (1.0, 1.0, 1.0, 1.0),
                 ),
-                alpha_curve: Some((
+                alpha_over_lifetime: Some((
                     points: [
                         (
                             position: 0.0,
