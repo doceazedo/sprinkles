@@ -1,9 +1,10 @@
 use bevy::prelude::*;
 
-use crate::project::ProjectSaveEvent;
+use crate::project::SaveProjectEvent;
 use crate::ui::components::playback_controls::playback_controls;
+use crate::ui::components::project_selector::project_selector;
 use crate::ui::components::seekbar::seekbar;
-use crate::ui::tokens::{BACKGROUND_COLOR, BORDER_COLOR, FONT_PATH, TEXT_BODY_COLOR, TEXT_SIZE};
+use crate::ui::tokens::{BACKGROUND_COLOR, BORDER_COLOR};
 use crate::ui::widgets::button::{ButtonClickEvent, ButtonProps, ButtonVariant, button};
 use crate::ui::widgets::separator::EditorSeparator;
 
@@ -24,15 +25,13 @@ fn setup_save_button_observer(
 }
 
 fn on_save_button_click(_event: On<ButtonClickEvent>, mut commands: Commands) {
-    commands.trigger(ProjectSaveEvent);
+    commands.trigger(SaveProjectEvent);
 }
 
 #[derive(Component)]
 pub struct EditorTopbar;
 
 pub fn topbar(asset_server: &AssetServer) -> impl Bundle {
-    let font: Handle<Font> = asset_server.load(FONT_PATH);
-
     (
         EditorTopbar,
         Node {
@@ -47,15 +46,7 @@ pub fn topbar(asset_server: &AssetServer) -> impl Bundle {
         BackgroundColor(BACKGROUND_COLOR.into()),
         BorderColor::all(BORDER_COLOR),
         children![
-            (
-                Text::new("TODO: current project"),
-                TextFont {
-                    font: font.clone().into(),
-                    font_size: TEXT_SIZE,
-                    ..default()
-                },
-                TextColor(TEXT_BODY_COLOR.into()),
-            ),
+            project_selector(),
             (
                 Node {
                     column_gap: px(12),

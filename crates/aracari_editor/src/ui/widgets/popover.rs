@@ -105,6 +105,7 @@ pub struct PopoverProps {
     pub anchor: Entity,
     pub node: Option<Node>,
     pub padding: f32,
+    pub gap: f32,
     pub z_index: i32,
 }
 
@@ -115,6 +116,7 @@ impl PopoverProps {
             anchor,
             node: None,
             padding: 6.0,
+            gap: 0.0,
             z_index: 100,
         }
     }
@@ -134,6 +136,11 @@ impl PopoverProps {
         self
     }
 
+    pub fn with_gap(mut self, gap: f32) -> Self {
+        self.gap = gap;
+        self
+    }
+
     pub fn with_z_index(mut self, z_index: i32) -> Self {
         self.z_index = z_index;
         self
@@ -146,6 +153,7 @@ pub fn popover(props: PopoverProps) -> impl Bundle {
         anchor,
         node,
         padding,
+        gap,
         z_index,
     } = props;
 
@@ -161,6 +169,7 @@ pub fn popover(props: PopoverProps) -> impl Bundle {
         Node {
             position_type: PositionType::Absolute,
             padding: UiRect::all(px(padding)),
+            row_gap: px(gap),
             border: UiRect::all(px(1.0)),
             border_radius: BorderRadius::all(CORNER_RADIUS_LG),
             flex_direction: FlexDirection::Column,
@@ -193,7 +202,14 @@ fn handle_popover_position(
     };
     let window_size = Vec2::new(window.width(), window.height());
 
-    for (anchor_ref, placement, popover_computed, mut popover_node, mut visibility, mut layout_ready) in &mut popovers
+    for (
+        anchor_ref,
+        placement,
+        popover_computed,
+        mut popover_node,
+        mut visibility,
+        mut layout_ready,
+    ) in &mut popovers
     {
         let Ok((anchor_computed, anchor_transform)) = anchors.get(anchor_ref.0) else {
             continue;

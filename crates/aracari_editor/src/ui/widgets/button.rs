@@ -4,6 +4,7 @@ use bevy::prelude::*;
 
 use crate::ui::tokens::{
     CORNER_RADIUS_LG, FONT_PATH, PRIMARY_COLOR, TEXT_BODY_COLOR, TEXT_DISPLAY_COLOR, TEXT_MUTED_COLOR, TEXT_SIZE,
+    TEXT_SIZE_SM,
 };
 
 #[derive(EntityEvent)]
@@ -113,6 +114,7 @@ struct ButtonConfig {
     content: String,
     left_icon: Option<String>,
     right_icon: Option<String>,
+    subtitle: Option<String>,
     initialized: bool,
 }
 
@@ -124,6 +126,8 @@ pub struct ButtonProps {
     pub align_left: bool,
     pub left_icon: Option<String>,
     pub right_icon: Option<String>,
+    pub direction: FlexDirection,
+    pub subtitle: Option<String>,
 }
 
 impl ButtonProps {
@@ -151,6 +155,14 @@ impl ButtonProps {
     }
     pub fn with_right_icon(mut self, icon: impl Into<String>) -> Self {
         self.right_icon = Some(icon.into());
+        self
+    }
+    pub fn with_direction(mut self, direction: FlexDirection) -> Self {
+        self.direction = direction;
+        self
+    }
+    pub fn with_subtitle(mut self, subtitle: impl Into<String>) -> Self {
+        self.subtitle = Some(subtitle.into());
         self
     }
 }
@@ -190,7 +202,14 @@ impl IconButtonProps {
     }
 }
 
-fn button_base(variant: ButtonVariant, size: ButtonSize, align_left: bool) -> impl Bundle {
+fn button_base(
+    variant: ButtonVariant,
+    size: ButtonSize,
+    align_left: bool,
+    direction: FlexDirection,
+) -> impl Bundle {
+    let is_column = direction == FlexDirection::Column;
+
     (
         Button,
         EditorButton,
@@ -203,17 +222,26 @@ fn button_base(variant: ButtonVariant, size: ButtonSize, align_left: bool) -> im
             } else {
                 size.width()
             },
-            height: size.height(),
-            padding: UiRect::horizontal(size.padding()),
+            height: if is_column { Val::Auto } else { size.height() },
+            padding: UiRect::axes(
+                size.padding(),
+                if is_column { px(6.0) } else { px(0.0) },
+            ),
             border: UiRect::all(variant.border()),
             border_radius: BorderRadius::all(CORNER_RADIUS_LG),
+            flex_direction: direction,
             column_gap: px(6.0),
+            row_gap: px(6.0),
             justify_content: if align_left {
                 JustifyContent::Start
             } else {
                 JustifyContent::Center
             },
-            align_items: AlignItems::Center,
+            align_items: if is_column {
+                AlignItems::Start
+            } else {
+                AlignItems::Center
+            },
             ..default()
         },
         BackgroundColor(
@@ -238,14 +266,17 @@ pub fn button(props: ButtonProps) -> impl Bundle {
         align_left,
         left_icon,
         right_icon,
+        direction,
+        subtitle,
     } = props;
 
     (
-        button_base(variant, size, align_left),
+        button_base(variant, size, align_left, direction),
         ButtonConfig {
             content,
             left_icon,
             right_icon,
+            subtitle,
             initialized: false,
         },
     )
@@ -267,12 +298,13 @@ fn setup_button(
         }
         config.initialized = true;
 
-        let left_padding = if config.left_icon.is_some() {
+        let is_column = node.flex_direction == FlexDirection::Column;
+        let left_padding = if config.left_icon.is_some() || is_column {
             px(6.0)
         } else {
             size.padding()
         };
-        let right_padding = if config.right_icon.is_some() {
+        let right_padding = if config.right_icon.is_some() || is_column {
             px(6.0)
         } else {
             size.padding()
@@ -305,6 +337,22 @@ fn setup_button(
                     TextColor(variant.text_color().into()),
                     Node {
                         flex_grow: 1.0,
+                        ..default()
+                    },
+                ));
+            }
+
+            if let Some(ref subtitle) = config.subtitle {
+                parent.spawn((
+                    Text::new(subtitle),
+                    TextFont {
+                        font: font.clone(),
+                        font_size: TEXT_SIZE_SM,
+                        ..default()
+                    },
+                    TextColor(TEXT_MUTED_COLOR.into()),
+                    Node {
+                        margin: UiRect::top(px(-6.0)),
                         ..default()
                     },
                 ));
@@ -376,7 +424,7 @@ pub fn icon_button(props: IconButtonProps, asset_server: &AssetServer) -> impl B
     let icon_color = color.unwrap_or(variant.text_color()).with_alpha(alpha);
 
     (
-        button_base(variant, size, false),
+        button_base(variant, size, false, FlexDirection::Row),
         children![(
             ImageNode::new(asset_server.load(&icon)).with_color(Color::Srgba(icon_color)),
             Node {

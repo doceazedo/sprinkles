@@ -8,16 +8,19 @@ use bevy::prelude::*;
 use bevy::tasks::IoTaskPool;
 
 use crate::io::{EditorData, project_path, save_editor_data, working_dir};
-use crate::state::{DirtyState, EditorState};
+use crate::state::{DirtyState, EditorState, Inspectable, Inspecting};
 use crate::ui::components::toasts::ToastEvent;
 
 pub fn plugin(app: &mut App) {
-    app.add_observer(on_project_save_event)
-        .add_observer(on_project_save_as_event)
+    app.add_observer(on_open_project_event)
+        .add_observer(on_browse_open_project_event)
+        .add_observer(on_save_project_event)
+        .add_observer(on_save_project_as_event)
         .add_systems(
             Update,
             (
                 handle_save_keyboard_shortcut,
+                poll_browse_open_result,
                 poll_save_as_result,
                 poll_save_result,
             ),
@@ -25,10 +28,19 @@ pub fn plugin(app: &mut App) {
 }
 
 #[derive(Event)]
-pub struct ProjectSaveEvent;
+pub struct OpenProjectEvent(pub String);
 
 #[derive(Event)]
-pub struct ProjectSaveAsEvent;
+pub struct BrowseOpenProjectEvent;
+
+#[derive(Event)]
+pub struct SaveProjectEvent;
+
+#[derive(Event)]
+pub struct SaveProjectAsEvent;
+
+#[derive(Resource, Clone)]
+pub struct BrowseOpenResult(pub Arc<Mutex<Option<PathBuf>>>);
 
 #[derive(Resource, Clone)]
 pub struct SaveAsResult(pub Arc<Mutex<Option<PathBuf>>>);
@@ -49,6 +61,95 @@ pub fn load_project_from_path(
 ) -> Option<aracari::asset::ParticleSystemAsset> {
     let contents = std::fs::read_to_string(path).ok()?;
     ron::from_str(&contents).ok()
+}
+
+fn on_open_project_event(
+    event: On<OpenProjectEvent>,
+    mut editor_state: ResMut<EditorState>,
+    mut editor_data: ResMut<EditorData>,
+    mut assets: ResMut<Assets<ParticleSystemAsset>>,
+    mut dirty_state: ResMut<DirtyState>,
+    mut commands: Commands,
+) {
+    let location = &event.0;
+    let path = project_path(location);
+
+    let Some(asset) = load_project_from_path(&path) else {
+        commands.trigger(ToastEvent::error(format!("Failed to open project: {location}")));
+        return;
+    };
+
+    let has_emitters = !asset.emitters.is_empty();
+    let handle = assets.add(asset);
+    editor_state.current_project = Some(handle);
+    editor_state.current_project_path = Some(path);
+    editor_state.inspecting = if has_emitters {
+        Some(Inspecting {
+            kind: Inspectable::Emitter,
+            index: 0,
+        })
+    } else {
+        None
+    };
+    dirty_state.has_unsaved_changes = false;
+
+    editor_data.cache.add_recent_project(location.clone());
+    save_editor_data(&editor_data);
+}
+
+fn on_browse_open_project_event(
+    _event: On<BrowseOpenProjectEvent>,
+    mut commands: Commands,
+) {
+    let projects_dir = project_path("projects");
+
+    let path_result = Arc::new(Mutex::new(None));
+    let path_result_clone = path_result.clone();
+
+    let task = rfd::AsyncFileDialog::new()
+        .set_title("Open Project")
+        .set_directory(&projects_dir)
+        .add_filter("RON files", &["ron"])
+        .pick_file();
+
+    IoTaskPool::get()
+        .spawn(async move {
+            if let Some(file_handle) = task.await {
+                let path = file_handle.path().to_path_buf();
+                if let Ok(mut guard) = path_result_clone.lock() {
+                    *guard = Some(path);
+                }
+            }
+        })
+        .detach();
+
+    commands.insert_resource(BrowseOpenResult(path_result));
+}
+
+fn poll_browse_open_result(
+    result: Option<Res<BrowseOpenResult>>,
+    mut commands: Commands,
+) {
+    let Some(result) = result else {
+        return;
+    };
+
+    let path = {
+        let Ok(mut guard) = result.0.lock() else {
+            return;
+        };
+        guard.take()
+    };
+
+    if let Some(path) = path {
+        let relative = path
+            .strip_prefix(working_dir())
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_else(|_| path.to_string_lossy().to_string());
+
+        commands.trigger(OpenProjectEvent(relative));
+        commands.remove_resource::<BrowseOpenResult>();
+    }
 }
 
 pub fn save_project_to_path(
@@ -86,8 +187,8 @@ pub fn save_project_to_path(
         .detach();
 }
 
-fn on_project_save_event(
-    _event: On<ProjectSaveEvent>,
+fn on_save_project_event(
+    _event: On<SaveProjectEvent>,
     editor_state: Res<EditorState>,
     assets: Res<Assets<ParticleSystemAsset>>,
     mut dirty_state: ResMut<DirtyState>,
@@ -106,12 +207,12 @@ fn on_project_save_event(
         commands.insert_resource(SaveResult(result));
         dirty_state.has_unsaved_changes = false;
     } else {
-        commands.trigger(ProjectSaveAsEvent);
+        commands.trigger(SaveProjectAsEvent);
     }
 }
 
-fn on_project_save_as_event(
-    _event: On<ProjectSaveAsEvent>,
+fn on_save_project_as_event(
+    _event: On<SaveProjectAsEvent>,
     editor_state: Res<EditorState>,
     assets: Res<Assets<ParticleSystemAsset>>,
     mut commands: Commands,
@@ -229,6 +330,6 @@ fn handle_save_keyboard_shortcut(keyboard: Res<ButtonInput<KeyCode>>, mut comman
         || keyboard.pressed(KeyCode::ControlRight);
 
     if ctrl_or_cmd && keyboard.just_pressed(KeyCode::KeyS) {
-        commands.trigger(ProjectSaveEvent);
+        commands.trigger(SaveProjectEvent);
     }
 }

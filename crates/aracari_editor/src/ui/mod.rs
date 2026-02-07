@@ -40,6 +40,7 @@ impl Plugin for EditorUiPlugin {
             .add_plugins(components::inspector::plugin)
             .add_plugins(components::seekbar::plugin)
             .add_plugins(components::playback_controls::plugin)
+            .add_plugins(components::project_selector::plugin)
             .add_plugins(components::toasts::plugin)
             .add_plugins(components::topbar::plugin)
             .add_systems(Startup, setup_ui)
