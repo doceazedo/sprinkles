@@ -195,8 +195,8 @@ pub fn prepare_particle_compute_bind_groups(
             .and_then(|h| gpu_images.get(h))
             .or(fallback_curve_gpu_image);
 
-        let turbulence_influence_curve_gpu_image = emitter_data
-            .turbulence_influence_curve_texture_handle
+        let turbulence_influence_over_lifetime_gpu_image = emitter_data
+            .turbulence_influence_over_lifetime_texture_handle
             .as_ref()
             .and_then(|h| gpu_images.get(h))
             .or(fallback_curve_gpu_image);
@@ -219,7 +219,7 @@ pub fn prepare_particle_compute_bind_groups(
             continue;
         };
 
-        let Some(turbulence_influence_curve_image) = turbulence_influence_curve_gpu_image else {
+        let Some(turbulence_influence_over_lifetime_image) = turbulence_influence_over_lifetime_gpu_image else {
             continue;
         };
 
@@ -257,7 +257,7 @@ pub fn prepare_particle_compute_bind_groups(
                 &curve_sampler.0,
                 &emission_over_lifetime_image.texture_view,
                 &curve_sampler.0,
-                &turbulence_influence_curve_image.texture_view,
+                &turbulence_influence_over_lifetime_image.texture_view,
                 &curve_sampler.0,
                 &radial_velocity_curve_image.texture_view,
                 &curve_sampler.0,

@@ -135,7 +135,6 @@
                 gravity: (0.0, 0.0, 0.0),
             ),
             turbulence: (
-                enabled: true,
                 noise_strength: 0.1,
                 noise_scale: 2.5,
                 noise_speed_random: 0.2,
@@ -143,6 +142,9 @@
                     min: 0.01,
                     max: 0.04,
                 ),
+            ),
+            collision: (
+                base_size: 0.01,
             ),
             particle_flags: "ALIGN_Y_TO_VELOCITY",
         ),
@@ -180,21 +182,27 @@
                     max: 0.3,
                 ),
                 scale_over_lifetime: Some((
-                    name: Some("Quart out"),
                     points: [
                         (
                             position: 0.0,
-                            value: 1.0,
+                            value: 0.0,
                             mode: DoubleCurve,
                             tension: 0.0,
                             easing: Power,
                         ),
                         (
+                            position: 0.13,
+                            value: 1.0,
+                            mode: SingleCurve,
+                            tension: -1.0,
+                            easing: Circ,
+                        ),
+                        (
                             position: 1.0,
                             value: 0.0,
                             mode: SingleCurve,
-                            tension: -0.7507507508,
-                            easing: Power,
+                            tension: -1.0,
+                            easing: Circ,
                         ),
                     ],
                     range: (
@@ -262,21 +270,28 @@
                     min: 0.01,
                     max: 0.04,
                 ),
-                influence_curve: Some((
+                influence_over_lifetime: Some((
                     points: [
                         (
                             position: 0.0,
                             value: 0.0,
-                            mode: SingleCurve,
+                            mode: DoubleCurve,
                             tension: 0.0,
                             easing: Power,
                         ),
                         (
+                            position: 0.5,
+                            value: 0.75,
+                            mode: SingleCurve,
+                            tension: -1.0,
+                            easing: Circ,
+                        ),
+                        (
                             position: 1.0,
                             value: 1.0,
-                            mode: DoubleCurve,
-                            tension: 0.5,
-                            easing: Power,
+                            mode: SingleCurve,
+                            tension: 1.0,
+                            easing: Circ,
                         ),
                     ],
                     range: (
@@ -284,6 +299,9 @@
                         max: 1.0,
                     ),
                 )),
+            ),
+            collision: (
+                base_size: 0.01,
             ),
             particle_flags: "",
         ),
@@ -395,7 +413,6 @@
                 gravity: (0.0, 0.3, 0.0),
             ),
             turbulence: (
-                enabled: true,
                 noise_strength: 0.1,
                 noise_scale: 2.5,
                 noise_speed_random: 0.2,
@@ -403,6 +420,9 @@
                     min: 0.01,
                     max: 0.04,
                 ),
+            ),
+            collision: (
+                base_size: 0.01,
             ),
             particle_flags: "",
         ),
@@ -520,7 +540,6 @@
                 gravity: (0.0, -1.5, 0.0),
             ),
             turbulence: (
-                enabled: true,
                 noise_strength: 0.1,
                 noise_scale: 2.5,
                 noise_speed_random: 0.2,
@@ -528,6 +547,9 @@
                     min: 0.01,
                     max: 0.04,
                 ),
+            ),
+            collision: (
+                base_size: 0.01,
             ),
             particle_flags: "ALIGN_Y_TO_VELOCITY",
         ),
@@ -621,6 +643,9 @@
             ),
             accelerations: (
                 gravity: (0.0, 0.0, 0.0),
+            ),
+            collision: (
+                base_size: 0.01,
             ),
             particle_flags: "",
         ),

@@ -186,7 +186,7 @@ pub struct EmitterData {
     #[serde(default)]
     pub accelerations: EmitterAccelerations,
 
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "EmitterTurbulence::should_skip")]
     pub turbulence: EmitterTurbulence,
 
     #[serde(default)]
@@ -808,7 +808,7 @@ pub struct EmitterTurbulence {
     #[serde(default = "default_turbulence_influence")]
     pub influence: Range,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub influence_curve: Option<CurveTexture>,
+    pub influence_over_lifetime: Option<CurveTexture>,
 }
 
 impl Default for EmitterTurbulence {
@@ -820,8 +820,24 @@ impl Default for EmitterTurbulence {
             noise_speed: Vec3::ZERO,
             noise_speed_random: 0.0,
             influence: default_turbulence_influence(),
-            influence_curve: None,
+            influence_over_lifetime: None,
         }
+    }
+}
+
+impl EmitterTurbulence {
+    fn should_skip(&self) -> bool {
+        if self.enabled {
+            return false;
+        }
+        let d = Self::default();
+        self.noise_strength == d.noise_strength
+            && self.noise_scale == d.noise_scale
+            && self.noise_speed == d.noise_speed
+            && self.noise_speed_random == d.noise_speed_random
+            && self.influence.min == d.influence.min
+            && self.influence.max == d.influence.max
+            && self.influence_over_lifetime.is_none()
     }
 }
 

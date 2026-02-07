@@ -154,7 +154,7 @@ pub struct EmitterUniforms {
     pub turbulence_noise_speed: [f32; 3],
     pub turbulence_influence_max: f32,
 
-    pub turbulence_influence_curve: CurveUniform,
+    pub turbulence_influence_over_lifetime: CurveUniform,
 
     pub radial_velocity: AnimatedVelocityUniform,
 
@@ -194,7 +194,7 @@ pub struct ExtractedEmitterData {
     pub scale_over_lifetime_texture_handle: Option<Handle<Image>>,
     pub alpha_over_lifetime_texture_handle: Option<Handle<Image>>,
     pub emission_over_lifetime_texture_handle: Option<Handle<Image>>,
-    pub turbulence_influence_curve_texture_handle: Option<Handle<Image>>,
+    pub turbulence_influence_over_lifetime_texture_handle: Option<Handle<Image>>,
     pub radial_velocity_curve_texture_handle: Option<Handle<Image>>,
 }
 
@@ -371,8 +371,8 @@ pub fn extract_particle_systems(
             turbulence_noise_speed: turbulence.noise_speed.into(),
             turbulence_influence_max: turbulence.influence.max,
 
-            turbulence_influence_curve: turbulence
-                .influence_curve
+            turbulence_influence_over_lifetime: turbulence
+                .influence_over_lifetime
                 .as_ref()
                 .filter(|c| !c.is_constant())
                 .map_or(CurveUniform::disabled(), |c| {
@@ -438,8 +438,8 @@ pub fn extract_particle_systems(
             .filter(|c| !c.is_constant())
             .and_then(|c| curve_cache.get(c));
 
-        let turbulence_influence_curve_texture_handle = turbulence
-            .influence_curve
+        let turbulence_influence_over_lifetime_texture_handle = turbulence
+            .influence_over_lifetime
             .as_ref()
             .filter(|c| !c.is_constant())
             .and_then(|c| curve_cache.get(c));
@@ -468,7 +468,7 @@ pub fn extract_particle_systems(
                 scale_over_lifetime_texture_handle,
                 alpha_over_lifetime_texture_handle,
                 emission_over_lifetime_texture_handle,
-                turbulence_influence_curve_texture_handle,
+                turbulence_influence_over_lifetime_texture_handle,
                 radial_velocity_curve_texture_handle,
             },
         ));

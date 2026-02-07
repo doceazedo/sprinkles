@@ -89,7 +89,7 @@ struct EmitterParams {
     turbulence_noise_speed: vec3<f32>,
     turbulence_influence_max: f32,
 
-    turbulence_influence_curve: CurveUniform,
+    turbulence_influence_over_lifetime: CurveUniform,
 
     radial_velocity: AnimatedVelocity,
 
@@ -142,8 +142,8 @@ const COLLISION_EPSILON: f32 = 0.001;
 @group(0) @binding(7) var alpha_over_lifetime_sampler: sampler;
 @group(0) @binding(8) var emission_over_lifetime_texture: texture_2d<f32>;
 @group(0) @binding(9) var emission_over_lifetime_sampler: sampler;
-@group(0) @binding(10) var turbulence_influence_curve_texture: texture_2d<f32>;
-@group(0) @binding(11) var turbulence_influence_curve_sampler: sampler;
+@group(0) @binding(10) var turbulence_influence_over_lifetime_texture: texture_2d<f32>;
+@group(0) @binding(11) var turbulence_influence_over_lifetime_sampler: sampler;
 @group(0) @binding(12) var radial_velocity_curve_texture: texture_2d<f32>;
 @group(0) @binding(13) var radial_velocity_curve_sampler: sampler;
 @group(0) @binding(14) var<storage, read> colliders: ColliderArray;
@@ -474,14 +474,14 @@ fn sample_spline_curve(
 }
 
 fn get_turbulence_influence_at_lifetime(base_influence: f32, age: f32, lifetime: f32) -> f32 {
-    if (params.turbulence_influence_curve.enabled == 0u) {
+    if (params.turbulence_influence_over_lifetime.enabled == 0u) {
         return base_influence;
     }
     let t = clamp(age / lifetime, 0.0, 1.0);
     let curve_value = sample_spline_curve(
-        turbulence_influence_curve_texture,
-        turbulence_influence_curve_sampler,
-        params.turbulence_influence_curve,
+        turbulence_influence_over_lifetime_texture,
+        turbulence_influence_over_lifetime_sampler,
+        params.turbulence_influence_over_lifetime,
         t
     );
     return base_influence * curve_value;
