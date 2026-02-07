@@ -24,6 +24,7 @@ pub fn plugin(app: &mut App) {
         .add_observer(on_item_menu_change)
         .add_observer(on_rename_commit)
         .add_observer(on_delete_confirmed)
+        .add_observer(on_add_emitter)
         .add_systems(
             Update,
             (
@@ -81,6 +82,9 @@ struct PendingDeleteEmitter {
     index: u8,
 }
 
+#[derive(Event)]
+struct AddEmitterEvent;
+
 pub fn data_panel(_asset_server: &AssetServer) -> impl Bundle {
     (
         EditorDataPanel,
@@ -112,9 +116,7 @@ fn setup_data_panel(
                             &asset_server,
                         ),
                     ))
-                    .observe(|_: On<ButtonClickEvent>| {
-                        println!("TODO: add emitter");
-                    });
+                    .observe(on_add_emitter_click);
 
                 parent
                     .spawn((
@@ -255,7 +257,7 @@ fn spawn_items<'a>(
         let menu_entity = commands
             .spawn((
                 ItemMenu,
-                combobox_icon(vec!["Rename", "Delete"]),
+                combobox_icon(vec!["Duplicate", "Rename", "Delete"]),
             ))
             .insert(Node {
                 position_type: PositionType::Absolute,
@@ -271,6 +273,45 @@ fn spawn_items<'a>(
 
         commands.entity(list_entity).add_child(item_entity);
     }
+}
+
+fn on_add_emitter_click(_event: On<ButtonClickEvent>, mut commands: Commands) {
+    commands.trigger(AddEmitterEvent);
+}
+
+fn on_add_emitter(
+    _event: On<AddEmitterEvent>,
+    mut commands: Commands,
+    mut editor_state: ResMut<EditorState>,
+    mut assets: ResMut<Assets<ParticleSystemAsset>>,
+    mut dirty_state: ResMut<DirtyState>,
+    mut last_project: ResMut<LastLoadedProject>,
+) {
+    let Some(handle) = &editor_state.current_project else {
+        return;
+    };
+    let Some(asset) = assets.get_mut(handle) else {
+        return;
+    };
+
+    let existing_names: Vec<&str> = asset.emitters.iter().map(|e| e.name.as_str()).collect();
+    let name = next_unique_name("Emitter", &existing_names);
+
+    let new_index = asset.emitters.len() as u8;
+    asset.emitters.push(EmitterData {
+        name,
+        ..Default::default()
+    });
+
+    dirty_state.has_unsaved_changes = true;
+
+    editor_state.inspecting = Some(Inspecting {
+        kind: Inspectable::Emitter,
+        index: new_index,
+    });
+
+    commands.trigger(RespawnEmittersEvent);
+    last_project.handle = None;
 }
 
 fn on_item_click(
@@ -295,8 +336,10 @@ fn on_item_click(
 fn on_item_menu_change(
     event: On<ComboBoxChangeEvent>,
     mut commands: Commands,
-    editor_state: Res<EditorState>,
-    assets: Res<Assets<ParticleSystemAsset>>,
+    mut editor_state: ResMut<EditorState>,
+    mut assets: ResMut<Assets<ParticleSystemAsset>>,
+    mut dirty_state: ResMut<DirtyState>,
+    mut last_project: ResMut<LastLoadedProject>,
     menus: Query<&ChildOf, With<ItemMenu>>,
     items: Query<(Entity, &InspectableItem, &Children), Without<Renaming>>,
     mut buttons: Query<&mut Node, With<ItemButton>>,
@@ -314,6 +357,46 @@ fn on_item_menu_change(
     };
 
     match event.label.as_str() {
+        "Duplicate" => {
+            let Some(handle) = &editor_state.current_project else {
+                return;
+            };
+            let Some(asset) = assets.get_mut(handle) else {
+                return;
+            };
+            let Some(source) = asset.emitters.get(item.index as usize) else {
+                return;
+            };
+
+            let mut new_emitter = source.clone();
+            let (base, _) = strip_trailing_number(&emitter_name);
+            let existing_names: Vec<&str> =
+                asset.emitters.iter().map(|e| e.name.as_str()).collect();
+            new_emitter.name = next_unique_name(base, &existing_names);
+
+            let insert_index = item.index as usize + 1;
+            asset.emitters.insert(insert_index, new_emitter);
+            dirty_state.has_unsaved_changes = true;
+
+            if let Some(inspecting) = &editor_state.inspecting {
+                if inspecting.kind == Inspectable::Emitter
+                    && inspecting.index as usize >= insert_index
+                {
+                    editor_state.inspecting = Some(Inspecting {
+                        kind: Inspectable::Emitter,
+                        index: inspecting.index + 1,
+                    });
+                }
+            }
+
+            editor_state.inspecting = Some(Inspecting {
+                kind: Inspectable::Emitter,
+                index: insert_index as u8,
+            });
+
+            commands.trigger(RespawnEmittersEvent);
+            last_project.handle = None;
+        }
         "Rename" => {
             let button_entity = children.iter().find(|c| buttons.get(*c).is_ok());
             if let Some(button_entity) = button_entity {
@@ -385,6 +468,30 @@ fn handle_item_right_click(
             }
         }
     }
+}
+
+fn next_unique_name(base_name: &str, existing: &[&str]) -> String {
+    if !existing.contains(&base_name) {
+        return base_name.to_string();
+    }
+    let mut n = 2;
+    loop {
+        let candidate = format!("{} {}", base_name, n);
+        if !existing.iter().any(|name| *name == candidate) {
+            return candidate;
+        }
+        n += 1;
+    }
+}
+
+fn strip_trailing_number(name: &str) -> (&str, Option<u32>) {
+    if let Some(pos) = name.rfind(' ') {
+        let suffix = &name[pos + 1..];
+        if let Ok(n) = suffix.parse::<u32>() {
+            return (name[..pos].trim_end(), Some(n));
+        }
+    }
+    (name, None)
 }
 
 fn get_emitter_name(
