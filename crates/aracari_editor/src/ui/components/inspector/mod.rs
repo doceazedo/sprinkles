@@ -4,6 +4,7 @@ mod collision;
 mod colors;
 mod draw_pass;
 mod emission;
+mod particle_flags;
 mod scale;
 mod time;
 mod turbulence;
@@ -29,7 +30,7 @@ use crate::ui::widgets::variant_edit::{VariantEditProps, variant_edit};
 use binding::Field;
 
 pub fn plugin(app: &mut App) {
-    app.add_plugins((binding::plugin, time::plugin, emission::plugin, draw_pass::plugin, scale::plugin, colors::plugin, velocities::plugin, accelerations::plugin, turbulence::plugin, collision::plugin))
+    app.add_plugins((binding::plugin, time::plugin, emission::plugin, draw_pass::plugin, scale::plugin, colors::plugin, velocities::plugin, accelerations::plugin, turbulence::plugin, collision::plugin, particle_flags::plugin))
         .add_systems(Update, (setup_inspector_panel, update_panel_title, setup_inspector_section_fields));
 }
 
@@ -89,6 +90,7 @@ fn setup_inspector_panel(
                         content.spawn(accelerations::accelerations_section(&asset_server));
                         content.spawn(turbulence::turbulence_section(&asset_server));
                         content.spawn(collision::collision_section(&asset_server));
+                        content.spawn(particle_flags::particle_flags_section(&asset_server));
                     });
             });
     }

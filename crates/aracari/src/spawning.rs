@@ -829,6 +829,13 @@ pub fn sync_particle_material(
 
             current_config.0 = new_material;
             material_handle.0 = new_material_handle;
+        } else {
+            let new_flags = emitter_data.particle_flags.bits();
+            if let Some(material) = materials.get_mut(&material_handle.0) {
+                if material.extension.particle_flags != new_flags {
+                    material.extension.particle_flags = new_flags;
+                }
+            }
         }
     }
 }

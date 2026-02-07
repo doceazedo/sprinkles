@@ -729,7 +729,7 @@ fn bind_variant_field_values(
                     queue.add(TextInputAction::Edit(TextInputEdit::Paste(text.clone())));
                     commands
                         .entity(text_edit_entity)
-                        .insert(Bound::variant(binding_entity));
+                        .try_insert(Bound::variant(binding_entity));
                     bound = true;
                     break;
                 }
@@ -755,7 +755,7 @@ fn bind_variant_field_values(
                             queue.add(TextInputAction::Edit(TextInputEdit::Paste(text)));
                             commands
                                 .entity(text_edit_entity)
-                                .insert(Bound::variant(binding_entity));
+                                .try_insert(Bound::variant(binding_entity));
                             component_index += 1;
                             break;
                         }
@@ -771,7 +771,7 @@ fn bind_variant_field_values(
         if bound {
             commands
                 .entity(binding_entity)
-                .insert(Bound::variant(binding_entity));
+                .try_insert(Bound::variant(binding_entity));
         }
     }
 }
@@ -892,7 +892,7 @@ fn bind_values_to_inputs(
                                 if let Some(field_entity) =
                                     find_ancestor_field_entity(child_of.parent(), &fields, &parents)
                                 {
-                                    commands.entity(entity).insert(Bound::direct(field_entity));
+                                    commands.entity(entity).try_insert(Bound::direct(field_entity));
                                 }
                             }
                             break;
@@ -911,7 +911,7 @@ fn bind_values_to_inputs(
         if let Some(field_entity) =
             find_ancestor_field_entity(child_of.parent(), &fields, &parents)
         {
-            commands.entity(entity).insert(Bound::direct(field_entity));
+            commands.entity(entity).try_insert(Bound::direct(field_entity));
         }
     }
 
@@ -931,7 +931,7 @@ fn bind_values_to_inputs(
             state.checked = checked;
         }
         if let Some(field_entity) = find_field_entity_for_entity(entity, &fields, &parents) {
-            commands.entity(entity).insert(Bound::direct(field_entity));
+            commands.entity(entity).try_insert(Bound::direct(field_entity));
         }
     }
 }
@@ -1161,7 +1161,7 @@ fn bind_variant_color_pickers(
         picker_state.set_from_rgba(color);
         commands
             .entity(picker_entity)
-            .insert(Bound::variant(picker_entity));
+            .try_insert(Bound::variant(picker_entity));
     }
 }
 
@@ -1245,7 +1245,7 @@ fn bind_curve_edit_values(
         // try binding directly to CurveTexture
         if let Some(curve_texture) = value.try_downcast_ref::<CurveTexture>() {
             state.set_curve(curve_texture.clone());
-            commands.entity(entity).insert(Bound::direct(field_entity));
+            commands.entity(entity).try_insert(Bound::direct(field_entity));
             continue;
         }
 
@@ -1255,7 +1255,7 @@ fn bind_curve_edit_values(
                 state.set_curve(curve.clone());
             }
             // mark as bound even if None so we can create the curve on commit
-            commands.entity(entity).insert(Bound::direct(field_entity));
+            commands.entity(entity).try_insert(Bound::direct(field_entity));
         }
     }
 }
@@ -1596,7 +1596,7 @@ fn bind_variant_gradient_edits(
             state.gradient = gradient;
             commands
                 .entity(entity)
-                .insert(Bound::variant(entity));
+                .try_insert(Bound::variant(entity));
         }
     }
 }
