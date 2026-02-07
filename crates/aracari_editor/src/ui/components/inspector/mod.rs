@@ -1,5 +1,4 @@
 mod accelerations;
-pub mod binding;
 mod collision;
 mod colors;
 mod draw_pass;
@@ -12,7 +11,7 @@ pub mod types;
 pub mod utils;
 mod velocities;
 
-pub use types::{FieldDef, FieldKind};
+pub use types::{FieldKind, VariantField};
 pub use utils::{name_to_label, path_to_label};
 
 use aracari::prelude::*;
@@ -27,11 +26,35 @@ use crate::ui::widgets::panel::{PanelDirection, PanelProps, panel, panel_resize_
 use crate::ui::widgets::panel_section::{PanelSectionProps, PanelSectionSize, panel_section};
 use crate::ui::widgets::variant_edit::{VariantEditProps, variant_edit};
 
-use binding::Field;
+use super::binding::Field;
 
 pub fn plugin(app: &mut App) {
-    app.add_plugins((binding::plugin, time::plugin, emission::plugin, draw_pass::plugin, scale::plugin, colors::plugin, velocities::plugin, accelerations::plugin, turbulence::plugin, collision::plugin, particle_flags::plugin))
-        .add_systems(Update, (setup_inspector_panel, update_panel_title, setup_inspector_section_fields));
+    app.init_resource::<InspectedEmitterTracker>()
+        .add_plugins((super::binding::plugin, time::plugin, emission::plugin, draw_pass::plugin, scale::plugin, colors::plugin, velocities::plugin, accelerations::plugin, turbulence::plugin, collision::plugin, particle_flags::plugin))
+        .add_systems(Update, (
+            update_inspected_emitter_tracker,
+            (setup_inspector_panel, update_panel_title, setup_inspector_section_fields).after(update_inspected_emitter_tracker),
+        ));
+}
+
+#[derive(Resource, Default)]
+pub struct InspectedEmitterTracker {
+    pub current_index: Option<u8>,
+}
+
+pub(super) fn update_inspected_emitter_tracker(
+    editor_state: Res<EditorState>,
+    mut tracker: ResMut<InspectedEmitterTracker>,
+) {
+    let new_index = editor_state
+        .inspecting
+        .as_ref()
+        .filter(|i| i.kind == Inspectable::Emitter)
+        .map(|i| i.index);
+
+    if tracker.current_index != new_index {
+        tracker.current_index = new_index;
+    }
 }
 
 #[derive(Component)]
@@ -176,6 +199,19 @@ impl InspectorSection {
             initialized: false,
         }
     }
+}
+
+pub(super) fn section_needs_setup<S: Component, C: Component>(
+    sections: &Query<(Entity, &InspectorSection), With<S>>,
+    existing: &Query<Entity, With<C>>,
+) -> Option<Entity> {
+    let Ok((entity, section)) = sections.single() else {
+        return None;
+    };
+    if !section.initialized || !existing.is_empty() {
+        return None;
+    }
+    Some(entity)
 }
 
 pub fn inspector_section(section: InspectorSection, asset_server: &AssetServer) -> impl Bundle {

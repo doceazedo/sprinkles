@@ -8,8 +8,8 @@ use crate::ui::widgets::combobox::{ComboBoxChangeEvent, ComboBoxConfig, ComboBox
 use crate::ui::widgets::inspector_field::{InspectorFieldProps, fields_row, spawn_inspector_field};
 use crate::ui::widgets::text_edit::{TextEditCommitEvent, TextEditProps, text_edit};
 
-use super::binding::{get_inspecting_emitter, get_inspecting_emitter_mut, mark_dirty_and_restart};
-use super::{InspectorSection, inspector_section};
+use crate::ui::components::binding::{find_ancestor, get_inspecting_emitter, get_inspecting_emitter_mut, mark_dirty_and_restart};
+use super::{InspectorSection, inspector_section, section_needs_setup};
 
 #[derive(Component)]
 struct CollisionSection;
@@ -40,7 +40,8 @@ pub fn plugin(app: &mut App) {
                 setup_collision_content,
                 cleanup_collision_on_emitter_change,
                 sync_collision_ui,
-            ),
+            )
+                .after(super::update_inspected_emitter_tracker),
         );
 }
 
@@ -177,13 +178,9 @@ fn setup_collision_content(
     sections: Query<(Entity, &InspectorSection), With<CollisionSection>>,
     existing: Query<Entity, With<CollisionContent>>,
 ) {
-    let Ok((entity, section)) = sections.single() else {
+    let Some(entity) = section_needs_setup(&sections, &existing) else {
         return;
     };
-
-    if !section.initialized || !existing.is_empty() {
-        return;
-    }
 
     let emitter = get_inspecting_emitter(&editor_state, &assets).map(|(_, e)| e);
     let mode = emitter.map(|e| &e.collision.mode);
@@ -222,19 +219,12 @@ fn setup_collision_content(
 
 fn cleanup_collision_on_emitter_change(
     mut commands: Commands,
-    editor_state: Res<EditorState>,
+    tracker: Res<super::InspectedEmitterTracker>,
     existing: Query<Entity, With<CollisionContent>>,
-    mut last_emitter: Local<Option<u8>>,
 ) {
-    let current = editor_state
-        .inspecting
-        .as_ref()
-        .map(|i| i.index);
-
-    if *last_emitter == current {
+    if !tracker.is_changed() {
         return;
     }
-    *last_emitter = current;
 
     for entity in &existing {
         commands.entity(entity).try_despawn();
@@ -284,21 +274,15 @@ fn handle_collision_field_commit(
     mut dirty_state: ResMut<DirtyState>,
     mut emitter_runtimes: Query<&mut EmitterRuntime>,
 ) {
-    let mut current = trigger.entity;
-    let mut field_input = None;
-    for _ in 0..10 {
-        if let Ok(input) = collision_fields.get(current) {
-            field_input = Some(input);
-            break;
-        }
-        if let Ok(child_of) = parents.get(current) {
-            current = child_of.parent();
-        } else {
-            break;
-        }
-    }
-
-    let Some(input) = field_input else {
+    let Some(input_entity) = find_ancestor(
+        trigger.entity,
+        &parents,
+        10,
+        |e| collision_fields.get(e).is_ok(),
+    ) else {
+        return;
+    };
+    let Ok(input) = collision_fields.get(input_entity) else {
         return;
     };
 

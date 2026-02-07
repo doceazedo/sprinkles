@@ -1,3 +1,4 @@
+pub mod binding;
 pub mod data_panel;
 pub mod inspector;
 pub mod navigation;

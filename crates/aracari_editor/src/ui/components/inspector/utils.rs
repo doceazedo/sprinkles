@@ -8,7 +8,7 @@ use crate::ui::widgets::combobox::ComboBoxOptionData;
 use crate::ui::widgets::variant_edit::VariantDefinition;
 use crate::ui::widgets::vector_edit::VectorSuffixes;
 
-use super::types::FieldDef;
+use super::types::VariantField;
 
 const UPPERCASE_ACRONYMS: &[&str] = &["fps", "x", "y", "z"];
 
@@ -36,11 +36,11 @@ pub fn path_to_label(path: &str) -> String {
 
 pub struct VariantConfig {
     pub icon: Option<&'static str>,
-    pub field_overrides: Vec<(&'static str, FieldDef)>,
+    pub field_overrides: Vec<(&'static str, VariantField)>,
     pub suffix_overrides: Vec<(&'static str, VectorSuffixes)>,
     pub row_layout: Option<Vec<Vec<&'static str>>>,
     pub default_value: Option<Box<dyn PartialReflect>>,
-    pub inner_struct_fields: Vec<(String, Option<FieldDef>)>,
+    pub inner_struct_fields: Vec<(String, Option<VariantField>)>,
 }
 
 impl Default for VariantConfig {
@@ -88,7 +88,7 @@ impl VariantConfig {
         self
     }
 
-    pub fn override_field(mut self, name: &'static str, field: FieldDef) -> Self {
+    pub fn override_field(mut self, name: &'static str, field: VariantField) -> Self {
         self.field_overrides.push((name, field));
         self
     }
@@ -98,7 +98,7 @@ impl VariantConfig {
             .iter()
             .map(|o| o.label.clone())
             .collect::<Vec<_>>();
-        self.override_field(name, FieldDef::combobox(name, options))
+        self.override_field(name, VariantField::combobox(name, options))
     }
 
     pub fn override_suffixes(mut self, name: &'static str, suffixes: VectorSuffixes) -> Self {
@@ -168,8 +168,8 @@ pub fn variants_from_reflect<T: Typed + Default + PartialReflect + Clone + 'stat
 pub fn rows_from_variant_info(
     variant_info: &VariantInfo,
     config: Option<&&VariantConfig>,
-) -> Vec<Vec<FieldDef>> {
-    let override_map: HashMap<&str, &FieldDef> = config
+) -> Vec<Vec<VariantField>> {
+    let override_map: HashMap<&str, &VariantField> = config
         .map(|c| {
             c.field_overrides
                 .iter()
@@ -187,7 +187,7 @@ pub fn rows_from_variant_info(
         })
         .unwrap_or_default();
 
-    let fields: Vec<(String, FieldDef)> = match variant_info {
+    let fields: Vec<(String, VariantField)> = match variant_info {
         VariantInfo::Struct(struct_info) => struct_info
             .iter()
             .filter_map(|field| {
@@ -223,7 +223,7 @@ pub fn rows_from_variant_info(
 
     if let Some(cfg) = config {
         if let Some(ref layout) = cfg.row_layout {
-            let fields_map: HashMap<String, FieldDef> = fields.into_iter().collect();
+            let fields_map: HashMap<String, VariantField> = fields.into_iter().collect();
             return layout
                 .iter()
                 .map(|row_names| {
@@ -232,7 +232,7 @@ pub fn rows_from_variant_info(
                         .filter_map(|name| fields_map.get(*name).cloned())
                         .collect()
                 })
-                .filter(|row: &Vec<FieldDef>| !row.is_empty())
+                .filter(|row: &Vec<VariantField>| !row.is_empty())
                 .collect();
         }
     }
@@ -244,19 +244,19 @@ pub fn field_from_type_path(
     name: &str,
     type_path: &str,
     suffixes: Option<VectorSuffixes>,
-) -> Option<FieldDef> {
+) -> Option<VariantField> {
     match type_path {
-        "f32" => Some(FieldDef::f32(name)),
-        "u32" => Some(FieldDef::u32(name)),
-        "bool" => Some(FieldDef::bool(name)),
-        "[f32; 4]" => Some(FieldDef::color(name)),
+        "f32" => Some(VariantField::f32(name)),
+        "u32" => Some(VariantField::u32(name)),
+        "bool" => Some(VariantField::bool(name)),
+        "[f32; 4]" => Some(VariantField::color(name)),
         path if path.contains("Gradient") && !path.contains("Interpolation") => {
-            Some(FieldDef::gradient(name))
+            Some(VariantField::gradient(name))
         }
         path if path.contains("Vec3") => {
-            Some(FieldDef::vector(name, suffixes.unwrap_or(VectorSuffixes::XYZ)))
+            Some(VariantField::vector(name, suffixes.unwrap_or(VectorSuffixes::XYZ)))
         }
-        path if path.contains("AnimatedVelocity") => Some(FieldDef::animated_velocity(name)),
+        path if path.contains("AnimatedVelocity") => Some(VariantField::animated_velocity(name)),
         _ => None,
     }
 }

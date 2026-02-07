@@ -5,8 +5,8 @@ use crate::state::EditorState;
 use crate::ui::widgets::inspector_field::{InspectorFieldProps, fields_row, spawn_inspector_field};
 use crate::ui::widgets::vector_edit::VectorSuffixes;
 
-use super::binding::get_inspecting_emitter;
-use super::{InspectorSection, inspector_section};
+use crate::ui::components::binding::get_inspecting_emitter;
+use super::{InspectorSection, inspector_section, section_needs_setup};
 
 #[derive(Component)]
 struct TurbulenceSection;
@@ -41,13 +41,9 @@ fn setup_turbulence_options(
     sections: Query<(Entity, &InspectorSection), With<TurbulenceSection>>,
     existing: Query<Entity, With<TurbulenceOptions>>,
 ) {
-    let Ok((entity, section)) = sections.single() else {
+    let Some(entity) = section_needs_setup(&sections, &existing) else {
         return;
     };
-
-    if !section.initialized || !existing.is_empty() {
-        return;
-    }
 
     let enabled = get_inspecting_emitter(&editor_state, &assets)
         .map(|(_, e)| e.turbulence.enabled)

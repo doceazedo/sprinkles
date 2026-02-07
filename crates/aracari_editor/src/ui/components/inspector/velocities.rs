@@ -1,7 +1,7 @@
 use aracari::prelude::*;
 use bevy::prelude::*;
 
-use crate::state::{DirtyState, EditorState, Inspectable};
+use crate::state::{DirtyState, EditorState};
 use crate::ui::tokens::BORDER_COLOR;
 use crate::ui::widgets::button::{
     ButtonClickEvent, ButtonProps, ButtonVariant, EditorButton, IconButtonProps, button, icon_button,
@@ -16,7 +16,7 @@ use crate::ui::widgets::popover::{
 };
 use crate::ui::widgets::vector_edit::VectorSuffixes;
 
-use super::binding::{get_inspecting_emitter, get_inspecting_emitter_mut};
+use crate::ui::components::binding::{get_inspecting_emitter, get_inspecting_emitter_mut, mark_dirty_and_restart};
 use super::utils::name_to_label;
 use super::InspectorSection;
 
@@ -31,7 +31,8 @@ pub fn plugin(app: &mut App) {
             setup_velocity_list,
             sync_velocity_list_on_emitter_change,
             update_add_button_state,
-        ),
+        )
+            .after(super::update_inspected_emitter_tracker),
     )
     .add_observer(handle_add_button_click)
     .add_observer(handle_add_velocity_option)
@@ -438,10 +439,7 @@ fn handle_add_velocity_option(
         commands.entity(popover_entity).try_despawn();
     }
 
-    dirty_state.has_unsaved_changes = true;
-    for mut runtime in emitter_runtimes.iter_mut() {
-        runtime.restart(fixed_seed);
-    }
+    mark_dirty_and_restart(&mut dirty_state, &mut emitter_runtimes, fixed_seed);
 }
 
 fn handle_velocity_delete(
@@ -485,10 +483,7 @@ fn handle_velocity_delete(
         update_separator(!list.added.is_empty(), &mut separators);
     }
 
-    dirty_state.has_unsaved_changes = true;
-    for mut runtime in emitter_runtimes.iter_mut() {
-        runtime.restart(fixed_seed);
-    }
+    mark_dirty_and_restart(&mut dirty_state, &mut emitter_runtimes, fixed_seed);
 }
 
 fn handle_velocity_edit(
@@ -568,21 +563,14 @@ fn sync_velocity_list_on_emitter_change(
     asset_server: Res<AssetServer>,
     editor_state: Res<EditorState>,
     assets: Res<Assets<ParticleSystemAsset>>,
+    tracker: Res<super::InspectedEmitterTracker>,
     mut lists: Query<&mut VelocityList>,
     list_containers: Query<(Entity, &Children), With<VelocityListContainer>>,
     mut separators: Query<&mut Node, With<VelocitySeparator>>,
-    mut last_emitter_index: Local<Option<u8>>,
 ) {
-    let inspecting = editor_state
-        .inspecting
-        .as_ref()
-        .filter(|i| i.kind == Inspectable::Emitter);
-    let current_index = inspecting.map(|i| i.index);
-
-    if *last_emitter_index == current_index {
+    if !tracker.is_changed() {
         return;
     }
-    *last_emitter_index = current_index;
 
     let active = get_active_animated_velocities(&editor_state, &assets);
 

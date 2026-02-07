@@ -18,22 +18,16 @@ pub enum FieldKind {
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct FieldDef {
+pub struct VariantField {
     pub name: String,
     pub kind: FieldKind,
-    pub label: Option<String>,
-    pub icon: Option<String>,
-    pub suffix: Option<String>,
-    pub placeholder: Option<String>,
-    pub min: Option<f32>,
-    pub max: Option<f32>,
 }
 
-impl FieldDef {
+impl VariantField {
     pub fn new(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
-            ..Default::default()
+            kind: FieldKind::default(),
         }
     }
 
@@ -41,20 +35,8 @@ impl FieldDef {
         Self::new(name).with_kind(FieldKind::F32)
     }
 
-    pub fn f32_percent(name: impl Into<String>) -> Self {
-        Self::new(name).with_kind(FieldKind::F32Percent)
-    }
-
     pub fn u32(name: impl Into<String>) -> Self {
         Self::new(name).with_kind(FieldKind::U32)
-    }
-
-    pub fn u32_or_empty(name: impl Into<String>) -> Self {
-        Self::new(name).with_kind(FieldKind::U32OrEmpty)
-    }
-
-    pub fn optional_u32(name: impl Into<String>) -> Self {
-        Self::new(name).with_kind(FieldKind::OptionalU32)
     }
 
     pub fn bool(name: impl Into<String>) -> Self {
@@ -85,36 +67,6 @@ impl FieldDef {
 
     pub fn with_kind(mut self, kind: FieldKind) -> Self {
         self.kind = kind;
-        self
-    }
-
-    pub fn with_label(mut self, label: impl Into<String>) -> Self {
-        self.label = Some(label.into());
-        self
-    }
-
-    pub fn with_icon(mut self, icon: impl Into<String>) -> Self {
-        self.icon = Some(icon.into());
-        self
-    }
-
-    pub fn with_suffix(mut self, suffix: impl Into<String>) -> Self {
-        self.suffix = Some(suffix.into());
-        self
-    }
-
-    pub fn with_placeholder(mut self, placeholder: impl Into<String>) -> Self {
-        self.placeholder = Some(placeholder.into());
-        self
-    }
-
-    pub fn with_min(mut self, min: f32) -> Self {
-        self.min = Some(min);
-        self
-    }
-
-    pub fn with_max(mut self, max: f32) -> Self {
-        self.max = Some(max);
         self
     }
 }

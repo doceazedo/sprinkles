@@ -5,7 +5,7 @@ use super::combobox::{ComboBoxOptionData, combobox};
 use super::curve_edit::{CurveEditProps, curve_edit};
 use super::text_edit::{TextEditPrefix, TextEditProps, text_edit};
 use super::vector_edit::{VectorEditProps, VectorSuffixes, vector_edit};
-use crate::ui::components::inspector::binding::Field;
+use crate::ui::components::binding::Field;
 use crate::ui::components::inspector::{FieldKind, path_to_label};
 
 pub fn plugin(app: &mut App) {

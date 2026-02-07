@@ -2,9 +2,8 @@ use bevy::prelude::*;
 use bevy::reflect::{Typed, TypeInfo, VariantInfo};
 
 use crate::ui::components::inspector::utils::field_from_type_path;
-use crate::ui::components::inspector::{FieldDef, FieldKind, name_to_label, path_to_label};
+use crate::ui::components::inspector::{FieldKind, VariantField, name_to_label, path_to_label};
 
-pub type VariantField = FieldDef;
 use crate::ui::tokens::{BORDER_COLOR, FONT_PATH, TEXT_BODY_COLOR, TEXT_MUTED_COLOR, TEXT_SIZE_SM};
 use crate::ui::widgets::button::{
     ButtonClickEvent, ButtonProps, ButtonVariant, EditorButton, button, set_button_variant,

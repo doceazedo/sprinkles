@@ -6,8 +6,8 @@ use crate::ui::components::inspector::utils::name_to_label;
 use crate::ui::widgets::checkbox::{CheckboxCommitEvent, CheckboxProps, CheckboxState, checkbox};
 use crate::ui::widgets::inspector_field::fields_row;
 
-use super::binding::{get_inspecting_emitter, get_inspecting_emitter_mut, mark_dirty_and_restart};
-use super::{InspectorSection, inspector_section};
+use crate::ui::components::binding::{get_inspecting_emitter, get_inspecting_emitter_mut, mark_dirty_and_restart};
+use super::{InspectorSection, inspector_section, section_needs_setup};
 
 #[derive(Component)]
 struct ParticleFlagsSection;
@@ -46,13 +46,9 @@ fn setup_particle_flags_content(
     sections: Query<(Entity, &InspectorSection), With<ParticleFlagsSection>>,
     existing: Query<Entity, With<ParticleFlagsContent>>,
 ) {
-    let Ok((entity, section)) = sections.single() else {
+    let Some(entity) = section_needs_setup(&sections, &existing) else {
         return;
     };
-
-    if !section.initialized || !existing.is_empty() {
-        return;
-    }
 
     let emitter = get_inspecting_emitter(&editor_state, &assets).map(|(_, e)| e);
     let flags = emitter.map(|e| e.particle_flags).unwrap_or_default();
