@@ -138,11 +138,12 @@ fn setup_project_selector(
 
 fn update_project_label(
     editor_state: Res<EditorState>,
+    dirty_state: Res<DirtyState>,
     assets: Res<Assets<ParticleSystemAsset>>,
     triggers: Query<&Children, With<ProjectSelectorTrigger>>,
     mut texts: Query<&mut Text>,
 ) {
-    if !editor_state.is_changed() && !assets.is_changed() {
+    if !editor_state.is_changed() && !dirty_state.is_changed() && !assets.is_changed() {
         return;
     }
 
@@ -153,10 +154,16 @@ fn update_project_label(
         .map(|asset| asset.name.as_str())
         .unwrap_or("Untitled");
 
+    let prefix = if dirty_state.has_unsaved_changes {
+        "* "
+    } else {
+        ""
+    };
+
     for children in &triggers {
         for child in children.iter() {
             if let Ok(mut text) = texts.get_mut(child) {
-                **text = project_name.to_string();
+                **text = format!("{prefix}{project_name}");
                 return;
             }
         }
