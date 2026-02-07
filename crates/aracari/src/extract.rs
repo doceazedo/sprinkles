@@ -276,7 +276,7 @@ pub fn extract_particle_systems(
                 }
             };
 
-        let turbulence = emitter.turbulence.as_ref();
+        let turbulence = &emitter.turbulence;
 
         let uniforms = EmitterUniforms {
             delta_time,
@@ -341,7 +341,7 @@ pub fn extract_particle_systems(
                 SolidOrGradientColor::Solid { .. } => 0,
                 SolidOrGradientColor::Gradient { .. } => 1,
             },
-            turbulence_enabled: turbulence.map_or(0, |t| if t.enabled { 1 } else { 0 }),
+            turbulence_enabled: if turbulence.enabled { 1 } else { 0 },
             particle_flags: emitter.particle_flags.bits(),
             _pad7: 0,
 
@@ -363,16 +363,17 @@ pub fn extract_particle_systems(
                 _ => CurveUniform::disabled(),
             },
 
-            turbulence_noise_strength: turbulence.map_or(1.0, |t| t.noise_strength),
-            turbulence_noise_scale: turbulence.map_or(2.5, |t| t.noise_scale),
-            turbulence_noise_speed_random: turbulence.map_or(0.0, |t| t.noise_speed_random),
-            turbulence_influence_min: turbulence.map_or(0.0, |t| t.influence.min),
+            turbulence_noise_strength: turbulence.noise_strength,
+            turbulence_noise_scale: turbulence.noise_scale,
+            turbulence_noise_speed_random: turbulence.noise_speed_random,
+            turbulence_influence_min: turbulence.influence.min,
 
-            turbulence_noise_speed: turbulence.map_or([0.0; 3], |t| t.noise_speed.into()),
-            turbulence_influence_max: turbulence.map_or(0.1, |t| t.influence.max),
+            turbulence_noise_speed: turbulence.noise_speed.into(),
+            turbulence_influence_max: turbulence.influence.max,
 
             turbulence_influence_curve: turbulence
-                .and_then(|t| t.influence_curve.as_ref())
+                .influence_curve
+                .as_ref()
                 .filter(|c| !c.is_constant())
                 .map_or(CurveUniform::disabled(), |c| {
                     CurveUniform::enabled(c.range.min, c.range.max)
@@ -391,36 +392,20 @@ pub fn extract_particle_systems(
                 },
             },
 
-            collision_mode: match &emitter.collision {
-                Some(c) => match &c.mode {
-                    EmitterCollisionMode::Rigid { .. } => COLLISION_MODE_RIGID,
-                    EmitterCollisionMode::HideOnContact => COLLISION_MODE_HIDE_ON_CONTACT,
-                },
+            collision_mode: match &emitter.collision.mode {
+                Some(EmitterCollisionMode::Rigid { .. }) => COLLISION_MODE_RIGID,
+                Some(EmitterCollisionMode::HideOnContact) => COLLISION_MODE_HIDE_ON_CONTACT,
                 None => COLLISION_MODE_DISABLED,
             },
-            collision_base_size: emitter
-                .collision
-                .as_ref()
-                .map(|c| c.base_size)
-                .unwrap_or(0.01),
-            collision_use_scale: emitter
-                .collision
-                .as_ref()
-                .map(|c| c.use_scale as u32)
-                .unwrap_or(0),
-            collision_friction: match &emitter.collision {
-                Some(c) => match &c.mode {
-                    EmitterCollisionMode::Rigid { friction, .. } => *friction,
-                    EmitterCollisionMode::HideOnContact => 0.0,
-                },
-                None => 0.0,
+            collision_base_size: emitter.collision.base_size,
+            collision_use_scale: emitter.collision.use_scale as u32,
+            collision_friction: match &emitter.collision.mode {
+                Some(EmitterCollisionMode::Rigid { friction, .. }) => *friction,
+                _ => 0.0,
             },
-            collision_bounce: match &emitter.collision {
-                Some(c) => match &c.mode {
-                    EmitterCollisionMode::Rigid { bounce, .. } => *bounce,
-                    EmitterCollisionMode::HideOnContact => 0.0,
-                },
-                None => 0.0,
+            collision_bounce: match &emitter.collision.mode {
+                Some(EmitterCollisionMode::Rigid { bounce, .. }) => *bounce,
+                _ => 0.0,
             },
             collider_count: 0, // will be set from ExtractedColliders
             _collision_pad0: 0.0,
@@ -454,7 +439,8 @@ pub fn extract_particle_systems(
             .and_then(|c| curve_cache.get(c));
 
         let turbulence_influence_curve_texture_handle = turbulence
-            .and_then(|t| t.influence_curve.as_ref())
+            .influence_curve
+            .as_ref()
             .filter(|c| !c.is_constant())
             .and_then(|c| curve_cache.get(c));
 

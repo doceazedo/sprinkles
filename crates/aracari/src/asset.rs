@@ -186,11 +186,11 @@ pub struct EmitterData {
     #[serde(default)]
     pub accelerations: EmitterAccelerations,
 
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub turbulence: Option<EmitterTurbulence>,
+    #[serde(default)]
+    pub turbulence: EmitterTurbulence,
 
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub collision: Option<EmitterCollision>,
+    #[serde(default)]
+    pub collision: EmitterCollision,
 
     #[serde(default)]
     #[reflect(ignore)]
@@ -214,8 +214,8 @@ impl Default for EmitterData {
             colors: EmitterColors::default(),
             velocities: EmitterVelocities::default(),
             accelerations: EmitterAccelerations::default(),
-            turbulence: None,
-            collision: None,
+            turbulence: EmitterTurbulence::default(),
+            collision: EmitterCollision::default(),
             particle_flags: ParticleFlags::empty(),
         }
     }
@@ -846,7 +846,8 @@ impl Default for EmitterCollisionMode {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct EmitterCollision {
-    pub mode: EmitterCollisionMode,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mode: Option<EmitterCollisionMode>,
     #[serde(default = "default_collision_base_size")]
     pub base_size: f32,
     #[serde(default, skip_serializing_if = "is_false")]
@@ -856,7 +857,7 @@ pub struct EmitterCollision {
 impl Default for EmitterCollision {
     fn default() -> Self {
         Self {
-            mode: EmitterCollisionMode::default(),
+            mode: None,
             base_size: default_collision_base_size(),
             use_scale: false,
         }

@@ -222,11 +222,9 @@ pub fn prepare_curve_textures(
                     cache.get_or_create(curve, &mut images);
                 }
             }
-            if let Some(turb) = &emitter.turbulence {
-                if let Some(curve) = &turb.influence_curve {
-                    if !curve.is_constant() {
-                        cache.get_or_create(curve, &mut images);
-                    }
+            if let Some(curve) = &emitter.turbulence.influence_curve {
+                if !curve.is_constant() {
+                    cache.get_or_create(curve, &mut images);
                 }
             }
         }
