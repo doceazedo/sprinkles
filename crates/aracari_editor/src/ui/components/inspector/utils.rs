@@ -256,6 +256,7 @@ pub fn field_from_type_path(
         path if path.contains("Vec3") => {
             Some(FieldDef::vector(name, suffixes.unwrap_or(VectorSuffixes::XYZ)))
         }
+        path if path.contains("AnimatedVelocity") => Some(FieldDef::animated_velocity(name)),
         _ => None,
     }
 }

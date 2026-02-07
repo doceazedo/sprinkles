@@ -6,6 +6,7 @@ mod scale;
 mod time;
 pub mod types;
 pub mod utils;
+mod velocities;
 
 pub use types::{FieldDef, FieldKind};
 pub use utils::{name_to_label, path_to_label};
@@ -25,7 +26,7 @@ use crate::ui::widgets::variant_edit::{VariantEditProps, variant_edit};
 use binding::Field;
 
 pub fn plugin(app: &mut App) {
-    app.add_plugins((binding::plugin, time::plugin, emission::plugin, draw_pass::plugin, scale::plugin, colors::plugin))
+    app.add_plugins((binding::plugin, time::plugin, emission::plugin, draw_pass::plugin, scale::plugin, colors::plugin, velocities::plugin))
         .add_systems(Update, (setup_inspector_panel, update_panel_title, setup_inspector_section_fields));
 }
 
@@ -81,6 +82,7 @@ fn setup_inspector_panel(
                         content.spawn(emission::emission_section(&asset_server));
                         content.spawn(scale::scale_section(&asset_server));
                         content.spawn(colors::colors_section(&asset_server));
+                        content.spawn(velocities::velocities_section(&asset_server));
                     });
             });
     }

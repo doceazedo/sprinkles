@@ -17,7 +17,7 @@ struct PanelSectionHeader;
 struct PanelSectionButtonsContainer;
 
 #[derive(Component)]
-struct PanelSectionAddButton(Entity);
+pub struct PanelSectionAddButton(pub Entity);
 
 #[derive(Component)]
 struct PanelSectionCollapseButton(Entity);

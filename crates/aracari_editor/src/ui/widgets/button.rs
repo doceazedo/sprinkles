@@ -351,11 +351,14 @@ fn handle_hover(
 }
 
 fn handle_button_click(
-    interactions: Query<(Entity, &Interaction), (Changed<Interaction>, With<EditorButton>)>,
+    interactions: Query<
+        (Entity, &Interaction, &ButtonVariant),
+        (Changed<Interaction>, With<EditorButton>),
+    >,
     mut commands: Commands,
 ) {
-    for (entity, interaction) in &interactions {
-        if *interaction == Interaction::Pressed {
+    for (entity, interaction, variant) in &interactions {
+        if *interaction == Interaction::Pressed && *variant != ButtonVariant::Disabled {
             commands.trigger(ButtonClickEvent { entity });
         }
     }

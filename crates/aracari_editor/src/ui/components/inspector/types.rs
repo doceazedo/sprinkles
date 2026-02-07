@@ -14,6 +14,7 @@ pub enum FieldKind {
     Color,
     Gradient,
     Curve,
+    AnimatedVelocity,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -76,6 +77,10 @@ impl FieldDef {
 
     pub fn gradient(name: impl Into<String>) -> Self {
         Self::new(name).with_kind(FieldKind::Gradient)
+    }
+
+    pub fn animated_velocity(name: impl Into<String>) -> Self {
+        Self::new(name).with_kind(FieldKind::AnimatedVelocity)
     }
 
     pub fn with_kind(mut self, kind: FieldKind) -> Self {

@@ -29,7 +29,7 @@ use super::types::FieldKind;
 
 const MAX_ANCESTOR_DEPTH: usize = 10;
 
-fn get_inspecting_emitter<'a>(
+pub(super) fn get_inspecting_emitter<'a>(
     editor_state: &EditorState,
     assets: &'a Assets<ParticleSystemAsset>,
 ) -> Option<(u8, &'a EmitterData)> {
@@ -43,7 +43,7 @@ fn get_inspecting_emitter<'a>(
     Some((inspecting.index, emitter))
 }
 
-fn get_inspecting_emitter_mut<'a>(
+pub(super) fn get_inspecting_emitter_mut<'a>(
     editor_state: &EditorState,
     assets: &'a mut Assets<ParticleSystemAsset>,
 ) -> Option<(u8, &'a mut EmitterData)> {
@@ -478,7 +478,8 @@ fn parse_field_value(text: &str, kind: &FieldKind) -> FieldValue {
         | FieldKind::ComboBox { .. }
         | FieldKind::Color
         | FieldKind::Gradient
-        | FieldKind::Curve => FieldValue::None,
+        | FieldKind::Curve
+        | FieldKind::AnimatedVelocity => FieldValue::None,
     }
 }
 
@@ -1484,7 +1485,7 @@ fn handle_variant_text_commit(
             }
             FieldValue::Vec3(vec)
         }
-        FieldKind::ComboBox { .. } | FieldKind::Color | FieldKind::Gradient | FieldKind::Curve => FieldValue::None,
+        FieldKind::ComboBox { .. } | FieldKind::Color | FieldKind::Gradient | FieldKind::Curve | FieldKind::AnimatedVelocity => FieldValue::None,
     };
 
     if matches!(value, FieldValue::None) {

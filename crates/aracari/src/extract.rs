@@ -303,7 +303,7 @@ pub fn extract_particle_systems(
             initial_velocity_min: emitter.velocities.initial_velocity.min,
 
             initial_velocity_max: emitter.velocities.initial_velocity.max,
-            inherit_velocity_ratio: emitter.velocities.inherit_velocity_ratio,
+            inherit_velocity_ratio: emitter.velocities.inherit_ratio,
             explosiveness: emitter.time.explosiveness,
             spawn_time_randomness: emitter.time.spawn_time_randomness,
 
@@ -319,10 +319,10 @@ pub fn extract_particle_systems(
             emission_ring_axis: emission_ring_axis.into(),
             _pad4: 0.0,
 
-            direction: emitter.velocities.direction.into(),
+            direction: emitter.velocities.initial_direction.into(),
             _pad5: 0.0,
 
-            velocity_pivot: emitter.velocities.velocity_pivot.into(),
+            velocity_pivot: emitter.velocities.pivot.into(),
             _pad6: 0.0,
 
             draw_order,
@@ -379,11 +379,11 @@ pub fn extract_particle_systems(
                 }),
 
             radial_velocity: AnimatedVelocityUniform {
-                min: emitter.velocities.radial_velocity.value.min,
-                max: emitter.velocities.radial_velocity.value.max,
+                min: emitter.velocities.radial_velocity.velocity.min,
+                max: emitter.velocities.radial_velocity.velocity.max,
                 _pad0: 0.0,
                 _pad1: 0.0,
-                curve: match &emitter.velocities.radial_velocity.curve {
+                curve: match &emitter.velocities.radial_velocity.velocity_over_lifetime {
                     Some(c) if !c.is_constant() => {
                         CurveUniform::enabled(c.range.min, c.range.max)
                     }
@@ -461,7 +461,7 @@ pub fn extract_particle_systems(
         let radial_velocity_curve_texture_handle = emitter
             .velocities
             .radial_velocity
-            .curve
+            .velocity_over_lifetime
             .as_ref()
             .filter(|c| !c.is_constant())
             .and_then(|c| curve_cache.get(c));

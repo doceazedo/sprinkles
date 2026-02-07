@@ -272,8 +272,10 @@ fn handle_popover_dismiss(
             continue;
         }
 
-        let has_hovered_nested_popover = popovers.iter().any(|(other_entity, other_anchor, other_hovered)| {
-            other_entity != entity && other_hovered.get() && is_descendant_of(other_anchor.0, entity, &parents)
+        let has_hovered_nested_popover = popovers.iter().any(|(other_entity, _, other_hovered)| {
+            other_entity != entity
+                && other_hovered.get()
+                && is_nested_in_popover(other_entity, entity, &popovers, &parents)
         });
 
         if !has_hovered_nested_popover {
@@ -289,6 +291,33 @@ fn is_descendant_of(entity: Entity, ancestor: Entity, parents: &Query<&ChildOf>)
             return true;
         }
         current = child_of.parent();
+    }
+    false
+}
+
+fn is_nested_in_popover(
+    popover: Entity,
+    target: Entity,
+    popovers: &Query<(Entity, &PopoverAnchor, &Hovered), With<EditorPopover>>,
+    parents: &Query<&ChildOf>,
+) -> bool {
+    let Ok((_, anchor, _)) = popovers.get(popover) else {
+        return false;
+    };
+    if is_descendant_of(anchor.0, target, parents) {
+        return true;
+    }
+    // check transitively: if the anchor is inside an intermediate popover,
+    // check whether that intermediate popover is itself nested in target
+    for (intermediate, _, _) in popovers.iter() {
+        if intermediate == target || intermediate == popover {
+            continue;
+        }
+        if is_descendant_of(anchor.0, intermediate, parents)
+            && is_nested_in_popover(intermediate, target, popovers, parents)
+        {
+            return true;
+        }
     }
     false
 }

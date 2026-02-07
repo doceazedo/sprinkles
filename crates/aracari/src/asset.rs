@@ -717,16 +717,16 @@ fn default_spread() -> f32 {
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct AnimatedVelocity {
     #[serde(default = "Range::zero", skip_serializing_if = "Range::is_zero")]
-    pub value: Range,
+    pub velocity: Range,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub curve: Option<CurveTexture>,
+    pub velocity_over_lifetime: Option<CurveTexture>,
 }
 
 impl Default for AnimatedVelocity {
     fn default() -> Self {
         Self {
-            value: Range::zero(),
-            curve: None,
+            velocity: Range::zero(),
+            velocity_over_lifetime: None,
         }
     }
 }
@@ -734,7 +734,7 @@ impl Default for AnimatedVelocity {
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct EmitterVelocities {
     #[serde(default = "default_direction")]
-    pub direction: Vec3,
+    pub initial_direction: Vec3,
     #[serde(default = "default_spread")]
     pub spread: f32,
     #[serde(default, skip_serializing_if = "is_zero_f32")]
@@ -744,21 +744,21 @@ pub struct EmitterVelocities {
     #[serde(default)]
     pub radial_velocity: AnimatedVelocity,
     #[serde(default, skip_serializing_if = "is_zero_vec3")]
-    pub velocity_pivot: Vec3,
+    pub pivot: Vec3,
     #[serde(default, skip_serializing_if = "is_zero_f32")]
-    pub inherit_velocity_ratio: f32,
+    pub inherit_ratio: f32,
 }
 
 impl Default for EmitterVelocities {
     fn default() -> Self {
         Self {
-            direction: Vec3::X,
+            initial_direction: Vec3::X,
             spread: 45.0,
             flatness: 0.0,
             initial_velocity: Range::zero(),
             radial_velocity: AnimatedVelocity::default(),
-            velocity_pivot: Vec3::ZERO,
-            inherit_velocity_ratio: 0.0,
+            pivot: Vec3::ZERO,
+            inherit_ratio: 0.0,
         }
     }
 }

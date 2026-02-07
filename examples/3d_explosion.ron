@@ -99,19 +99,20 @@
                 )),
             ),
             velocities: (
-                direction: (0.0, 0.0, 0.0),
+                initial_direction: (0.0, 0.0, 0.0),
                 spread: 180.0,
                 radial_velocity: (
-                    value: (
+                    velocity: (
                         min: -6.0,
                         max: -5.0,
                     ),
-                    curve: Some((
+                    velocity_over_lifetime: Some((
+                        name: Some("Sine out"),
                         points: [
                             (
                                 position: 0.0,
                                 value: 1.0,
-                                mode: SingleCurve,
+                                mode: DoubleCurve,
                                 tension: 0.0,
                                 easing: Power,
                             ),
@@ -119,8 +120,8 @@
                                 position: 1.0,
                                 value: 0.0,
                                 mode: SingleCurve,
-                                tension: -0.5,
-                                easing: Power,
+                                tension: -1.0,
+                                easing: Sine,
                             ),
                         ],
                         range: (
@@ -240,7 +241,7 @@
                 )),
             ),
             velocities: (
-                direction: (1.0, 0.0, 0.0),
+                initial_direction: (1.0, 0.0, 0.0),
                 spread: 45.0,
                 initial_velocity: (
                     min: 0.0,
@@ -381,7 +382,7 @@
                 )),
             ),
             velocities: (
-                direction: (1.0, 0.0, 0.0),
+                initial_direction: (1.0, 0.0, 0.0),
                 spread: 180.0,
                 initial_velocity: (
                     min: 0.0,
@@ -505,7 +506,7 @@
                 )),
             ),
             velocities: (
-                direction: (1.0, 0.0, 0.0),
+                initial_direction: (1.0, 0.0, 0.0),
                 spread: 180.0,
                 initial_velocity: (
                     min: 2.0,
@@ -611,7 +612,7 @@
                 )),
             ),
             velocities: (
-                direction: (1.0, 0.0, 0.0),
+                initial_direction: (1.0, 0.0, 0.0),
                 spread: 45.0,
                 radial_velocity: (),
             ),
@@ -694,7 +695,7 @@
                 ),
             ),
             velocities: (
-                direction: (1.0, 0.0, 0.0),
+                initial_direction: (1.0, 0.0, 0.0),
                 spread: 180.0,
                 initial_velocity: (
                     min: 0.0,

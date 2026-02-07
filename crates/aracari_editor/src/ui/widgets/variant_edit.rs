@@ -802,8 +802,7 @@ fn spawn_field_widget(
             spawn_labeled_field(commands, asset_server, &label, binding, gradient_edit(GradientEditProps::new()))
         }
 
-        // not expected in variant fields
-        FieldKind::Curve => commands.spawn_empty().id(),
+        FieldKind::Curve | FieldKind::AnimatedVelocity => commands.spawn_empty().id(),
     }
 }
 
