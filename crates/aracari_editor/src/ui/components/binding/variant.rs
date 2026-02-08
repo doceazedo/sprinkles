@@ -146,20 +146,6 @@ pub(super) fn bind_variant_field_values(
                 }
             }
         }
-
-        if bound {
-            commands
-                .entity(binding_entity)
-                .try_insert(Bound::variant(binding_entity));
-        } else if !matches!(
-            binding.field_kind,
-            FieldKind::Color | FieldKind::Gradient | FieldKind::Curve | FieldKind::AnimatedVelocity | FieldKind::TextureRef
-        ) {
-            warn!(
-                "bind_variant_field_values: unhandled field kind {:?} for '{}'",
-                binding.field_kind, binding.field_name
-            );
-        }
     }
 }
 
