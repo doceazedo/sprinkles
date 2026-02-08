@@ -705,6 +705,15 @@ fn handle_drag_value(
         }
 
         if mouse.just_released(MouseButton::Left) {
+            if hitbox.dragging {
+                if let Ok((_, buffer, _, suffix, _)) = text_edits.get(input_entity) {
+                    let text = strip_suffix(&buffer.get_text(), suffix);
+                    commands.trigger(TextEditCommitEvent {
+                        entity: input_entity,
+                        text,
+                    });
+                }
+            }
             hitbox.dragging = false;
             commands.entity(entity).remove::<ActiveCursor>();
         }
