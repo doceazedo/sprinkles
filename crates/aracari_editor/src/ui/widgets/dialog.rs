@@ -88,12 +88,12 @@ pub struct DialogActionEvent {
 
 #[derive(Event)]
 pub struct OpenDialogEvent {
-    pub title: String,
+    pub title: Option<String>,
     pub description: Option<String>,
-    pub action: String,
+    pub action: Option<String>,
+    pub cancel: Option<String>,
     pub variant: DialogVariant,
     pub has_close_button: bool,
-    pub has_cancel_button: bool,
     pub close_on_click_outside: bool,
     pub close_on_esc: bool,
 }
@@ -101,19 +101,39 @@ pub struct OpenDialogEvent {
 impl OpenDialogEvent {
     pub fn new(title: impl Into<String>, action: impl Into<String>) -> Self {
         Self {
-            title: title.into(),
+            title: Some(title.into()),
             description: None,
-            action: action.into(),
+            action: Some(action.into()),
+            cancel: Some("Cancel".into()),
             variant: DialogVariant::Default,
             has_close_button: true,
-            has_cancel_button: false,
             close_on_click_outside: true,
             close_on_esc: true,
         }
     }
 
+    pub fn with_title(mut self, title: impl Into<String>) -> Self {
+        self.title = Some(title.into());
+        self
+    }
+
     pub fn with_description(mut self, description: impl Into<String>) -> Self {
         self.description = Some(description.into());
+        self
+    }
+
+    pub fn with_action(mut self, action: impl Into<String>) -> Self {
+        self.action = Some(action.into());
+        self
+    }
+
+    pub fn with_cancel(mut self, cancel: impl Into<String>) -> Self {
+        self.cancel = Some(cancel.into());
+        self
+    }
+
+    pub fn without_cancel(mut self) -> Self {
+        self.cancel = None;
         self
     }
 
@@ -127,11 +147,6 @@ impl OpenDialogEvent {
         self
     }
 
-    pub fn with_cancel_button(mut self, has_cancel_button: bool) -> Self {
-        self.has_cancel_button = has_cancel_button;
-        self
-    }
-
     pub fn with_close_on_click_outside(mut self, close_on_click_outside: bool) -> Self {
         self.close_on_click_outside = close_on_click_outside;
         self
@@ -139,11 +154,6 @@ impl OpenDialogEvent {
 
     pub fn with_close_on_esc(mut self, close_on_esc: bool) -> Self {
         self.close_on_esc = close_on_esc;
-        self
-    }
-
-    fn with_description_opt(mut self, description: Option<String>) -> Self {
-        self.description = description;
         self
     }
 }
@@ -172,12 +182,12 @@ impl OpenConfirmationDialogEvent {
 
 impl From<&OpenConfirmationDialogEvent> for OpenDialogEvent {
     fn from(event: &OpenConfirmationDialogEvent) -> Self {
-        OpenDialogEvent::new(&event.title, &event.action)
+        let mut dialog = OpenDialogEvent::new(&event.title, &event.action)
             .with_variant(DialogVariant::Destructive)
             .with_close_button(false)
-            .with_cancel_button(true)
-            .with_close_on_click_outside(false)
-            .with_description_opt(event.description.clone())
+            .with_close_on_click_outside(false);
+        dialog.description = event.description.clone();
+        dialog
     }
 }
 
@@ -277,56 +287,77 @@ fn spawn_dialog(
         ))
         .id();
 
-    let mut header = commands.spawn(Node {
-        flex_direction: FlexDirection::Column,
-        row_gap: px(6),
-        ..default()
-    });
+    let has_header = event.title.is_some() || event.description.is_some();
+    let has_footer = event.action.is_some() || event.cancel.is_some();
 
-    header.with_child((
-        Text::new(&event.title),
-        TextFont {
-            font: font.clone(),
-            font_size: TEXT_SIZE_XL,
-            weight: FontWeight::SEMIBOLD,
-            ..default()
-        },
-        TextColor(TEXT_DISPLAY_COLOR.with_alpha(0.0).into()),
-    ));
-
-    if let Some(desc) = &event.description {
-        header.with_child((
-            Text::new(desc),
-            TextFont {
-                font: font.clone(),
-                font_size: TEXT_SIZE_LG,
+    let header_id = if has_header {
+        let mut header = commands.spawn((
+            Node {
+                padding: UiRect::all(px(24)),
+                border: UiRect::bottom(px(1)),
+                flex_direction: FlexDirection::Column,
+                row_gap: px(6),
                 ..default()
             },
-            TextColor(TEXT_MUTED_COLOR.with_alpha(0.0).into()),
+            BorderColor::all(BORDER_COLOR.with_alpha(0.0)),
         ));
-    }
 
-    let header_id = header.id();
+        if let Some(title) = &event.title {
+            header.with_child((
+                Text::new(title),
+                TextFont {
+                    font: font.clone(),
+                    font_size: TEXT_SIZE_XL,
+                    weight: FontWeight::SEMIBOLD,
+                    ..default()
+                },
+                TextColor(TEXT_DISPLAY_COLOR.with_alpha(0.0).into()),
+            ));
+        }
 
-    let mut footer = commands.spawn(Node {
-        column_gap: px(6),
-        justify_content: JustifyContent::End,
-        ..default()
-    });
+        if let Some(desc) = &event.description {
+            header.with_child((
+                Text::new(desc),
+                TextFont {
+                    font: font.clone(),
+                    font_size: TEXT_SIZE_LG,
+                    ..default()
+                },
+                TextColor(TEXT_MUTED_COLOR.with_alpha(0.0).into()),
+            ));
+        }
 
-    if event.has_cancel_button {
-        footer.with_child((DialogCancelButton, button(ButtonProps::new("Cancel"))));
-    }
+        Some(header.id())
+    } else {
+        None
+    };
 
-    footer.with_child((
-        DialogActionButton,
-        button(
-            ButtonProps::new(&event.action)
-                .with_variant(event.variant.action_button_variant()),
-        ),
-    ));
+    let footer_id = if has_footer {
+        let mut footer = commands.spawn(Node {
+            padding: UiRect::all(px(24)),
+            column_gap: px(6),
+            justify_content: JustifyContent::End,
+            ..default()
+        });
 
-    let footer_id = footer.id();
+        if let Some(cancel) = &event.cancel {
+            footer.with_child((DialogCancelButton, button(ButtonProps::new(cancel))));
+        }
+
+        if let Some(action) = &event.action {
+            footer.with_child((
+                DialogActionButton,
+                button(
+                    ButtonProps::new(action)
+                        .with_variant(event.variant.action_button_variant()),
+                ),
+            ));
+        }
+
+        Some(footer.id())
+    } else {
+        None
+    };
 
     let mut panel = commands.spawn((
         DialogPanel,
@@ -334,11 +365,9 @@ fn spawn_dialog(
         Node {
             width: percent(100),
             max_width: px(448),
-            padding: UiRect::all(px(24)),
             border: UiRect::all(px(1)),
             border_radius: BorderRadius::all(px(6)),
             flex_direction: FlexDirection::Column,
-            row_gap: px(26),
             ..default()
         },
         BackgroundColor(BACKGROUND_COLOR.with_alpha(0.0).into()),
@@ -349,26 +378,33 @@ fn spawn_dialog(
         },
     ));
 
-    panel.add_child(header_id);
+    if let Some(header_id) = header_id {
+        panel.add_child(header_id);
+    }
 
     panel.with_child((
         DialogChildrenSlot,
         Node {
             display: Display::None,
+            padding: UiRect::all(px(24)),
+            border: UiRect::bottom(px(1)),
             flex_direction: FlexDirection::Column,
             row_gap: px(12),
             ..default()
         },
+        BorderColor::all(BORDER_COLOR.with_alpha(0.0)),
     ));
 
-    panel.add_child(footer_id);
+    if let Some(footer_id) = footer_id {
+        panel.add_child(footer_id);
+    }
 
     if event.has_close_button {
         panel.with_child((
             Node {
                 position_type: PositionType::Absolute,
-                top: px(6),
-                right: px(6),
+                top: px(20),
+                right: px(20),
                 ..default()
             },
             children![(
