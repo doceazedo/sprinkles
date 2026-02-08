@@ -1,5 +1,6 @@
 use aracari::prelude::*;
 use bevy::prelude::*;
+use bevy::reflect::{PartialReflect, ReflectRef};
 use bevy_ui_text_input::TextInputQueue;
 
 use crate::state::{DirtyState, EditorState};
@@ -12,8 +13,10 @@ use crate::ui::widgets::text_edit::set_text_input_value;
 use crate::ui::widgets::gradient_edit::{
     EditorGradientEdit, GradientEditCommitEvent, GradientEditState,
 };
+use crate::ui::widgets::texture_edit::TextureEditCommitEvent;
 use crate::ui::widgets::variant_edit::{
     EditorVariantEdit, VariantComboBox, VariantEditConfig, VariantFieldBinding,
+    VariantDefinition,
 };
 use crate::ui::widgets::vector_edit::EditorVectorEdit;
 
@@ -150,7 +153,7 @@ pub(super) fn bind_variant_field_values(
                 .try_insert(Bound::variant(binding_entity));
         } else if !matches!(
             binding.field_kind,
-            FieldKind::Color | FieldKind::Gradient | FieldKind::Curve | FieldKind::AnimatedVelocity
+            FieldKind::Color | FieldKind::Gradient | FieldKind::Curve | FieldKind::AnimatedVelocity | FieldKind::TextureRef
         ) {
             warn!(
                 "bind_variant_field_values: unhandled field kind {:?} for '{}'",
@@ -167,6 +170,7 @@ pub(super) fn handle_variant_change(
     mut dirty_state: ResMut<DirtyState>,
     variant_comboboxes: Query<&VariantComboBox>,
     variant_edit_configs: Query<&VariantEditConfig>,
+    variant_field_bindings: Query<&VariantFieldBinding>,
     mut emitter_runtimes: Query<&mut EmitterRuntime>,
 ) {
     let combobox_entity = trigger.entity;
@@ -175,7 +179,8 @@ pub(super) fn handle_variant_change(
         return;
     };
 
-    let Ok(config) = variant_edit_configs.get(variant_combobox.0) else {
+    let variant_edit_entity = variant_combobox.0;
+    let Ok(config) = variant_edit_configs.get(variant_edit_entity) else {
         return;
     };
 
@@ -187,7 +192,34 @@ pub(super) fn handle_variant_change(
         return;
     };
 
-    if create_variant_from_definition(emitter, &config.path, variant_def) {
+    // nested variant edit: write through parent's path + field resolution
+    if let Ok(binding) = variant_field_bindings.get(variant_edit_entity) {
+        let Ok(parent_config) = variant_edit_configs.get(binding.variant_edit) else {
+            return;
+        };
+
+        let Some(default_value) = variant_def.create_default() else {
+            return;
+        };
+
+        let reflect_path = ReflectPath::new(&parent_config.path);
+        let Ok(target) = emitter.reflect_path_mut(reflect_path.as_str()) else {
+            return;
+        };
+
+        let changed = with_variant_field_mut(target, &binding.field_name, |field| {
+            field.apply(default_value.as_ref());
+        })
+        .is_some();
+
+        if changed {
+            mark_dirty_and_restart(
+                &mut dirty_state,
+                &mut emitter_runtimes,
+                emitter.time.fixed_seed,
+            );
+        }
+    } else if create_variant_from_definition(emitter, &config.path, variant_def) {
         mark_dirty_and_restart(&mut dirty_state, &mut emitter_runtimes, emitter.time.fixed_seed);
     }
 }
@@ -262,7 +294,7 @@ pub(super) fn handle_variant_text_commit(
             }
             FieldValue::Vec3(vec)
         }
-        FieldKind::ComboBox { .. } | FieldKind::Color | FieldKind::Gradient | FieldKind::Curve | FieldKind::AnimatedVelocity => FieldValue::None,
+        FieldKind::ComboBox { .. } | FieldKind::Color | FieldKind::Gradient | FieldKind::Curve | FieldKind::AnimatedVelocity | FieldKind::TextureRef => FieldValue::None,
     };
 
     if matches!(value, FieldValue::None) {
@@ -430,4 +462,115 @@ pub(super) fn handle_variant_gradient_commit(
     if changed {
         mark_dirty_and_restart(&mut dirty_state, &mut emitter_runtimes, emitter.time.fixed_seed);
     }
+}
+
+pub(super) fn bind_nested_variant_edits(
+    editor_state: Res<EditorState>,
+    assets: Res<Assets<ParticleSystemAsset>>,
+    tracker: Res<InspectedEmitterTracker>,
+    mut nested_variant_edits: Query<
+        (&VariantFieldBinding, &mut VariantEditConfig),
+        With<EditorVariantEdit>,
+    >,
+    new_variant_edits: Query<Entity, Added<EditorVariantEdit>>,
+    parent_configs: Query<&VariantEditConfig, Without<VariantFieldBinding>>,
+) {
+    if !tracker.is_changed() && new_variant_edits.is_empty() {
+        return;
+    }
+
+    let Some((_, emitter)) = get_inspecting_emitter(&editor_state, &assets) else {
+        return;
+    };
+
+    for (binding, mut config) in &mut nested_variant_edits {
+        let Ok(parent_config) = parent_configs.get(binding.variant_edit) else {
+            continue;
+        };
+
+        let reflect_path = ReflectPath::new(&parent_config.path);
+        let Ok(value) = emitter.reflect_path(reflect_path.as_str()) else {
+            continue;
+        };
+
+        let Some(field_value) = resolve_variant_field_ref(value, &binding.field_name) else {
+            continue;
+        };
+
+        let new_index = get_nested_variant_index(field_value, &config.variants);
+        config.selected_index = new_index;
+    }
+}
+
+pub(super) fn handle_variant_texture_commit(
+    trigger: On<TextureEditCommitEvent>,
+    editor_state: Res<EditorState>,
+    mut assets: ResMut<Assets<ParticleSystemAsset>>,
+    mut dirty_state: ResMut<DirtyState>,
+    variant_field_bindings: Query<&VariantFieldBinding>,
+    variant_edit_configs: Query<&VariantEditConfig>,
+    mut emitter_runtimes: Query<&mut EmitterRuntime>,
+) {
+    let variant_edit = trigger.entity;
+
+    let Ok(binding) = variant_field_bindings.get(variant_edit) else {
+        return;
+    };
+
+    let Ok(parent_config) = variant_edit_configs.get(binding.variant_edit) else {
+        return;
+    };
+
+    let Some((_, emitter)) = get_inspecting_emitter_mut(&editor_state, &mut assets) else {
+        return;
+    };
+
+    let reflect_path = ReflectPath::new(&parent_config.path);
+    let Ok(target) = emitter.reflect_path_mut(reflect_path.as_str()) else {
+        return;
+    };
+
+    let changed = with_variant_field_mut(target, &binding.field_name, |field| {
+        field.apply(&trigger.value);
+    })
+    .is_some();
+
+    if changed {
+        mark_dirty_and_restart(&mut dirty_state, &mut emitter_runtimes, emitter.time.fixed_seed);
+    }
+}
+
+fn get_nested_variant_index(
+    value: &dyn PartialReflect,
+    variants: &[VariantDefinition],
+) -> usize {
+    let ReflectRef::Enum(enum_ref) = value.reflect_ref() else {
+        return 0;
+    };
+
+    let variant_name = enum_ref.variant_name();
+
+    if let Some(pos) = find_variant_index_by_name(variant_name, variants) {
+        return pos;
+    }
+
+    // for Option::Some, check the inner value's variant name
+    if variant_name == "Some" {
+        if let Some(inner) = enum_ref.field_at(0) {
+            if let ReflectRef::Enum(inner_enum) = inner.reflect_ref() {
+                let inner_name = inner_enum.variant_name();
+                if let Some(pos) = find_variant_index_by_name(inner_name, variants) {
+                    return pos;
+                }
+            }
+        }
+    }
+
+    0
+}
+
+fn find_variant_index_by_name(name: &str, variants: &[VariantDefinition]) -> Option<usize> {
+    variants.iter().position(|v| {
+        v.name == name || v.aliases.iter().any(|a| a == name)
+    })
 }

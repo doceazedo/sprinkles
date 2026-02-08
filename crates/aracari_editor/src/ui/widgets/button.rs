@@ -214,7 +214,7 @@ impl IconButtonProps {
     }
 }
 
-fn button_base(
+pub(crate) fn button_base(
     variant: ButtonVariant,
     size: ButtonSize,
     align_left: bool,

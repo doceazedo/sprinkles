@@ -112,6 +112,18 @@ fn material_variants() -> Vec<VariantDefinition> {
             VariantConfig::default()
                 .fields_from::<StandardParticleMaterial>()
                 .override_combobox::<SerializableAlphaMode>("alpha_mode")
+                .override_rows(vec![
+                    vec!["base_color", "base_color_texture"],
+                    vec!["emissive", "emissive_texture"],
+                    vec!["alpha_mode"],
+                    vec!["perceptual_roughness"],
+                    vec!["metallic"],
+                    vec!["reflectance"],
+                    vec!["metallic_roughness_texture", "normal_map_texture"],
+                    vec!["double_sided"],
+                    vec!["unlit"],
+                    vec!["fog_enabled"],
+                ])
                 .default_value(DrawPassMaterial::Standard(
                     StandardParticleMaterial::default(),
                 )),

@@ -15,6 +15,7 @@ pub enum FieldKind {
     Gradient,
     Curve,
     AnimatedVelocity,
+    TextureRef,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -63,6 +64,10 @@ impl VariantField {
 
     pub fn animated_velocity(name: impl Into<String>) -> Self {
         Self::new(name).with_kind(FieldKind::AnimatedVelocity)
+    }
+
+    pub fn texture_ref(name: impl Into<String>) -> Self {
+        Self::new(name).with_kind(FieldKind::TextureRef)
     }
 
     pub fn with_kind(mut self, kind: FieldKind) -> Self {

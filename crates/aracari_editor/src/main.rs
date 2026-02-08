@@ -5,6 +5,7 @@ mod state;
 mod ui;
 mod viewport;
 
+use bevy::asset::UnapprovedPathMode;
 use bevy::prelude::*;
 use bevy::window::WindowResolution;
 
@@ -13,14 +14,21 @@ use ui::EditorUiPlugin;
 
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins.set(WindowPlugin {
-            primary_window: Some(Window {
-                title: "Aracari Editor".into(),
-                resolution: WindowResolution::new(1366, 768),
-                ..default()
-            }),
-            ..default()
-        }))
+        .add_plugins(
+            DefaultPlugins
+                .set(WindowPlugin {
+                    primary_window: Some(Window {
+                        title: "Aracari Editor".into(),
+                        resolution: WindowResolution::new(1366, 768),
+                        ..default()
+                    }),
+                    ..default()
+                })
+                .set(AssetPlugin {
+                    unapproved_path_mode: UnapprovedPathMode::Allow,
+                    ..default()
+                }),
+        )
         .add_plugins(bevy_easings::EasingsPlugin::default())
         .add_plugins(AracariEditorPlugin)
         .add_plugins(EditorUiPlugin)

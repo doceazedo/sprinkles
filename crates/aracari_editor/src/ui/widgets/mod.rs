@@ -12,7 +12,9 @@ pub mod panel_section;
 pub mod popover;
 pub mod separator;
 pub mod text_edit;
+
 pub mod toast;
 pub mod utils;
+pub mod texture_edit;
 pub mod variant_edit;
 pub mod vector_edit;

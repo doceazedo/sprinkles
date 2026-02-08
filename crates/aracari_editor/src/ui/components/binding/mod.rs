@@ -14,7 +14,7 @@ pub(super) use super::inspector::FieldKind;
 
 pub(super) const MAX_ANCESTOR_DEPTH: usize = 10;
 
-pub(super) fn get_inspecting_emitter<'a>(
+pub(crate) fn get_inspecting_emitter<'a>(
     editor_state: &EditorState,
     assets: &'a Assets<ParticleSystemAsset>,
 ) -> Option<(u8, &'a EmitterData)> {
@@ -96,6 +96,7 @@ pub fn plugin(app: &mut App) {
         .add_observer(variant::handle_variant_color_commit)
         .add_observer(direct::handle_curve_edit_commit)
         .add_observer(variant::handle_variant_gradient_commit)
+        .add_observer(variant::handle_variant_texture_commit)
         .add_observer(swatch::sync_variant_swatch_from_color)
         .add_systems(
             Update,
@@ -106,6 +107,7 @@ pub fn plugin(app: &mut App) {
                 variant::bind_variant_field_values,
                 variant::bind_variant_color_pickers,
                 variant::bind_variant_gradient_edits,
+                variant::bind_nested_variant_edits,
                 swatch::setup_variant_swatch,
                 swatch::sync_variant_swatch_from_gradient,
                 swatch::respawn_variant_swatch_on_switch,
@@ -493,7 +495,8 @@ pub(super) fn parse_field_value(text: &str, kind: &FieldKind) -> FieldValue {
         | FieldKind::Color
         | FieldKind::Gradient
         | FieldKind::Curve
-        | FieldKind::AnimatedVelocity => FieldValue::None,
+        | FieldKind::AnimatedVelocity
+        | FieldKind::TextureRef => FieldValue::None,
     }
 }
 
@@ -556,7 +559,7 @@ pub(super) fn get_variant_index_by_reflection(
     variants.iter().position(|v| v.name == variant_name)
 }
 
-pub(super) fn resolve_variant_field_ref<'a>(
+pub(crate) fn resolve_variant_field_ref<'a>(
     value: &'a dyn PartialReflect,
     field_name: &str,
 ) -> Option<&'a dyn PartialReflect> {

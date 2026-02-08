@@ -31,11 +31,13 @@ impl Plugin for EditorUiPlugin {
             .add_plugins(widgets::curve_edit::plugin)
             .add_plugins(widgets::gradient_edit::plugin)
             .add_plugins(widgets::inspector_field::plugin)
+            .add_plugins(widgets::texture_edit::plugin)
             .add_plugins(widgets::variant_edit::plugin)
             .add_plugins(widgets::panel::plugin)
             .add_plugins(widgets::panel_section::plugin)
             .add_plugins(widgets::popover::plugin)
             .add_plugins(widgets::text_edit::plugin)
+
             .add_plugins(components::data_panel::plugin)
             .add_plugins(components::inspector::plugin)
             .add_plugins(components::seekbar::plugin)

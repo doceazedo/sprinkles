@@ -19,7 +19,10 @@ use crate::ui::widgets::popover::{
 };
 use crate::ui::widgets::gradient_edit::{GradientEditProps, gradient_edit};
 use crate::ui::widgets::text_edit::{TextEditProps, text_edit};
+
 use crate::ui::widgets::vector_edit::{VectorEditProps, vector_edit};
+
+use aracari::textures::preset::{PresetTexture, TextureRef};
 
 const ICON_MORE: &str = "icons/ri-more-fill.png";
 
@@ -32,6 +35,7 @@ pub enum VariantContentMode {
 
 pub struct VariantDefinition {
     pub name: String,
+    pub aliases: Vec<String>,
     pub icon: Option<String>,
     pub rows: Vec<Vec<VariantField>>,
     default_value: Option<Box<dyn PartialReflect>>,
@@ -54,6 +58,7 @@ impl Clone for VariantDefinition {
 
         Self {
             name: self.name.clone(),
+            aliases: self.aliases.clone(),
             icon: self.icon.clone(),
             rows: self.rows.clone(),
             default_value: cloned_default,
@@ -65,6 +70,7 @@ impl std::fmt::Debug for VariantDefinition {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("VariantDefinition")
             .field("name", &self.name)
+            .field("aliases", &self.aliases)
             .field("icon", &self.icon)
             .field("rows", &self.rows)
             .field("default_value", &self.default_value.is_some())
@@ -76,10 +82,16 @@ impl VariantDefinition {
     pub fn new(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
+            aliases: Vec::new(),
             icon: None,
             rows: Vec::new(),
             default_value: None,
         }
+    }
+
+    pub fn with_aliases(mut self, aliases: Vec<impl Into<String>>) -> Self {
+        self.aliases = aliases.into_iter().map(Into::into).collect();
+        self
     }
 
     pub fn with_icon(mut self, icon: impl Into<String>) -> Self {
@@ -801,6 +813,14 @@ fn spawn_field_widget(
             spawn_labeled_field(commands, asset_server, &label, binding, gradient_edit(GradientEditProps::new()))
         }
 
+        FieldKind::TextureRef => {
+            let props = VariantEditProps::new(&binding.field_name)
+                .with_label(label)
+                .with_variants(texture_ref_variants())
+                .with_content_mode(VariantContentMode::CustomContent);
+            commands.spawn((binding, variant_edit(props))).id()
+        }
+
         FieldKind::Curve | FieldKind::AnimatedVelocity => commands.spawn_empty().id(),
     }
 }
@@ -862,6 +882,21 @@ fn is_descendant_of(entity: Entity, ancestor: Entity, parents: &Query<&ChildOf>)
         }
     }
     false
+}
+
+fn texture_ref_variants() -> Vec<VariantDefinition> {
+    vec![
+        VariantDefinition::new("None")
+            .with_icon("icons/blender_texture.png")
+            .with_default(Option::<TextureRef>::None),
+        VariantDefinition::new("Preset")
+            .with_icon("icons/blender_texture.png")
+            .with_default(Some(TextureRef::Preset(PresetTexture::Circle1))),
+        VariantDefinition::new("Custom")
+            .with_icon("icons/blender_texture.png")
+            .with_aliases(vec!["Asset", "Local"])
+            .with_default(Some(TextureRef::Asset(String::new()))),
+    ]
 }
 
 fn handle_popover_closed(

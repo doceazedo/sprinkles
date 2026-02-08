@@ -257,6 +257,7 @@ pub fn field_from_type_path(
             Some(VariantField::vector(name, suffixes.unwrap_or(VectorSuffixes::XYZ)))
         }
         path if path.contains("AnimatedVelocity") => Some(VariantField::animated_velocity(name)),
+        path if path.contains("TextureRef") => Some(VariantField::texture_ref(name)),
         _ => None,
     }
 }

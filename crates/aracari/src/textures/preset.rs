@@ -92,6 +92,81 @@ pub enum PresetTexture {
 
 #[cfg(feature = "preset-textures")]
 impl PresetTexture {
+    pub fn all() -> &'static [PresetTexture] {
+        &[
+            Self::Circle1, Self::Circle2, Self::Circle3, Self::Circle4, Self::Circle5,
+            Self::Dirt1, Self::Dirt2, Self::Dirt3,
+            Self::Fire1, Self::Fire2,
+            Self::Flame1, Self::Flame2, Self::Flame3, Self::Flame4, Self::Flame5, Self::Flame6,
+            Self::Flare1,
+            Self::Light1, Self::Light2, Self::Light3,
+            Self::Magic1, Self::Magic2, Self::Magic3, Self::Magic4, Self::Magic5,
+            Self::Muzzle1, Self::Muzzle2, Self::Muzzle3, Self::Muzzle4, Self::Muzzle5,
+            Self::Scorch1, Self::Scorch2, Self::Scorch3,
+            Self::Scratch1,
+            Self::Slash1, Self::Slash2, Self::Slash3, Self::Slash4,
+            Self::Smoke1, Self::Smoke2, Self::Smoke3, Self::Smoke4, Self::Smoke5,
+            Self::Smoke6, Self::Smoke7, Self::Smoke8, Self::Smoke9, Self::Smoke10,
+            Self::Spark1, Self::Spark2, Self::Spark3, Self::Spark4, Self::Spark5,
+            Self::Spark6, Self::Spark7,
+            Self::Star1, Self::Star2, Self::Star3, Self::Star4, Self::Star5,
+            Self::Star6, Self::Star7, Self::Star8, Self::Star9,
+            Self::Symbol1, Self::Symbol2,
+            Self::Trace1, Self::Trace2, Self::Trace3, Self::Trace4, Self::Trace5,
+            Self::Trace6, Self::Trace7,
+            Self::Twirl1, Self::Twirl2, Self::Twirl3,
+            Self::Window1, Self::Window2, Self::Window3, Self::Window4,
+        ]
+    }
+
+    pub fn display_name(&self) -> &'static str {
+        match self {
+            Self::Circle1 => "Circle 1", Self::Circle2 => "Circle 2",
+            Self::Circle3 => "Circle 3", Self::Circle4 => "Circle 4",
+            Self::Circle5 => "Circle 5",
+            Self::Dirt1 => "Dirt 1", Self::Dirt2 => "Dirt 2", Self::Dirt3 => "Dirt 3",
+            Self::Fire1 => "Fire 1", Self::Fire2 => "Fire 2",
+            Self::Flame1 => "Flame 1", Self::Flame2 => "Flame 2",
+            Self::Flame3 => "Flame 3", Self::Flame4 => "Flame 4",
+            Self::Flame5 => "Flame 5", Self::Flame6 => "Flame 6",
+            Self::Flare1 => "Flare 1",
+            Self::Light1 => "Light 1", Self::Light2 => "Light 2", Self::Light3 => "Light 3",
+            Self::Magic1 => "Magic 1", Self::Magic2 => "Magic 2",
+            Self::Magic3 => "Magic 3", Self::Magic4 => "Magic 4", Self::Magic5 => "Magic 5",
+            Self::Muzzle1 => "Muzzle 1", Self::Muzzle2 => "Muzzle 2",
+            Self::Muzzle3 => "Muzzle 3", Self::Muzzle4 => "Muzzle 4",
+            Self::Muzzle5 => "Muzzle 5",
+            Self::Scorch1 => "Scorch 1", Self::Scorch2 => "Scorch 2",
+            Self::Scorch3 => "Scorch 3",
+            Self::Scratch1 => "Scratch 1",
+            Self::Slash1 => "Slash 1", Self::Slash2 => "Slash 2",
+            Self::Slash3 => "Slash 3", Self::Slash4 => "Slash 4",
+            Self::Smoke1 => "Smoke 1", Self::Smoke2 => "Smoke 2",
+            Self::Smoke3 => "Smoke 3", Self::Smoke4 => "Smoke 4",
+            Self::Smoke5 => "Smoke 5", Self::Smoke6 => "Smoke 6",
+            Self::Smoke7 => "Smoke 7", Self::Smoke8 => "Smoke 8",
+            Self::Smoke9 => "Smoke 9", Self::Smoke10 => "Smoke 10",
+            Self::Spark1 => "Spark 1", Self::Spark2 => "Spark 2",
+            Self::Spark3 => "Spark 3", Self::Spark4 => "Spark 4",
+            Self::Spark5 => "Spark 5", Self::Spark6 => "Spark 6",
+            Self::Spark7 => "Spark 7",
+            Self::Star1 => "Star 1", Self::Star2 => "Star 2",
+            Self::Star3 => "Star 3", Self::Star4 => "Star 4",
+            Self::Star5 => "Star 5", Self::Star6 => "Star 6",
+            Self::Star7 => "Star 7", Self::Star8 => "Star 8",
+            Self::Star9 => "Star 9",
+            Self::Symbol1 => "Symbol 1", Self::Symbol2 => "Symbol 2",
+            Self::Trace1 => "Trace 1", Self::Trace2 => "Trace 2",
+            Self::Trace3 => "Trace 3", Self::Trace4 => "Trace 4",
+            Self::Trace5 => "Trace 5", Self::Trace6 => "Trace 6",
+            Self::Trace7 => "Trace 7",
+            Self::Twirl1 => "Twirl 1", Self::Twirl2 => "Twirl 2",
+            Self::Twirl3 => "Twirl 3",
+            Self::Window1 => "Window 1", Self::Window2 => "Window 2",
+            Self::Window3 => "Window 3", Self::Window4 => "Window 4",
+        }
+    }
+
     pub fn embedded_path(&self) -> &'static str {
         match self {
             Self::Circle1 => "embedded://aracari/textures/assets/circle_01.png",
@@ -182,8 +257,8 @@ impl PresetTexture {
 pub enum TextureRef {
     #[cfg(feature = "preset-textures")]
     Preset(PresetTexture),
-    Local(String),
     Asset(String),
+    Local(String),
 }
 
 impl TextureRef {
@@ -191,7 +266,10 @@ impl TextureRef {
         match self {
             #[cfg(feature = "preset-textures")]
             Self::Preset(preset) => asset_server.load(preset.embedded_path()),
-            Self::Local(path) | Self::Asset(path) => asset_server.load(path),
+            Self::Local(path) | Self::Asset(path) if !path.is_empty() => {
+                asset_server.load(path)
+            }
+            _ => Handle::default(),
         }
     }
 }
