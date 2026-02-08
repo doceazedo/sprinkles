@@ -709,6 +709,7 @@ fn handle_create_project(
             name: "Emitter 1".to_string(),
             ..Default::default()
         }],
+        colliders: vec![],
     };
 
     let result = Arc::new(Mutex::new(None));

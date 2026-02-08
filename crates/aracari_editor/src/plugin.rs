@@ -7,9 +7,10 @@ use crate::project::load_project_from_path;
 use crate::state::{EditorState, Inspectable, Inspecting};
 use crate::viewport::{
     CameraSettings, ViewportInputState, configure_floor_texture, despawn_preview_on_project_change,
-    handle_playback_play_event, handle_playback_reset_event, handle_playback_seek_event,
-    handle_respawn_emitters, orbit_camera, respawn_preview_on_emitter_change, setup_camera,
-    setup_floor, spawn_preview_particle_system, sync_playback_state, zoom_camera,
+    draw_collider_gizmos, handle_playback_play_event, handle_playback_reset_event,
+    handle_playback_seek_event, handle_respawn_colliders, handle_respawn_emitters, orbit_camera,
+    respawn_preview_on_emitter_change, setup_camera, setup_floor,
+    spawn_preview_particle_system, sync_playback_state, zoom_camera,
 };
 
 pub struct AracariEditorPlugin;
@@ -25,6 +26,7 @@ impl Plugin for AracariEditorPlugin {
             .insert_resource(ClearColor(ZINC_950.into()))
             .add_observer(respawn_preview_on_emitter_change)
             .add_observer(handle_respawn_emitters)
+            .add_observer(handle_respawn_colliders)
             .add_observer(handle_playback_play_event)
             .add_observer(handle_playback_reset_event)
             .add_observer(handle_playback_seek_event)
@@ -38,6 +40,7 @@ impl Plugin for AracariEditorPlugin {
                     spawn_preview_particle_system,
                     despawn_preview_on_project_change,
                     sync_playback_state,
+                    draw_collider_gizmos,
                 ),
             );
     }
@@ -103,6 +106,7 @@ fn load_initial_project(
             name: "Emitter 1".to_string(),
             ..Default::default()
         }],
+        colliders: vec![],
     };
     let handle = assets.add(asset);
     editor_state.current_project = Some(handle);

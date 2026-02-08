@@ -11,7 +11,7 @@ use crate::ui::widgets::combobox::{
     ComboBoxChangeEvent, ComboBoxPopover, ComboBoxTrigger, combobox_icon,
 };
 use crate::ui::widgets::dialog::{DialogActionEvent, EditorDialog, OpenConfirmationDialogEvent};
-use crate::viewport::RespawnEmittersEvent;
+use crate::viewport::{RespawnCollidersEvent, RespawnEmittersEvent};
 use crate::ui::widgets::panel::{PanelDirection, PanelProps, panel, panel_resize_handle, panel_scrollbar};
 use crate::ui::widgets::panel_section::{PanelSectionProps, panel_section};
 use crate::ui::widgets::text_edit::{EditorTextEdit, TextEditCommitEvent, text_edit, TextEditProps};
@@ -25,6 +25,7 @@ pub fn plugin(app: &mut App) {
         .add_observer(on_rename_commit)
         .add_observer(on_delete_confirmed)
         .add_observer(on_add_emitter)
+        .add_observer(on_add_collider)
         .add_systems(
             Update,
             (
@@ -78,12 +79,16 @@ struct RenameInput {
 struct Renaming;
 
 #[derive(Resource)]
-struct PendingDeleteEmitter {
+struct PendingDelete {
+    kind: Inspectable,
     index: u8,
 }
 
 #[derive(Event)]
 struct AddEmitterEvent;
+
+#[derive(Event)]
+struct AddColliderEvent;
 
 pub fn data_panel(_asset_server: &AssetServer) -> impl Bundle {
     (
@@ -126,9 +131,7 @@ fn setup_data_panel(
                             &asset_server,
                         ),
                     ))
-                    .observe(|_: On<ButtonClickEvent>| {
-                        println!("TODO: add collider");
-                    });
+                    .observe(on_add_collider_click);
 
                 parent
                     .spawn(panel_section(
@@ -185,12 +188,11 @@ fn rebuild_lists(
     }
 
     if let Ok((section_entity, _)) = colliders_section.single() {
-        let empty: &[&str] = &[];
         spawn_items(
             &mut commands,
             section_entity,
             Inspectable::Collider,
-            empty.iter().copied(),
+            asset.colliders.iter().map(|c| c.name.as_str()),
             &editor_state,
         );
     }
@@ -279,6 +281,10 @@ fn on_add_emitter_click(_event: On<ButtonClickEvent>, mut commands: Commands) {
     commands.trigger(AddEmitterEvent);
 }
 
+fn on_add_collider_click(_event: On<ButtonClickEvent>, mut commands: Commands) {
+    commands.trigger(AddColliderEvent);
+}
+
 fn on_add_emitter(
     _event: On<AddEmitterEvent>,
     mut commands: Commands,
@@ -311,6 +317,41 @@ fn on_add_emitter(
     });
 
     commands.trigger(RespawnEmittersEvent);
+    last_project.handle = None;
+}
+
+fn on_add_collider(
+    _event: On<AddColliderEvent>,
+    mut commands: Commands,
+    mut editor_state: ResMut<EditorState>,
+    mut assets: ResMut<Assets<ParticleSystemAsset>>,
+    mut dirty_state: ResMut<DirtyState>,
+    mut last_project: ResMut<LastLoadedProject>,
+) {
+    let Some(handle) = &editor_state.current_project else {
+        return;
+    };
+    let Some(asset) = assets.get_mut(handle) else {
+        return;
+    };
+
+    let existing_names: Vec<&str> = asset.colliders.iter().map(|c| c.name.as_str()).collect();
+    let name = next_unique_name("Collider", &existing_names);
+
+    let new_index = asset.colliders.len() as u8;
+    asset.colliders.push(ColliderData {
+        name,
+        ..Default::default()
+    });
+
+    dirty_state.has_unsaved_changes = true;
+
+    editor_state.inspecting = Some(Inspecting {
+        kind: Inspectable::Collider,
+        index: new_index,
+    });
+
+    commands.trigger(RespawnCollidersEvent);
     last_project.handle = None;
 }
 
@@ -351,8 +392,8 @@ fn on_item_menu_change(
         return;
     };
 
-    let emitter_name = get_emitter_name(&editor_state, &assets, item);
-    let Some(emitter_name) = emitter_name else {
+    let item_name = get_item_name(&editor_state, &assets, item);
+    let Some(item_name) = item_name else {
         return;
     };
 
@@ -364,37 +405,40 @@ fn on_item_menu_change(
             let Some(asset) = assets.get_mut(handle) else {
                 return;
             };
-            let Some(source) = asset.emitters.get(item.index as usize) else {
-                return;
-            };
 
-            let mut new_emitter = source.clone();
-            let (base, _) = strip_trailing_number(&emitter_name);
-            let existing_names: Vec<&str> =
-                asset.emitters.iter().map(|e| e.name.as_str()).collect();
-            new_emitter.name = next_unique_name(base, &existing_names);
-
+            let (base, _) = strip_trailing_number(&item_name);
             let insert_index = item.index as usize + 1;
-            asset.emitters.insert(insert_index, new_emitter);
-            dirty_state.has_unsaved_changes = true;
 
-            if let Some(inspecting) = &editor_state.inspecting {
-                if inspecting.kind == Inspectable::Emitter
-                    && inspecting.index as usize >= insert_index
-                {
-                    editor_state.inspecting = Some(Inspecting {
-                        kind: Inspectable::Emitter,
-                        index: inspecting.index + 1,
-                    });
+            match item.kind {
+                Inspectable::Emitter => {
+                    let Some(source) = asset.emitters.get(item.index as usize) else {
+                        return;
+                    };
+                    let mut new_item = source.clone();
+                    let existing: Vec<&str> =
+                        asset.emitters.iter().map(|e| e.name.as_str()).collect();
+                    new_item.name = next_unique_name(base, &existing);
+                    asset.emitters.insert(insert_index, new_item);
+                }
+                Inspectable::Collider => {
+                    let Some(source) = asset.colliders.get(item.index as usize) else {
+                        return;
+                    };
+                    let mut new_item = source.clone();
+                    let existing: Vec<&str> =
+                        asset.colliders.iter().map(|c| c.name.as_str()).collect();
+                    new_item.name = next_unique_name(base, &existing);
+                    asset.colliders.insert(insert_index, new_item);
                 }
             }
 
-            editor_state.inspecting = Some(Inspecting {
-                kind: Inspectable::Emitter,
-                index: insert_index as u8,
-            });
-
-            commands.trigger(RespawnEmittersEvent);
+            dirty_state.has_unsaved_changes = true;
+            adjust_inspecting_after_insert(
+                &mut editor_state.inspecting,
+                item.kind,
+                insert_index,
+            );
+            trigger_respawn(&mut commands, item.kind);
             last_project.handle = None;
         }
         "Rename" => {
@@ -404,15 +448,22 @@ fn on_item_menu_change(
                     btn_node.display = Display::None;
                 }
             }
-            start_rename(&mut commands, item_entity, &emitter_name);
+            start_rename(&mut commands, item_entity, &item_name);
         }
         "Delete" => {
-            commands.insert_resource(PendingDeleteEmitter { index: item.index });
+            let label = match item.kind {
+                Inspectable::Emitter => "Delete emitter",
+                Inspectable::Collider => "Delete collider",
+            };
+            commands.insert_resource(PendingDelete {
+                kind: item.kind,
+                index: item.index,
+            });
             commands.trigger(
-                OpenConfirmationDialogEvent::new("Delete emitter", "Delete")
+                OpenConfirmationDialogEvent::new(label, "Delete")
                     .with_description(format!(
                         "Are you sure you want to delete {}?",
-                        emitter_name
+                        item_name
                     )),
             );
         }
@@ -484,6 +535,50 @@ fn next_unique_name(base_name: &str, existing: &[&str]) -> String {
     }
 }
 
+fn trigger_respawn(commands: &mut Commands, kind: Inspectable) {
+    match kind {
+        Inspectable::Emitter => commands.trigger(RespawnEmittersEvent),
+        Inspectable::Collider => commands.trigger(RespawnCollidersEvent),
+    }
+}
+
+fn adjust_inspecting_after_insert(
+    inspecting: &mut Option<Inspecting>,
+    kind: Inspectable,
+    insert_index: usize,
+) {
+    if let Some(current) = inspecting.as_mut() {
+        if current.kind == kind && current.index as usize >= insert_index {
+            current.index += 1;
+        }
+    }
+    *inspecting = Some(Inspecting {
+        kind,
+        index: insert_index as u8,
+    });
+}
+
+fn adjust_inspecting_after_delete(
+    inspecting: &mut Option<Inspecting>,
+    kind: Inspectable,
+    deleted_index: usize,
+    new_len: usize,
+) {
+    if let Some(current) = inspecting.as_ref() {
+        if current.kind == kind {
+            if current.index as usize == deleted_index {
+                *inspecting = if new_len > 0 {
+                    Some(Inspecting { kind, index: 0 })
+                } else {
+                    None
+                };
+            } else if (current.index as usize) > deleted_index {
+                inspecting.as_mut().unwrap().index -= 1;
+            }
+        }
+    }
+}
+
 fn strip_trailing_number(name: &str) -> (&str, Option<u32>) {
     if let Some(pos) = name.rfind(' ') {
         let suffix = &name[pos + 1..];
@@ -494,18 +589,23 @@ fn strip_trailing_number(name: &str) -> (&str, Option<u32>) {
     (name, None)
 }
 
-fn get_emitter_name(
+fn get_item_name(
     editor_state: &EditorState,
     assets: &Assets<ParticleSystemAsset>,
     item: &InspectableItem,
 ) -> Option<String> {
-    if item.kind != Inspectable::Emitter {
-        return None;
-    }
     let handle = editor_state.current_project.as_ref()?;
     let asset = assets.get(handle)?;
-    let emitter = asset.emitters.get(item.index as usize)?;
-    Some(emitter.name.clone())
+    match item.kind {
+        Inspectable::Emitter => {
+            let emitter = asset.emitters.get(item.index as usize)?;
+            Some(emitter.name.clone())
+        }
+        Inspectable::Collider => {
+            let collider = asset.colliders.get(item.index as usize)?;
+            Some(collider.name.clone())
+        }
+    }
 }
 
 fn start_rename(commands: &mut Commands, item_entity: Entity, name: &str) {
@@ -561,8 +661,8 @@ fn handle_item_double_click(
 
             *last_click = (None, 0.0);
 
-            let emitter_name = get_emitter_name(&editor_state, &assets, item);
-            let Some(emitter_name) = emitter_name else {
+            let item_name = get_item_name(&editor_state, &assets, item);
+            let Some(item_name) = item_name else {
                 continue;
             };
 
@@ -570,7 +670,7 @@ fn handle_item_double_click(
                 btn_node.display = Display::None;
             }
 
-            start_rename(&mut commands, item_entity, &emitter_name);
+            start_rename(&mut commands, item_entity, &item_name);
             return;
         }
     }
@@ -655,14 +755,24 @@ fn on_rename_commit(
         return;
     };
 
-    if item.kind == Inspectable::Emitter && !new_name.is_empty() {
+    if !new_name.is_empty() {
         if let Some(handle) = &editor_state.current_project {
             if let Some(asset) = assets.get_mut(handle) {
-                if let Some(emitter) = asset.emitters.get_mut(item.index as usize) {
-                    emitter.name = new_name.clone();
-                    dirty_state.has_unsaved_changes = true;
-                    for mut runtime in emitter_runtimes.iter_mut() {
-                        runtime.restart(None);
+                match item.kind {
+                    Inspectable::Emitter => {
+                        if let Some(emitter) = asset.emitters.get_mut(item.index as usize) {
+                            emitter.name = new_name.clone();
+                            dirty_state.has_unsaved_changes = true;
+                            for mut runtime in emitter_runtimes.iter_mut() {
+                                runtime.restart(None);
+                            }
+                        }
+                    }
+                    Inspectable::Collider => {
+                        if let Some(collider) = asset.colliders.get_mut(item.index as usize) {
+                            collider.name = new_name.clone();
+                            dirty_state.has_unsaved_changes = true;
+                        }
                     }
                 }
             }
@@ -691,7 +801,7 @@ fn on_rename_commit(
 
 fn on_delete_confirmed(
     _event: On<DialogActionEvent>,
-    pending: Option<Res<PendingDeleteEmitter>>,
+    pending: Option<Res<PendingDelete>>,
     mut commands: Commands,
     mut editor_state: ResMut<EditorState>,
     mut assets: ResMut<Assets<ParticleSystemAsset>>,
@@ -702,8 +812,9 @@ fn on_delete_confirmed(
         return;
     };
 
+    let kind = pending.kind;
     let index = pending.index as usize;
-    commands.remove_resource::<PendingDeleteEmitter>();
+    commands.remove_resource::<PendingDelete>();
 
     let Some(handle) = &editor_state.current_project else {
         return;
@@ -712,45 +823,36 @@ fn on_delete_confirmed(
         return;
     };
 
-    if index >= asset.emitters.len() {
-        return;
-    }
-
-    asset.emitters.remove(index);
-    dirty_state.has_unsaved_changes = true;
-
-    let new_len = asset.emitters.len();
-    if let Some(inspecting) = &editor_state.inspecting {
-        if inspecting.kind == Inspectable::Emitter {
-            if inspecting.index as usize == index {
-                editor_state.inspecting = if new_len > 0 {
-                    Some(Inspecting {
-                        kind: Inspectable::Emitter,
-                        index: 0,
-                    })
-                } else {
-                    None
-                };
-            } else if (inspecting.index as usize) > index {
-                editor_state.inspecting = Some(Inspecting {
-                    kind: Inspectable::Emitter,
-                    index: inspecting.index - 1,
-                });
+    let new_len = match kind {
+        Inspectable::Emitter => {
+            if index >= asset.emitters.len() {
+                return;
             }
+            asset.emitters.remove(index);
+            asset.emitters.len()
         }
-    }
+        Inspectable::Collider => {
+            if index >= asset.colliders.len() {
+                return;
+            }
+            asset.colliders.remove(index);
+            asset.colliders.len()
+        }
+    };
 
-    commands.trigger(RespawnEmittersEvent);
+    dirty_state.has_unsaved_changes = true;
+    adjust_inspecting_after_delete(&mut editor_state.inspecting, kind, index, new_len);
+    trigger_respawn(&mut commands, kind);
     last_project.handle = None;
 }
 
 fn cleanup_pending_delete(
-    pending: Option<Res<PendingDeleteEmitter>>,
+    pending: Option<Res<PendingDelete>>,
     dialogs: Query<(), With<EditorDialog>>,
     mut commands: Commands,
 ) {
     if pending.is_some() && dialogs.is_empty() {
-        commands.remove_resource::<PendingDeleteEmitter>();
+        commands.remove_resource::<PendingDelete>();
     }
 }
 

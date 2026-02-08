@@ -1,17 +1,14 @@
 use aracari::prelude::*;
 use bevy::ecs::system::ParamSet;
 use bevy::prelude::*;
-use bevy_ui_text_input::{
-    TextInputQueue,
-    actions::{TextInputAction, TextInputEdit},
-};
+use bevy_ui_text_input::TextInputQueue;
 
 use crate::state::{DirtyState, EditorState};
 use crate::viewport::RespawnEmittersEvent;
 use crate::ui::widgets::checkbox::{CheckboxCommitEvent, CheckboxState};
 use crate::ui::widgets::combobox::ComboBoxChangeEvent;
 use crate::ui::widgets::curve_edit::{CurveEditCommitEvent, CurveEditState, EditorCurveEdit};
-use crate::ui::widgets::text_edit::{EditorTextEdit, TextEditCommitEvent};
+use crate::ui::widgets::text_edit::{EditorTextEdit, TextEditCommitEvent, set_text_input_value};
 use crate::ui::widgets::variant_edit::{
     EditorVariantEdit, VariantComboBox, VariantEditConfig, VariantFieldBinding,
 };
@@ -97,9 +94,7 @@ pub(super) fn bind_values_to_inputs(
                                 _ => None,
                             };
                             if let Some(v) = component_value {
-                                let text = format_f32(v);
-                                queue.add(TextInputAction::Edit(TextInputEdit::SelectAll));
-                                queue.add(TextInputAction::Edit(TextInputEdit::Paste(text)));
+                                set_text_input_value(&mut queue, format_f32(v));
                                 commands.entity(entity).try_insert(Bound::direct(field_entity));
                             }
                             break;
@@ -113,8 +108,7 @@ pub(super) fn bind_values_to_inputs(
         let value = get_field_value_by_reflection(emitter, &field.path, &field.kind);
         let text = value.to_display_string(&field.kind).unwrap_or_default();
 
-        queue.add(TextInputAction::Edit(TextInputEdit::SelectAll));
-        queue.add(TextInputAction::Edit(TextInputEdit::Paste(text)));
+        set_text_input_value(&mut queue, text);
         commands.entity(entity).try_insert(Bound::direct(field_entity));
     }
 

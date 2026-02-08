@@ -1,9 +1,6 @@
 use aracari::prelude::*;
 use bevy::prelude::*;
-use bevy_ui_text_input::{
-    TextInputQueue,
-    actions::{TextInputAction, TextInputEdit},
-};
+use bevy_ui_text_input::TextInputQueue;
 
 use crate::state::{DirtyState, EditorState};
 use crate::ui::widgets::checkbox::CheckboxState;
@@ -11,6 +8,7 @@ use crate::ui::widgets::color_picker::{
     ColorPickerCommitEvent, ColorPickerState, EditorColorPicker, TriggerSwatchMaterial,
 };
 use crate::ui::widgets::combobox::ComboBoxChangeEvent;
+use crate::ui::widgets::text_edit::set_text_input_value;
 use crate::ui::widgets::gradient_edit::{
     EditorGradientEdit, GradientEditCommitEvent, GradientEditState,
 };
@@ -93,8 +91,7 @@ pub(super) fn bind_variant_field_values(
         if let Some(text) = value.to_display_string(&binding.field_kind) {
             for (text_edit_entity, text_edit_parent, mut queue) in &mut text_edits {
                 if find_ancestor_entity(text_edit_parent.parent(), binding_entity, &parents) {
-                    queue.add(TextInputAction::Edit(TextInputEdit::SelectAll));
-                    queue.add(TextInputAction::Edit(TextInputEdit::Paste(text.clone())));
+                    set_text_input_value(&mut queue, text.clone());
                     commands
                         .entity(text_edit_entity)
                         .try_insert(Bound::variant(binding_entity));
@@ -119,8 +116,7 @@ pub(super) fn bind_variant_field_values(
                     for (text_edit_entity, text_edit_parent, mut queue) in &mut text_edits {
                         if find_ancestor_entity(text_edit_parent.parent(), vec_child, &parents) {
                             let text = format_f32(get_vec3_component(vec, component_index));
-                            queue.add(TextInputAction::Edit(TextInputEdit::SelectAll));
-                            queue.add(TextInputAction::Edit(TextInputEdit::Paste(text)));
+                            set_text_input_value(&mut queue, text);
                             commands
                                 .entity(text_edit_entity)
                                 .try_insert(Bound::variant(binding_entity));

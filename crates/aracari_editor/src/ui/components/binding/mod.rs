@@ -42,6 +42,34 @@ pub(super) fn get_inspecting_emitter_mut<'a>(
     Some((inspecting.index, emitter))
 }
 
+pub(super) fn get_inspecting_collider<'a>(
+    editor_state: &EditorState,
+    assets: &'a Assets<ParticleSystemAsset>,
+) -> Option<(u8, &'a ColliderData)> {
+    let inspecting = match &editor_state.inspecting {
+        Some(i) if i.kind == Inspectable::Collider => i,
+        _ => return None,
+    };
+    let handle = editor_state.current_project.as_ref()?;
+    let asset = assets.get(handle)?;
+    let collider = asset.colliders.get(inspecting.index as usize)?;
+    Some((inspecting.index, collider))
+}
+
+pub(super) fn get_inspecting_collider_mut<'a>(
+    editor_state: &EditorState,
+    assets: &'a mut Assets<ParticleSystemAsset>,
+) -> Option<(u8, &'a mut ColliderData)> {
+    let inspecting = match &editor_state.inspecting {
+        Some(i) if i.kind == Inspectable::Collider => i,
+        _ => return None,
+    };
+    let handle = editor_state.current_project.as_ref()?;
+    let asset = assets.get_mut(handle)?;
+    let collider = asset.colliders.get_mut(inspecting.index as usize)?;
+    Some((inspecting.index, collider))
+}
+
 pub(super) fn find_ancestor<F>(
     mut entity: Entity,
     parents: &Query<&ChildOf>,

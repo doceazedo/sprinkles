@@ -1291,9 +1291,29 @@ impl Default for ParticlesColliderShape3D {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
+pub struct ColliderData {
+    pub name: String,
+    pub shape: ParticlesColliderShape3D,
+    #[serde(default)]
+    pub position: Vec3,
+}
+
+impl Default for ColliderData {
+    fn default() -> Self {
+        Self {
+            name: "Collider".to_string(),
+            shape: ParticlesColliderShape3D::default(),
+            position: Vec3::ZERO,
+        }
+    }
+}
+
 #[derive(Asset, TypePath, Debug, Clone, Serialize, Deserialize)]
 pub struct ParticleSystemAsset {
     pub name: String,
     pub dimension: ParticleSystemDimension,
     pub emitters: Vec<EmitterData>,
+    #[serde(default)]
+    pub colliders: Vec<ColliderData>,
 }

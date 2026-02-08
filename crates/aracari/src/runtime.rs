@@ -189,6 +189,12 @@ pub struct EmitterEntity {
     pub parent_system: Entity,
 }
 
+#[derive(Component)]
+pub struct ColliderEntity {
+    pub parent_system: Entity,
+    pub collider_index: usize,
+}
+
 fn rand_seed() -> u32 {
     use std::time::{SystemTime, UNIX_EPOCH};
     let duration = SystemTime::now()

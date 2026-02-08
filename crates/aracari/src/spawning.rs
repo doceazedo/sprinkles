@@ -11,9 +11,10 @@ use crate::{
     asset::{DrawPassMaterial, ParticleMesh, ParticleSystemAsset, QuadOrientation},
     material::ParticleMaterialExtension,
     runtime::{
-        CurrentMaterialConfig, CurrentMeshConfig, EmitterEntity, EmitterMeshEntity, EmitterRuntime,
-        ParticleBufferHandle, ParticleData, ParticleMaterial, ParticleMaterialHandle,
-        ParticleMeshHandle, ParticleSystem3D, ParticleSystemRuntime,
+        ColliderEntity, CurrentMaterialConfig, CurrentMeshConfig, EmitterEntity, EmitterMeshEntity,
+        EmitterRuntime, ParticleBufferHandle, ParticleData, ParticleMaterial,
+        ParticleMaterialHandle, ParticleMeshHandle, ParticleSystem3D, ParticleSystemRuntime,
+        ParticlesCollider3D,
     },
 };
 
@@ -659,6 +660,25 @@ pub fn setup_particle_systems(
                 mesh_entity.insert(NotShadowCaster);
             }
         }
+
+        for (collider_index, collider_data) in asset.colliders.iter().enumerate() {
+            let collider_entity = commands
+                .spawn((
+                    ColliderEntity {
+                        parent_system: system_entity,
+                        collider_index,
+                    },
+                    ParticlesCollider3D {
+                        shape: collider_data.shape.clone(),
+                        position: Vec3::ZERO,
+                    },
+                    Transform::from_translation(collider_data.position),
+                    Name::new(collider_data.name.clone()),
+                ))
+                .id();
+
+            commands.entity(system_entity).add_child(collider_entity);
+        }
     }
 }
 
@@ -692,6 +712,7 @@ pub fn cleanup_particle_entities(
     mesh_entities: Query<(Entity, &EmitterMeshEntity)>,
     emitter_entities: Query<Entity, With<EmitterEntity>>,
     emitter_parent_query: Query<&EmitterEntity>,
+    collider_entities: Query<(Entity, &ColliderEntity)>,
 ) {
     for removed_system in removed_systems.read() {
         for emitter_entity in emitter_entities.iter() {
@@ -709,6 +730,12 @@ pub fn cleanup_particle_entities(
                 }
             }
         }
+
+        for (entity, collider) in collider_entities.iter() {
+            if collider.parent_system == removed_system {
+                commands.entity(entity).despawn();
+            }
+        }
     }
 
     for removed_emitter in removed_emitters.read() {
@@ -717,6 +744,31 @@ pub fn cleanup_particle_entities(
                 commands.entity(mesh_entity).despawn();
             }
         }
+    }
+}
+
+pub fn sync_collider_data(
+    particle_systems: Query<&ParticleSystem3D>,
+    assets: Res<Assets<ParticleSystemAsset>>,
+    mut collider_query: Query<(&ColliderEntity, &mut ParticlesCollider3D, &mut Transform)>,
+) {
+    if !assets.is_changed() {
+        return;
+    }
+
+    for (collider, mut collider3d, mut transform) in collider_query.iter_mut() {
+        let Ok(particle_system) = particle_systems.get(collider.parent_system) else {
+            continue;
+        };
+        let Some(asset) = assets.get(&particle_system.handle) else {
+            continue;
+        };
+        let Some(collider_data) = asset.colliders.get(collider.collider_index) else {
+            continue;
+        };
+
+        collider3d.shape = collider_data.shape.clone();
+        transform.translation = collider_data.position;
     }
 }
 

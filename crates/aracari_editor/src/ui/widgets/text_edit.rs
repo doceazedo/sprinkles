@@ -16,6 +16,11 @@ use crate::ui::tokens::{
 
 const DEFAULT_DRAG_ICON: &str = "icons/ri-expand-horizontal-s-line.png";
 
+pub fn set_text_input_value(queue: &mut TextInputQueue, text: String) {
+    queue.add(TextInputAction::Edit(TextInputEdit::SelectAll));
+    queue.add(TextInputAction::Edit(TextInputEdit::Paste(text)));
+}
+
 #[derive(Event)]
 pub struct TextEditCommitEvent {
     pub entity: Entity,
@@ -763,10 +768,7 @@ fn update_input_value(
     range: Option<&NumericRange>,
 ) {
     let clamped = clamp_value(value, range);
-    queue.add(TextInputAction::Edit(TextInputEdit::SelectAll));
-    queue.add(TextInputAction::Edit(TextInputEdit::Paste(
-        format_numeric_value(clamped, variant),
-    )));
+    set_text_input_value(queue, format_numeric_value(clamped, variant));
 }
 
 fn handle_cursor(

@@ -1,5 +1,6 @@
 mod accelerations;
 mod collision;
+mod collider_properties;
 mod colors;
 mod draw_pass;
 mod emission;
@@ -30,15 +31,21 @@ use super::binding::Field;
 
 pub fn plugin(app: &mut App) {
     app.init_resource::<InspectedEmitterTracker>()
-        .add_plugins((super::binding::plugin, time::plugin, emission::plugin, draw_pass::plugin, scale::plugin, colors::plugin, velocities::plugin, accelerations::plugin, turbulence::plugin, collision::plugin, particle_flags::plugin))
+        .init_resource::<InspectedColliderTracker>()
+        .add_plugins((super::binding::plugin, time::plugin, emission::plugin, draw_pass::plugin, scale::plugin, colors::plugin, velocities::plugin, accelerations::plugin, turbulence::plugin, collision::plugin, particle_flags::plugin, collider_properties::plugin))
         .add_systems(Update, (
-            update_inspected_emitter_tracker,
-            (setup_inspector_panel, update_panel_title, setup_inspector_section_fields).after(update_inspected_emitter_tracker),
+            (update_inspected_emitter_tracker, update_inspected_collider_tracker),
+            (setup_inspector_panel, update_panel_title, setup_inspector_section_fields, toggle_inspector_content).after(update_inspected_emitter_tracker).after(update_inspected_collider_tracker),
         ));
 }
 
 #[derive(Resource, Default)]
 pub struct InspectedEmitterTracker {
+    pub current_index: Option<u8>,
+}
+
+#[derive(Resource, Default)]
+pub struct InspectedColliderTracker {
     pub current_index: Option<u8>,
 }
 
@@ -57,6 +64,21 @@ pub(super) fn update_inspected_emitter_tracker(
     }
 }
 
+pub(super) fn update_inspected_collider_tracker(
+    editor_state: Res<EditorState>,
+    mut tracker: ResMut<InspectedColliderTracker>,
+) {
+    let new_index = editor_state
+        .inspecting
+        .as_ref()
+        .filter(|i| i.kind == Inspectable::Collider)
+        .map(|i| i.index);
+
+    if tracker.current_index != new_index {
+        tracker.current_index = new_index;
+    }
+}
+
 #[derive(Component)]
 pub struct EditorInspectorPanel;
 
@@ -64,10 +86,19 @@ pub struct EditorInspectorPanel;
 struct InspectorPanelContent;
 
 #[derive(Component)]
+struct EmitterInspectorContent;
+
+#[derive(Component)]
+struct ColliderInspectorContent;
+
+#[derive(Component)]
 struct PanelTitleText;
 
 #[derive(Component)]
 struct PanelTitleIcon;
+
+#[derive(Component)]
+struct EnabledCheckbox;
 
 pub fn inspector_panel(_asset_server: &AssetServer) -> impl Bundle {
     (
@@ -104,18 +135,86 @@ fn setup_inspector_panel(
                         },
                     ))
                     .with_children(|content| {
-                        content.spawn(time::time_section(&asset_server));
-                        content.spawn(draw_pass::draw_pass_section(&asset_server));
-                        content.spawn(emission::emission_section(&asset_server));
-                        content.spawn(scale::scale_section(&asset_server));
-                        content.spawn(colors::colors_section(&asset_server));
-                        content.spawn(velocities::velocities_section(&asset_server));
-                        content.spawn(accelerations::accelerations_section(&asset_server));
-                        content.spawn(turbulence::turbulence_section(&asset_server));
-                        content.spawn(collision::collision_section(&asset_server));
-                        content.spawn(particle_flags::particle_flags_section(&asset_server));
+                        content
+                            .spawn((
+                                EmitterInspectorContent,
+                                Node {
+                                    width: percent(100),
+                                    flex_direction: FlexDirection::Column,
+                                    ..default()
+                                },
+                            ))
+                            .with_children(|emitter_content| {
+                                emitter_content.spawn(time::time_section(&asset_server));
+                                emitter_content.spawn(draw_pass::draw_pass_section(&asset_server));
+                                emitter_content.spawn(emission::emission_section(&asset_server));
+                                emitter_content.spawn(scale::scale_section(&asset_server));
+                                emitter_content.spawn(colors::colors_section(&asset_server));
+                                emitter_content.spawn(velocities::velocities_section(&asset_server));
+                                emitter_content.spawn(accelerations::accelerations_section(&asset_server));
+                                emitter_content.spawn(turbulence::turbulence_section(&asset_server));
+                                emitter_content.spawn(collision::collision_section(&asset_server));
+                                emitter_content.spawn(particle_flags::particle_flags_section(&asset_server));
+                            });
+
+                        content
+                            .spawn((
+                                ColliderInspectorContent,
+                                Node {
+                                    width: percent(100),
+                                    flex_direction: FlexDirection::Column,
+                                    display: Display::None,
+                                    ..default()
+                                },
+                            ))
+                            .with_children(|collider_content| {
+                                collider_content.spawn(collider_properties::collider_properties_section(&asset_server));
+                            });
                     });
             });
+    }
+}
+
+fn toggle_inspector_content(
+    editor_state: Res<EditorState>,
+    mut emitter_content: Query<&mut Node, (With<EmitterInspectorContent>, Without<ColliderInspectorContent>, Without<EnabledCheckbox>)>,
+    mut collider_content: Query<&mut Node, (With<ColliderInspectorContent>, Without<EmitterInspectorContent>, Without<EnabledCheckbox>)>,
+    mut enabled_checkbox: Query<&mut Node, (With<EnabledCheckbox>, Without<EmitterInspectorContent>, Without<ColliderInspectorContent>)>,
+) {
+    if !editor_state.is_changed() {
+        return;
+    }
+
+    let inspecting_kind = editor_state.inspecting.as_ref().map(|i| i.kind);
+
+    let emitter_display = if inspecting_kind == Some(Inspectable::Emitter) {
+        Display::Flex
+    } else {
+        Display::None
+    };
+
+    let collider_display = if inspecting_kind == Some(Inspectable::Collider) {
+        Display::Flex
+    } else {
+        Display::None
+    };
+
+    for mut node in &mut emitter_content {
+        if node.display != emitter_display {
+            node.display = emitter_display;
+        }
+    }
+
+    for mut node in &mut collider_content {
+        if node.display != collider_display {
+            node.display = collider_display;
+        }
+    }
+
+    for mut node in &mut enabled_checkbox {
+        if node.display != emitter_display {
+            node.display = emitter_display;
+        }
     }
 }
 
@@ -164,7 +263,7 @@ fn panel_title(asset_server: &AssetServer) -> impl Bundle {
                     ),
                 ],
             ),
-            (Field::new("enabled").with_kind(FieldKind::Bool), checkbox(CheckboxProps::new("Enabled").checked(true), asset_server)),
+            (EnabledCheckbox, Field::new("enabled").with_kind(FieldKind::Bool), checkbox(CheckboxProps::new("Enabled").checked(true), asset_server)),
             icon_button(
                 IconButtonProps::new("icons/ri-more-fill.png").variant(ButtonVariant::Ghost),
                 asset_server,
@@ -290,7 +389,11 @@ fn update_panel_title(
             let name = emitter.map(|e| e.name.clone()).unwrap_or_default();
             (name, "icons/ri-showers-fill.png")
         }
-        Inspectable::Collider => ("Collider".to_string(), "icons/ri-box-2-fill.png"),
+        Inspectable::Collider => {
+            let collider = asset.colliders.get(inspecting.index as usize);
+            let name = collider.map(|c| c.name.clone()).unwrap_or_default();
+            (name, "icons/ri-box-2-fill.png")
+        }
     };
 
     for mut text in &mut title_text {

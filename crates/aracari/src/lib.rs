@@ -23,7 +23,8 @@ use extract::{extract_colliders, extract_particle_systems};
 use sort::ParticleSortPlugin;
 use spawning::{
     cleanup_particle_entities, clear_particle_clear_requests, setup_particle_systems,
-    sync_emitter_mesh_transforms, sync_particle_material, sync_particle_mesh, update_particle_time,
+    sync_collider_data, sync_emitter_mesh_transforms, sync_particle_material, sync_particle_mesh,
+    update_particle_time,
 };
 use textures::{
     CurveTextureCache, FallbackCurveTexture, FallbackGradientTexture, GradientTextureCache,
@@ -60,6 +61,7 @@ impl Plugin for AracariPlugin {
                 sync_particle_mesh,
                 sync_particle_material,
                 sync_emitter_mesh_transforms,
+                sync_collider_data,
                 update_particle_time,
                 cleanup_particle_entities,
             ),
@@ -85,14 +87,15 @@ impl Plugin for AracariPlugin {
 
 // re-exports
 pub use asset::{
-    DrawOrder, DrawPassMaterial, EmitterAccelerations, EmitterCollision, EmitterCollisionMode,
-    EmitterColors, EmitterData, EmitterDrawPass, EmitterEmission, EmitterScale, EmitterTime,
-    EmitterTurbulence, EmitterVelocities, ParticleFlags, ParticleMesh, ParticleSystemDimension,
-    ParticlesColliderShape3D, QuadOrientation, SerializableAlphaMode, StandardParticleMaterial,
+    ColliderData, DrawOrder, DrawPassMaterial, EmitterAccelerations, EmitterCollision,
+    EmitterCollisionMode, EmitterColors, EmitterData, EmitterDrawPass, EmitterEmission,
+    EmitterScale, EmitterTime, EmitterTurbulence, EmitterVelocities, ParticleFlags, ParticleMesh,
+    ParticleSystemDimension, ParticlesColliderShape3D, QuadOrientation, SerializableAlphaMode,
+    StandardParticleMaterial,
 };
 pub use material::ParticleMaterialExtension;
 pub use runtime::{
-    EmitterEntity, EmitterMeshEntity, EmitterRuntime, ParticleBufferHandle, ParticleData,
-    ParticleMaterial, ParticleMaterialHandle, ParticleSystem2D, ParticleSystem3D,
+    ColliderEntity, EmitterEntity, EmitterMeshEntity, EmitterRuntime, ParticleBufferHandle,
+    ParticleData, ParticleMaterial, ParticleMaterialHandle, ParticleSystem2D, ParticleSystem3D,
     ParticleSystemRuntime, ParticlesCollider3D,
 };

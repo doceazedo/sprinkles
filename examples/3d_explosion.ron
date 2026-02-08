@@ -745,4 +745,13 @@
             particle_flags: "ALIGN_Y_TO_VELOCITY",
         ),
     ],
+    colliders: [
+        (
+            name: "Floor",
+            shape: Box(
+                size: (10.0, 0.1, 10.0),
+            ),
+            position: (0.0, -2.0, 0.0),
+        ),
+    ],
 )

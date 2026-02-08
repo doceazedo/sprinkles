@@ -13,7 +13,8 @@ use bevy::post_process::bloom::Bloom;
 use bevy::prelude::*;
 use bevy::render::render_resource::{TextureDimension, TextureFormat, TextureUsages};
 
-use crate::state::{EditorState, PlaybackPlayEvent, PlaybackResetEvent, PlaybackSeekEvent};
+use crate::state::{EditorState, Inspectable, PlaybackPlayEvent, PlaybackResetEvent, PlaybackSeekEvent};
+use crate::ui::tokens::PRIMARY_COLOR;
 use crate::ui::components::seekbar::SeekbarDragState;
 use crate::ui::components::viewport::EditorViewport;
 
@@ -128,18 +129,6 @@ pub fn setup_floor(
         Name::new("Floor"),
         Transform::from_xyz(0.0, -2.0, 0.0),
         Visibility::default(),
-    ));
-
-    // particle collision box
-    commands.spawn((
-        ParticlesCollider3D {
-            shape: ParticlesColliderShape3D::Box {
-                size: Vec3::new(10.0, 0.1, 10.0),
-            },
-            position: Vec3::ZERO,
-        },
-        Transform::from_xyz(0.0, -2.01, 0.0),
-        Name::new("Particle Collider"),
     ));
 }
 
@@ -289,6 +278,9 @@ pub fn despawn_preview_on_project_change(
 #[derive(Event)]
 pub struct RespawnEmittersEvent;
 
+#[derive(Event)]
+pub struct RespawnCollidersEvent;
+
 pub fn handle_respawn_emitters(
     _trigger: On<RespawnEmittersEvent>,
     mut commands: Commands,
@@ -299,6 +291,22 @@ pub fn handle_respawn_emitters(
         for (emitter_entity, emitter) in &emitter_entities {
             if emitter.parent_system == system_entity {
                 commands.entity(emitter_entity).despawn();
+            }
+        }
+        commands.entity(system_entity).remove::<ParticleSystemRuntime>();
+    }
+}
+
+pub fn handle_respawn_colliders(
+    _trigger: On<RespawnCollidersEvent>,
+    mut commands: Commands,
+    preview_systems: Query<Entity, With<EditorParticlePreview>>,
+    collider_entities: Query<(Entity, &ColliderEntity)>,
+) {
+    for system_entity in &preview_systems {
+        for (collider_entity, collider) in &collider_entities {
+            if collider.parent_system == system_entity {
+                commands.entity(collider_entity).despawn();
             }
         }
         commands.entity(system_entity).remove::<ParticleSystemRuntime>();
@@ -420,6 +428,39 @@ pub fn handle_playback_seek_event(
         for (emitter, mut runtime) in emitter_query.iter_mut() {
             if emitter.parent_system == system_entity {
                 runtime.seek(seek_time);
+            }
+        }
+    }
+}
+
+pub fn draw_collider_gizmos(
+    mut gizmos: Gizmos,
+    colliders: Query<(&ParticlesCollider3D, &ColliderEntity, &Transform)>,
+    editor_state: Res<EditorState>,
+) {
+    let inspected_index = editor_state
+        .inspecting
+        .as_ref()
+        .filter(|i| i.kind == Inspectable::Collider)
+        .map(|i| i.index as usize);
+
+    for (collider, collider_entity, transform) in &colliders {
+        if inspected_index != Some(collider_entity.collider_index) {
+            continue;
+        }
+
+        match &collider.shape {
+            ParticlesColliderShape3D::Box { size } => {
+                let collider_transform = Transform {
+                    translation: transform.translation,
+                    rotation: transform.rotation,
+                    scale: *size,
+                };
+                gizmos.cube(collider_transform, PRIMARY_COLOR);
+            }
+            ParticlesColliderShape3D::Sphere { radius } => {
+                let isometry = Isometry3d::from_translation(transform.translation);
+                gizmos.sphere(isometry, *radius, PRIMARY_COLOR);
             }
         }
     }
