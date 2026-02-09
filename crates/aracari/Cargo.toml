@@ -6,6 +6,10 @@ edition = "2024"
 [lints]
 workspace = true
 
+[features]
+default = ["preset-textures"]
+preset-textures = []
+
 [dependencies]
 bevy = { workspace = true }
 serde = { workspace = true }

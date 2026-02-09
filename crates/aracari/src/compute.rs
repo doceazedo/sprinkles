@@ -116,7 +116,7 @@ pub struct CurveSampler(pub bevy::render::render_resource::Sampler);
 
 #[derive(Resource, Default)]
 pub struct ParticleComputeBindGroups {
-    pub bind_groups: Vec<(Entity, BindGroup)>,
+    pub bind_groups: Vec<(Entity, Vec<BindGroup>)>,
 }
 
 pub fn prepare_particle_compute_bind_groups(
@@ -177,26 +177,26 @@ pub fn prepare_particle_compute_bind_groups(
             .and_then(|h| gpu_images.get(h))
             .or(fallback_gradient_gpu_image);
 
-        let curve_gpu_image = emitter_data
-            .curve_texture_handle
+        let scale_over_lifetime_gpu_image = emitter_data
+            .scale_over_lifetime_texture_handle
             .as_ref()
             .and_then(|h| gpu_images.get(h))
             .or(fallback_curve_gpu_image);
 
-        let alpha_curve_gpu_image = emitter_data
-            .alpha_curve_texture_handle
+        let alpha_over_lifetime_gpu_image = emitter_data
+            .alpha_over_lifetime_texture_handle
             .as_ref()
             .and_then(|h| gpu_images.get(h))
             .or(fallback_curve_gpu_image);
 
-        let emission_curve_gpu_image = emitter_data
-            .emission_curve_texture_handle
+        let emission_over_lifetime_gpu_image = emitter_data
+            .emission_over_lifetime_texture_handle
             .as_ref()
             .and_then(|h| gpu_images.get(h))
             .or(fallback_curve_gpu_image);
 
-        let turbulence_influence_curve_gpu_image = emitter_data
-            .turbulence_influence_curve_texture_handle
+        let turbulence_influence_over_lifetime_gpu_image = emitter_data
+            .turbulence_influence_over_lifetime_texture_handle
             .as_ref()
             .and_then(|h| gpu_images.get(h))
             .or(fallback_curve_gpu_image);
@@ -211,19 +211,19 @@ pub fn prepare_particle_compute_bind_groups(
             continue;
         };
 
-        let Some(curve_image) = curve_gpu_image else {
+        let Some(scale_over_lifetime_image) = scale_over_lifetime_gpu_image else {
             continue;
         };
 
-        let Some(alpha_curve_image) = alpha_curve_gpu_image else {
+        let Some(alpha_over_lifetime_image) = alpha_over_lifetime_gpu_image else {
             continue;
         };
 
-        let Some(turbulence_influence_curve_image) = turbulence_influence_curve_gpu_image else {
+        let Some(turbulence_influence_over_lifetime_image) = turbulence_influence_over_lifetime_gpu_image else {
             continue;
         };
 
-        let Some(emission_curve_image) = emission_curve_gpu_image else {
+        let Some(emission_over_lifetime_image) = emission_over_lifetime_gpu_image else {
             continue;
         };
 
@@ -231,41 +231,48 @@ pub fn prepare_particle_compute_bind_groups(
             continue;
         };
 
-        // update collider_count in uniforms
-        let mut uniforms = emitter_data.uniforms;
-        uniforms.collider_count = collider_count;
+        let bind_group_layout = pipeline_cache.get_bind_group_layout(&pipeline.bind_group_layout);
 
-        let uniform_buffer = render_device.create_buffer_with_data(
-            &bevy::render::render_resource::BufferInitDescriptor {
-                label: Some("emitter_uniform_buffer"),
-                contents: bytemuck::bytes_of(&uniforms),
-                usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-            },
-        );
+        let step_bind_groups: Vec<BindGroup> = emitter_data
+            .uniform_steps
+            .iter()
+            .map(|step_uniforms| {
+                let mut uniforms = *step_uniforms;
+                uniforms.collider_count = collider_count;
 
-        let bind_group = render_device.create_bind_group(
-            Some("particle_compute_bind_group"),
-            &pipeline_cache.get_bind_group_layout(&pipeline.bind_group_layout),
-            &BindGroupEntries::sequential((
-                uniform_buffer.as_entire_binding(),
-                gpu_buffer.buffer.as_entire_binding(),
-                &gradient_image.texture_view,
-                &gradient_sampler.0,
-                &curve_image.texture_view,
-                &curve_sampler.0,
-                &alpha_curve_image.texture_view,
-                &curve_sampler.0,
-                &emission_curve_image.texture_view,
-                &curve_sampler.0,
-                &turbulence_influence_curve_image.texture_view,
-                &curve_sampler.0,
-                &radial_velocity_curve_image.texture_view,
-                &curve_sampler.0,
-                colliders_buffer.as_entire_binding(),
-            )),
-        );
+                let uniform_buffer = render_device.create_buffer_with_data(
+                    &bevy::render::render_resource::BufferInitDescriptor {
+                        label: Some("emitter_uniform_buffer"),
+                        contents: bytemuck::bytes_of(&uniforms),
+                        usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+                    },
+                );
 
-        bind_groups.push((*entity, bind_group));
+                render_device.create_bind_group(
+                    Some("particle_compute_bind_group"),
+                    &bind_group_layout,
+                    &BindGroupEntries::sequential((
+                        uniform_buffer.as_entire_binding(),
+                        gpu_buffer.buffer.as_entire_binding(),
+                        &gradient_image.texture_view,
+                        &gradient_sampler.0,
+                        &scale_over_lifetime_image.texture_view,
+                        &curve_sampler.0,
+                        &alpha_over_lifetime_image.texture_view,
+                        &curve_sampler.0,
+                        &emission_over_lifetime_image.texture_view,
+                        &curve_sampler.0,
+                        &turbulence_influence_over_lifetime_image.texture_view,
+                        &curve_sampler.0,
+                        &radial_velocity_curve_image.texture_view,
+                        &curve_sampler.0,
+                        colliders_buffer.as_entire_binding(),
+                    )),
+                )
+            })
+            .collect();
+
+        bind_groups.push((*entity, step_bind_groups));
     }
 
     commands.insert_resource(ParticleComputeBindGroups { bind_groups });
@@ -318,22 +325,35 @@ impl render_graph::Node for ParticleComputeNode {
             return Ok(());
         };
 
-        let mut pass = render_context
-            .command_encoder()
-            .begin_compute_pass(&ComputePassDescriptor {
-                label: Some("particle_compute_pass"),
-                ..default()
-            });
+        let max_steps = bind_groups
+            .bind_groups
+            .iter()
+            .map(|(_, steps)| steps.len())
+            .max()
+            .unwrap_or(0);
 
-        pass.set_pipeline(compute_pipeline);
+        for step_index in 0..max_steps {
+            let mut pass = render_context
+                .command_encoder()
+                .begin_compute_pass(&ComputePassDescriptor {
+                    label: Some("particle_compute_pass"),
+                    ..default()
+                });
 
-        for (entity, bind_group) in &bind_groups.bind_groups {
-            if let Some(emitter_data) = extracted.emitters.iter().find(|(e, _)| e == entity) {
-                let amount = emitter_data.1.uniforms.amount;
-                let workgroups = (amount + WORKGROUP_SIZE - 1) / WORKGROUP_SIZE;
+            pass.set_pipeline(compute_pipeline);
 
-                pass.set_bind_group(0, bind_group, &[]);
-                pass.dispatch_workgroups(workgroups, 1, 1);
+            for (entity, step_bind_groups) in &bind_groups.bind_groups {
+                let Some(bind_group) = step_bind_groups.get(step_index) else {
+                    continue;
+                };
+
+                if let Some(emitter_data) = extracted.emitters.iter().find(|(e, _)| e == entity) {
+                    let amount = emitter_data.1.amount;
+                    let workgroups = (amount + WORKGROUP_SIZE - 1) / WORKGROUP_SIZE;
+
+                    pass.set_bind_group(0, bind_group, &[]);
+                    pass.dispatch_workgroups(workgroups, 1, 1);
+                }
             }
         }
 

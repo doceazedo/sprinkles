@@ -2,15 +2,23 @@ use std::f32::consts::{FRAC_PI_2, FRAC_PI_4};
 use std::ops::Range;
 
 use aracari::prelude::*;
-use bevy::camera::SubCameraView;
+use bevy::asset::RenderAssetUsages;
+use bevy::camera::RenderTarget;
 use bevy::color::palettes::tailwind::ZINC_950;
 use bevy::image::{ImageAddressMode, ImageSamplerDescriptor};
-use bevy::math::Affine2;
 use bevy::input::mouse::{AccumulatedMouseMotion, AccumulatedMouseScroll};
+use bevy::math::Affine2;
+use bevy::picking::hover::Hovered;
 use bevy::post_process::bloom::Bloom;
 use bevy::prelude::*;
+use bevy::render::render_resource::{TextureDimension, TextureFormat, TextureUsages};
 
-use crate::state::EditorState;
+use crate::state::{
+    EditorState, Inspectable, PlaybackPlayEvent, PlaybackResetEvent, PlaybackSeekEvent,
+};
+use crate::ui::components::seekbar::SeekbarDragState;
+use crate::ui::components::viewport::EditorViewport;
+use crate::ui::tokens::PRIMARY_COLOR;
 
 const MIN_ZOOM_DISTANCE: f32 = 0.1;
 const MAX_ZOOM_DISTANCE: f32 = 20.0;
@@ -24,6 +32,11 @@ const FLOOR_TILE_SIZE: f32 = 2.0;
 
 #[derive(Component)]
 pub struct EditorCamera;
+
+#[derive(Default, Resource)]
+pub struct ViewportInputState {
+    pub dragging: bool,
+}
 
 #[derive(Debug, Resource)]
 pub struct CameraSettings {
@@ -45,17 +58,30 @@ impl Default for CameraSettings {
     }
 }
 
-#[derive(Resource, Default)]
-pub struct ViewportLayout {
-    pub left_panel_width: f32,
-}
+pub fn setup_camera(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
+    let mut image = Image::new_uninit(
+        default(),
+        TextureDimension::D2,
+        TextureFormat::Bgra8UnormSrgb,
+        RenderAssetUsages::all(),
+    );
+    image.texture_descriptor.usage =
+        TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST | TextureUsages::RENDER_ATTACHMENT;
+    let image_handle = images.add(image);
 
-pub fn setup_camera(mut commands: Commands) {
+    commands.spawn((Name::new("UiCamera"), Camera2d));
+
     let initial_position = ORBIT_TARGET + ORBIT_OFFSET.normalize() * INITIAL_ORBIT_DISTANCE;
     commands.spawn((
         EditorCamera,
-        Name::new("Camera"),
+        Name::new("ViewportCamera"),
         Camera3d::default(),
+        Camera {
+            order: -1,
+            clear_color: ClearColorConfig::Custom(ZINC_950.into()),
+            ..default()
+        },
+        RenderTarget::Image(image_handle.into()),
         Transform::from_translation(initial_position).looking_at(ORBIT_TARGET, Vec3::Y),
         Bloom::NATURAL,
         DistanceFog {
@@ -106,18 +132,6 @@ pub fn setup_floor(
         Transform::from_xyz(0.0, -2.0, 0.0),
         Visibility::default(),
     ));
-
-    // particle collision box
-    commands.spawn((
-        ParticlesCollider3D {
-            shape: ParticlesColliderShape3D::Box {
-                size: Vec3::new(10.0, 0.1, 10.0),
-            },
-            position: Vec3::ZERO,
-        },
-        Transform::from_xyz(0.0, -2.01, 0.0),
-        Name::new("Particle Collider"),
-    ));
 }
 
 pub fn configure_floor_texture(
@@ -144,14 +158,28 @@ pub fn configure_floor_texture(
 
 pub fn orbit_camera(
     mut camera: Single<&mut Transform, With<EditorCamera>>,
+    viewport: Single<&Hovered, With<EditorViewport>>,
+    mut input_state: ResMut<ViewportInputState>,
     camera_settings: Res<CameraSettings>,
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     mouse_motion: Res<AccumulatedMouseMotion>,
 ) {
-    let orbiting = mouse_buttons.pressed(MouseButton::Left)
-        || mouse_buttons.pressed(MouseButton::Right);
+    let pressing =
+        mouse_buttons.pressed(MouseButton::Left) || mouse_buttons.pressed(MouseButton::Right);
 
-    if !orbiting {
+    if !pressing {
+        input_state.dragging = false;
+        return;
+    }
+
+    let just_pressed = mouse_buttons.just_pressed(MouseButton::Left)
+        || mouse_buttons.just_pressed(MouseButton::Right);
+
+    if just_pressed && viewport.get() {
+        input_state.dragging = true;
+    }
+
+    if !input_state.dragging {
         return;
     }
 
@@ -173,9 +201,14 @@ pub fn orbit_camera(
 
 pub fn zoom_camera(
     mut camera: Single<&mut Transform, With<EditorCamera>>,
+    viewport: Single<&Hovered, With<EditorViewport>>,
     mut camera_settings: ResMut<CameraSettings>,
     mouse_scroll: Res<AccumulatedMouseScroll>,
 ) {
+    if !viewport.get() {
+        return;
+    }
+
     let delta = mouse_scroll.delta.y;
     if delta == 0.0 {
         return;
@@ -187,34 +220,6 @@ pub fn zoom_camera(
 
     camera.translation = ORBIT_TARGET - camera.forward() * camera_settings.orbit_distance;
 }
-
-pub fn update_camera_viewport(
-    mut camera: Single<&mut Camera, With<EditorCamera>>,
-    layout: Res<ViewportLayout>,
-    windows: Query<&Window>,
-) {
-    let Ok(window) = windows.single() else {
-        return;
-    };
-
-    let window_width = window.width();
-    let window_height = window.height();
-    let panel_width = layout.left_panel_width;
-
-    if panel_width <= 0.0 || panel_width >= window_width {
-        camera.sub_camera_view = None;
-        return;
-    }
-
-    // use SubCameraView to offset the projection so the origin appears centered
-    // in the available viewport area (to the right of the panel)
-    camera.sub_camera_view = Some(SubCameraView {
-        full_size: UVec2::new((window_width + panel_width) as u32, window_height as u32),
-        offset: Vec2::ZERO,
-        size: UVec2::new(window_width as u32, window_height as u32),
-    });
-}
-
 
 #[derive(Component)]
 pub struct EditorParticlePreview;
@@ -272,17 +277,56 @@ pub fn despawn_preview_on_project_change(
     }
 }
 
+#[derive(Event)]
+pub struct RespawnEmittersEvent;
+
+#[derive(Event)]
+pub struct RespawnCollidersEvent;
+
+pub fn handle_respawn_emitters(
+    _trigger: On<RespawnEmittersEvent>,
+    mut commands: Commands,
+    preview_systems: Query<Entity, With<EditorParticlePreview>>,
+    emitter_entities: Query<(Entity, &EmitterEntity)>,
+) {
+    for system_entity in &preview_systems {
+        for (emitter_entity, emitter) in &emitter_entities {
+            if emitter.parent_system == system_entity {
+                commands.entity(emitter_entity).despawn();
+            }
+        }
+        commands
+            .entity(system_entity)
+            .remove::<ParticleSystemRuntime>();
+    }
+}
+
+pub fn handle_respawn_colliders(
+    _trigger: On<RespawnCollidersEvent>,
+    mut commands: Commands,
+    preview_systems: Query<Entity, With<EditorParticlePreview>>,
+    collider_entities: Query<(Entity, &ColliderEntity)>,
+) {
+    for system_entity in &preview_systems {
+        for (collider_entity, collider) in &collider_entities {
+            if collider.parent_system == system_entity {
+                commands.entity(collider_entity).despawn();
+            }
+        }
+        commands
+            .entity(system_entity)
+            .remove::<ParticleSystemRuntime>();
+    }
+}
+
 pub fn respawn_preview_on_emitter_change(
+    _trigger: On<PlaybackResetEvent>,
     mut commands: Commands,
     editor_state: Res<EditorState>,
     assets: Res<Assets<ParticleSystemAsset>>,
     preview_query: Query<Entity, (With<EditorParticlePreview>, With<ParticleSystemRuntime>)>,
     emitter_query: Query<&EmitterEntity>,
 ) {
-    if !editor_state.should_reset {
-        return;
-    }
-
     let Some(handle) = &editor_state.current_project else {
         return;
     };
@@ -307,8 +351,8 @@ pub fn respawn_preview_on_emitter_change(
     }
 }
 
-pub fn sync_playback_state(
-    mut editor_state: ResMut<EditorState>,
+pub fn handle_playback_reset_event(
+    _trigger: On<PlaybackResetEvent>,
     assets: Res<Assets<ParticleSystemAsset>>,
     mut system_query: Query<
         (Entity, &ParticleSystem3D, &mut ParticleSystemRuntime),
@@ -321,74 +365,182 @@ pub fn sync_playback_state(
             continue;
         };
 
-        // calculate duration from the longest emitter total duration
-        let max_duration = asset
-            .emitters
-            .iter()
-            .map(|e| e.time.total_duration())
-            .fold(0.0_f32, |a, b| a.max(b));
-        editor_state.duration_ms = max_duration * 1000.0;
+        system_runtime.paused = true;
+        for (emitter, mut runtime) in emitter_query.iter_mut() {
+            if emitter.parent_system == system_entity {
+                let fixed_seed = asset
+                    .emitters
+                    .get(runtime.emitter_index)
+                    .and_then(|e| e.time.fixed_seed);
+                runtime.stop(fixed_seed);
+            }
+        }
+    }
+}
 
-        // handle stop button - apply to all emitters
-        if editor_state.should_reset {
-            system_runtime.paused = false;
+pub fn handle_playback_play_event(
+    _trigger: On<PlaybackPlayEvent>,
+    assets: Res<Assets<ParticleSystemAsset>>,
+    mut system_query: Query<
+        (Entity, &ParticleSystem3D, &mut ParticleSystemRuntime),
+        With<EditorParticlePreview>,
+    >,
+    mut emitter_query: Query<(&EmitterEntity, &mut EmitterRuntime)>,
+) {
+    for (system_entity, particle_system, mut system_runtime) in system_query.iter_mut() {
+        let Some(asset) = assets.get(&particle_system.handle) else {
+            continue;
+        };
+
+        // check if all one-shot emitters have completed
+        let all_one_shots_completed =
+            asset
+                .emitters
+                .iter()
+                .enumerate()
+                .all(|(idx, emitter_data)| {
+                    if !emitter_data.time.one_shot {
+                        return true;
+                    }
+                    emitter_query.iter().any(|(emitter, runtime)| {
+                        emitter.parent_system == system_entity
+                            && runtime.emitter_index == idx
+                            && runtime.one_shot_completed
+                    })
+                });
+
+        let has_one_shot = asset.emitters.iter().any(|e| e.time.one_shot);
+
+        // restart completed one-shot emitters when play is requested
+        if has_one_shot && all_one_shots_completed {
             for (emitter, mut runtime) in emitter_query.iter_mut() {
                 if emitter.parent_system == system_entity {
-                    let fixed_seed = asset
-                        .emitters
-                        .get(runtime.emitter_index)
-                        .filter(|e| e.time.use_fixed_seed)
-                        .map(|e| e.time.seed);
-                    runtime.stop(fixed_seed);
+                    runtime.restart(None);
                 }
             }
-            editor_state.elapsed_ms = 0.0;
-            editor_state.should_reset = false;
+            system_runtime.resume();
+        }
+    }
+}
+
+pub fn handle_playback_seek_event(
+    trigger: On<PlaybackSeekEvent>,
+    system_query: Query<Entity, With<EditorParticlePreview>>,
+    mut emitter_query: Query<(&EmitterEntity, &mut EmitterRuntime)>,
+) {
+    let seek_time = trigger.0;
+
+    for system_entity in system_query.iter() {
+        for (emitter, mut runtime) in emitter_query.iter_mut() {
+            if emitter.parent_system == system_entity {
+                runtime.seek(seek_time);
+            }
+        }
+    }
+}
+
+pub fn draw_collider_gizmos(
+    mut gizmos: Gizmos,
+    colliders: Query<(&ParticlesCollider3D, &ColliderEntity, &Transform)>,
+    editor_state: Res<EditorState>,
+) {
+    let inspected_index = editor_state
+        .inspecting
+        .as_ref()
+        .filter(|i| i.kind == Inspectable::Collider)
+        .map(|i| i.index as usize);
+
+    for (collider, collider_entity, transform) in &colliders {
+        if inspected_index != Some(collider_entity.collider_index) {
+            continue;
+        }
+
+        match &collider.shape {
+            ParticlesColliderShape3D::Box { size } => {
+                let collider_transform = Transform {
+                    translation: transform.translation,
+                    rotation: transform.rotation,
+                    scale: *size,
+                };
+                gizmos.cube(collider_transform, PRIMARY_COLOR);
+            }
+            ParticlesColliderShape3D::Sphere { radius } => {
+                let isometry = Isometry3d::from_translation(transform.translation);
+                gizmos.sphere(isometry, *radius, PRIMARY_COLOR);
+            }
+        }
+    }
+}
+
+pub fn sync_playback_state(
+    assets: Res<Assets<ParticleSystemAsset>>,
+    drag_state: Query<&SeekbarDragState>,
+    mut system_query: Query<
+        (Entity, &ParticleSystem3D, &mut ParticleSystemRuntime),
+        With<EditorParticlePreview>,
+    >,
+    mut emitter_query: Query<(&EmitterEntity, &mut EmitterRuntime)>,
+) {
+    let is_seeking = drag_state.iter().any(|s| s.dragging);
+
+    for (system_entity, particle_system, mut system_runtime) in system_query.iter_mut() {
+        let Some(asset) = assets.get(&particle_system.handle) else {
+            continue;
+        };
+
+        // while seeking, pause and skip normal updates
+        if is_seeking {
+            if !system_runtime.paused {
+                system_runtime.pause();
+            }
             continue;
         }
 
         // check if all one-shot emitters have completed
-        let all_one_shots_completed = asset.emitters.iter().enumerate().all(|(idx, emitter_data)| {
-            if !emitter_data.time.one_shot {
-                return true;
-            }
-            emitter_query.iter().any(|(emitter, runtime)| {
-                emitter.parent_system == system_entity
-                    && runtime.emitter_index == idx
-                    && runtime.one_shot_completed
-            })
-        });
+        let all_one_shots_completed =
+            asset
+                .emitters
+                .iter()
+                .enumerate()
+                .all(|(idx, emitter_data)| {
+                    if !emitter_data.time.one_shot {
+                        return true;
+                    }
+                    emitter_query.iter().any(|(emitter, runtime)| {
+                        emitter.parent_system == system_entity
+                            && runtime.emitter_index == idx
+                            && runtime.one_shot_completed
+                    })
+                });
 
         let has_one_shot = asset.emitters.iter().any(|e| e.time.one_shot);
 
         // handle one-shot emitters completion
         if has_one_shot && all_one_shots_completed {
-            if editor_state.is_looping || editor_state.play_requested {
-                // looping mode or user clicked play: restart all emitters with new seed
+            if system_runtime.force_loop {
                 for (emitter, mut runtime) in emitter_query.iter_mut() {
                     if emitter.parent_system == system_entity {
-                        runtime.restart(None);
+                        let fixed_seed = asset
+                            .emitters
+                            .get(runtime.emitter_index)
+                            .and_then(|e| e.time.fixed_seed);
+                        runtime.restart(fixed_seed);
                     }
                 }
-                editor_state.play_requested = false;
             } else {
-                // one_shot finished, not looping: stop and reset progress
-                editor_state.elapsed_ms = 0.0;
-                editor_state.is_playing = false;
+                // pause and reset elapsed time to 0
+                system_runtime.pause();
+                for (emitter, mut runtime) in emitter_query.iter_mut() {
+                    if emitter.parent_system == system_entity {
+                        runtime.seek(0.0);
+                    }
+                }
             }
             continue;
         }
 
-        // clear play_requested if we get here (normal playback)
-        editor_state.play_requested = false;
-
-        // sync playback state from editor to system
-        if editor_state.is_playing {
-            if system_runtime.paused {
-                system_runtime.resume();
-            }
-            // ensure non-completed emitters are emitting
-            // (don't restart one-shot emitters that have already completed)
+        // sync playback state
+        if !system_runtime.paused {
             for (emitter, mut runtime) in emitter_query.iter_mut() {
                 if emitter.parent_system == system_entity
                     && !runtime.emitting
@@ -397,20 +549,6 @@ pub fn sync_playback_state(
                     runtime.play();
                 }
             }
-        } else {
-            if !system_runtime.paused {
-                system_runtime.pause();
-            }
         }
-
-        // track elapsed time as the maximum system_time across all emitters
-        // this prevents the progress bar from resetting when shorter emitters wrap
-        let mut max_elapsed = 0.0_f32;
-        for (emitter, runtime) in emitter_query.iter() {
-            if emitter.parent_system == system_entity {
-                max_elapsed = max_elapsed.max(runtime.system_time);
-            }
-        }
-        editor_state.elapsed_ms = max_elapsed * 1000.0;
     }
 }

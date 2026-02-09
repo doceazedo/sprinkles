@@ -9,13 +9,10 @@
             time: (
                 lifetime: 2.0,
             ),
-            drawing: (),
-            draw_passes: [
-                (
-                    mesh: Sphere(),
-                    material: Standard(()),
-                ),
-            ],
+            draw_pass: (
+                mesh: Sphere(),
+                material: Standard(()),
+            ),
             process: (),
         ),
     ],

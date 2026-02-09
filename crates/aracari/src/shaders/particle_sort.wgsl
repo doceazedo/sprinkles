@@ -1,19 +1,10 @@
-// particle data structure matching ParticleData in Rust
-struct Particle {
-    position: vec4<f32>,       // xyz, scale
-    velocity: vec4<f32>,       // xyz, lifetime_remaining
-    color: vec4<f32>,
-    custom: vec4<f32>,         // age, phase, seed, flags
-    alignment_dir: vec4<f32>,  // xyz direction for ALIGN_Y_TO_VELOCITY, w unused
-}
+#import aracari::common::{Particle, PARTICLE_FLAG_ACTIVE}
 
 // draw order modes matching DrawOrder enum
 const DRAW_ORDER_INDEX: u32 = 0u;
 const DRAW_ORDER_LIFETIME: u32 = 1u;
 const DRAW_ORDER_REVERSE_LIFETIME: u32 = 2u;
 const DRAW_ORDER_VIEW_DEPTH: u32 = 3u;
-
-const PARTICLE_FLAG_ACTIVE: u32 = 1u;
 
 struct SortParams {
     amount: u32,

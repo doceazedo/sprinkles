@@ -1,18 +1,19 @@
-// particle types are inlined here since shader imports from embedded assets can be tricky
-
-struct Particle {
-    position: vec4<f32>,       // xyz, scale
-    velocity: vec4<f32>,       // xyz, lifetime
-    color: vec4<f32>,
-    custom: vec4<f32>,         // age, phase, seed, flags
-    alignment_dir: vec4<f32>,  // xyz direction for ALIGN_Y_TO_VELOCITY, w unused
+#import bevy_render::maths::PI
+#import aracari::common::{
+    Particle,
+    CurveUniform,
+    PARTICLE_FLAG_ACTIVE,
+    EMITTER_FLAG_DISABLE_Z,
+    hash,
+    hash_to_float,
 }
 
-struct SplineCurve {
-    enabled: u32,
-    min_value: f32,
-    max_value: f32,
-    _pad: u32,
+struct AnimatedVelocity {
+    min: f32,
+    max: f32,
+    _pad0: f32,
+    _pad1: f32,
+    curve: CurveUniform,
 }
 
 struct EmitterParams {
@@ -42,12 +43,12 @@ struct EmitterParams {
     initial_velocity_max: f32,
     inherit_velocity_ratio: f32,
     explosiveness: f32,
-    randomness: f32,
+    spawn_time_randomness: f32,
 
-    emission_shape_offset: vec3<f32>,
+    emission_offset: vec3<f32>,
     _pad1: f32,
 
-    emission_shape_scale: vec3<f32>,
+    emission_scale: vec3<f32>,
     _pad2: f32,
 
     emission_box_extents: vec3<f32>,
@@ -67,7 +68,7 @@ struct EmitterParams {
     scale_min: f32,
     scale_max: f32,
 
-    scale_curve: SplineCurve,
+    scale_over_lifetime: CurveUniform,
 
     use_initial_color_gradient: u32,
     turbulence_enabled: u32,
@@ -76,8 +77,8 @@ struct EmitterParams {
 
     initial_color: vec4<f32>,
 
-    alpha_curve: SplineCurve,
-    emission_curve: SplineCurve,
+    alpha_over_lifetime: CurveUniform,
+    emission_over_lifetime: CurveUniform,
 
     // turbulence
     turbulence_noise_strength: f32,
@@ -88,14 +89,9 @@ struct EmitterParams {
     turbulence_noise_speed: vec3<f32>,
     turbulence_influence_max: f32,
 
-    turbulence_influence_curve: SplineCurve,
+    turbulence_influence_over_lifetime: CurveUniform,
 
-    radial_velocity_min: f32,
-    radial_velocity_max: f32,
-    _pad8: f32,
-    _pad9: f32,
-
-    radial_velocity_curve: SplineCurve,
+    radial_velocity: AnimatedVelocity,
 
     // collision
     collision_mode: u32,
@@ -120,10 +116,6 @@ struct ColliderArray {
     colliders: array<Collider, 32>,
 }
 
-// particle flags (emitter-level flags that affect all particles)
-const PARTICLE_FLAG_ALIGN_Y_TO_VELOCITY: u32 = 1u;
-const PARTICLE_FLAG_DISABLE_Z: u32 = 4u;
-
 const EMISSION_SHAPE_POINT: u32 = 0u;
 const EMISSION_SHAPE_SPHERE: u32 = 1u;
 const EMISSION_SHAPE_SPHERE_SURFACE: u32 = 2u;
@@ -131,9 +123,6 @@ const EMISSION_SHAPE_BOX: u32 = 3u;
 const EMISSION_SHAPE_RING: u32 = 4u;
 
 const DRAW_ORDER_INDEX: u32 = 0u;
-const PI: f32 = 3.14159265359;
-
-const PARTICLE_FLAG_ACTIVE: u32 = 1u;
 
 // collision constants
 const COLLIDER_TYPE_SPHERE: u32 = 0u;
@@ -147,14 +136,14 @@ const COLLISION_EPSILON: f32 = 0.001;
 @group(0) @binding(1) var<storage, read_write> particles: array<Particle>;
 @group(0) @binding(2) var gradient_texture: texture_2d<f32>;
 @group(0) @binding(3) var gradient_sampler: sampler;
-@group(0) @binding(4) var curve_texture: texture_2d<f32>;
-@group(0) @binding(5) var curve_sampler: sampler;
-@group(0) @binding(6) var alpha_curve_texture: texture_2d<f32>;
-@group(0) @binding(7) var alpha_curve_sampler: sampler;
-@group(0) @binding(8) var emission_curve_texture: texture_2d<f32>;
-@group(0) @binding(9) var emission_curve_sampler: sampler;
-@group(0) @binding(10) var turbulence_influence_curve_texture: texture_2d<f32>;
-@group(0) @binding(11) var turbulence_influence_curve_sampler: sampler;
+@group(0) @binding(4) var scale_over_lifetime_texture: texture_2d<f32>;
+@group(0) @binding(5) var scale_over_lifetime_sampler: sampler;
+@group(0) @binding(6) var alpha_over_lifetime_texture: texture_2d<f32>;
+@group(0) @binding(7) var alpha_over_lifetime_sampler: sampler;
+@group(0) @binding(8) var emission_over_lifetime_texture: texture_2d<f32>;
+@group(0) @binding(9) var emission_over_lifetime_sampler: sampler;
+@group(0) @binding(10) var turbulence_influence_over_lifetime_texture: texture_2d<f32>;
+@group(0) @binding(11) var turbulence_influence_over_lifetime_sampler: sampler;
 @group(0) @binding(12) var radial_velocity_curve_texture: texture_2d<f32>;
 @group(0) @binding(13) var radial_velocity_curve_sampler: sampler;
 @group(0) @binding(14) var<storage, read> colliders: ColliderArray;
@@ -166,21 +155,30 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         return;
     }
 
-    // handle clear request - deactivate all particles
+    var p = particles[idx];
+
+    // handle clear request: fully reset particle data, then continue to
+    // emission/update (like godot, clear does not skip the rest of the step)
     if (params.clear_particles != 0u) {
-        var p = particles[idx];
-        p.custom.w = bitcast<f32>(0u);
+        p.position = vec4(0.0, 0.0, 0.0, 1.0);
+        p.velocity = vec4(0.0);
+        p.color = vec4(1.0);
+        p.custom = vec4(0.0);
+        p.alignment_dir = vec4(0.0, 1.0, 0.0, 0.0);
+    }
+
+    // when delta is zero (paused clear), write the cleared data and stop
+    if (params.delta_time <= 0.0) {
         particles[idx] = p;
         return;
     }
 
-    var p = particles[idx];
     let flags = bitcast<u32>(p.custom.w);
     let is_active = (flags & PARTICLE_FLAG_ACTIVE) != 0u;
 
     // phase-based emission: each particle has a phase (0-1) based on its index
     let base_phase = f32(idx) / f32(params.amount);
-    let phase = base_phase + hash_to_float(idx) * params.randomness;
+    let phase = base_phase + hash_to_float(idx) * params.spawn_time_randomness;
     let adjusted_phase = fract(phase * (1.0 - params.explosiveness));
 
     // check if this particle should restart this frame
@@ -206,7 +204,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     particles[idx] = p;
 }
 
-fn get_emission_position(seed: u32) -> vec3<f32> {
+fn get_emission_offset(seed: u32) -> vec3<f32> {
     var pos = vec3(0.0);
 
     switch params.emission_shape {
@@ -274,10 +272,10 @@ fn get_emission_position(seed: u32) -> vec3<f32> {
     }
 
     // apply offset and scale
-    var result = pos * params.emission_shape_scale + params.emission_shape_offset;
+    var result = pos * params.emission_scale + params.emission_offset;
 
     // disable Z for 2D mode
-    if ((params.particle_flags & PARTICLE_FLAG_DISABLE_Z) != 0u) {
+    if ((params.particle_flags & EMITTER_FLAG_DISABLE_Z) != 0u) {
         result.z = 0.0;
     }
 
@@ -353,7 +351,7 @@ fn get_emission_velocity(seed: u32) -> vec3<f32> {
     var result = dir * speed;
 
     // disable Z for 2D mode
-    if ((params.particle_flags & PARTICLE_FLAG_DISABLE_Z) != 0u) {
+    if ((params.particle_flags & EMITTER_FLAG_DISABLE_Z) != 0u) {
         result.z = 0.0;
     }
 
@@ -477,7 +475,7 @@ fn get_turbulence_influence(seed: u32) -> f32 {
 fn sample_spline_curve(
     tex: texture_2d<f32>,
     samp: sampler,
-    curve: SplineCurve,
+    curve: CurveUniform,
     t: f32
 ) -> f32 {
     let raw = textureSampleLevel(tex, samp, vec2(t, 0.5), 0.0).r;
@@ -485,28 +483,28 @@ fn sample_spline_curve(
 }
 
 fn get_turbulence_influence_at_lifetime(base_influence: f32, age: f32, lifetime: f32) -> f32 {
-    if (params.turbulence_influence_curve.enabled == 0u) {
+    if (params.turbulence_influence_over_lifetime.enabled == 0u) {
         return base_influence;
     }
     let t = clamp(age / lifetime, 0.0, 1.0);
     let curve_value = sample_spline_curve(
-        turbulence_influence_curve_texture,
-        turbulence_influence_curve_sampler,
-        params.turbulence_influence_curve,
+        turbulence_influence_over_lifetime_texture,
+        turbulence_influence_over_lifetime_sampler,
+        params.turbulence_influence_over_lifetime,
         t
     );
     return base_influence * curve_value;
 }
 
 fn get_scale_at_lifetime(initial_scale: f32, age: f32, lifetime: f32) -> f32 {
-    if (params.scale_curve.enabled == 0u) {
+    if (params.scale_over_lifetime.enabled == 0u) {
         return initial_scale;
     }
     let t = clamp(age / lifetime, 0.0, 1.0);
     let curve_value = sample_spline_curve(
-        curve_texture,
-        curve_sampler,
-        params.scale_curve,
+        scale_over_lifetime_texture,
+        scale_over_lifetime_sampler,
+        params.scale_over_lifetime,
         t
     );
     return initial_scale * curve_value;
@@ -531,28 +529,28 @@ fn get_initial_color_rgb(seed: u32) -> vec3<f32> {
 }
 
 fn get_alpha_at_lifetime(initial_alpha: f32, age: f32, lifetime: f32) -> f32 {
-    if (params.alpha_curve.enabled == 0u) {
+    if (params.alpha_over_lifetime.enabled == 0u) {
         return initial_alpha;
     }
     let t = clamp(age / lifetime, 0.0, 1.0);
     let curve_value = sample_spline_curve(
-        alpha_curve_texture,
-        alpha_curve_sampler,
-        params.alpha_curve,
+        alpha_over_lifetime_texture,
+        alpha_over_lifetime_sampler,
+        params.alpha_over_lifetime,
         t
     );
     return initial_alpha * curve_value;
 }
 
 fn get_emission_at_lifetime(age: f32, lifetime: f32) -> f32 {
-    if (params.emission_curve.enabled == 0u) {
+    if (params.emission_over_lifetime.enabled == 0u) {
         return 1.0;
     }
     let t = clamp(age / lifetime, 0.0, 1.0);
     let curve_value = sample_spline_curve(
-        emission_curve_texture,
-        emission_curve_sampler,
-        params.emission_curve,
+        emission_over_lifetime_texture,
+        emission_over_lifetime_sampler,
+        params.emission_over_lifetime,
         t
     );
     return 1.0 + curve_value;
@@ -560,18 +558,18 @@ fn get_emission_at_lifetime(age: f32, lifetime: f32) -> f32 {
 
 fn get_initial_radial_velocity(seed: u32) -> f32 {
     let t = hash_to_float(seed);
-    return mix(params.radial_velocity_min, params.radial_velocity_max, t);
+    return mix(params.radial_velocity.min, params.radial_velocity.max, t);
 }
 
 fn get_radial_velocity_curve_multiplier(age: f32, lifetime: f32) -> f32 {
-    if (params.radial_velocity_curve.enabled == 0u) {
+    if (params.radial_velocity.curve.enabled == 0u) {
         return 1.0;
     }
     let t = clamp(age / lifetime, 0.0, 1.0);
     return sample_spline_curve(
         radial_velocity_curve_texture,
         radial_velocity_curve_sampler,
-        params.radial_velocity_curve,
+        params.radial_velocity.curve,
         t
     );
 }
@@ -798,7 +796,7 @@ fn spawn_particle(idx: u32) -> Particle {
     // base_seed + 1 + particle_index + (cycle * particle_count)
     let seed = hash(params.random_seed + 1u + idx + params.cycle * params.amount);
 
-    let emission_pos = get_emission_position(seed);
+    let emission_pos = get_emission_offset(seed);
     let initial_scale = get_initial_scale(seed + 20u);
     // for constant curve, use initial scale directly; for curves, start at eased t=0
     let scale = get_scale_at_lifetime(initial_scale, 0.0, 1.0);
@@ -817,7 +815,7 @@ fn spawn_particle(idx: u32) -> Particle {
         params.delta_time,
         seed
     );
-    if ((params.particle_flags & PARTICLE_FLAG_DISABLE_Z) != 0u) {
+    if ((params.particle_flags & EMITTER_FLAG_DISABLE_Z) != 0u) {
         radial_displacement.z = 0.0;
     }
     vel = vel + radial_displacement;
@@ -898,7 +896,7 @@ fn update_particle(p_in: Particle) -> Particle {
             dt,
             seed
         );
-        if ((params.particle_flags & PARTICLE_FLAG_DISABLE_Z) != 0u) {
+        if ((params.particle_flags & EMITTER_FLAG_DISABLE_Z) != 0u) {
             prev_radial.z = 0.0;
         }
 
@@ -907,7 +905,7 @@ fn update_particle(p_in: Particle) -> Particle {
 
     // apply gravity (respect DISABLE_Z flag for 2D mode)
     var gravity = params.gravity;
-    if ((params.particle_flags & PARTICLE_FLAG_DISABLE_Z) != 0u) {
+    if ((params.particle_flags & EMITTER_FLAG_DISABLE_Z) != 0u) {
         gravity.z = 0.0;
     }
     physics_velocity = physics_velocity + gravity * dt;
@@ -921,7 +919,7 @@ fn update_particle(p_in: Particle) -> Particle {
         dt,
         seed
     );
-    if ((params.particle_flags & PARTICLE_FLAG_DISABLE_Z) != 0u) {
+    if ((params.particle_flags & EMITTER_FLAG_DISABLE_Z) != 0u) {
         radial_displacement.z = 0.0;
     }
 
@@ -938,7 +936,7 @@ fn update_particle(p_in: Particle) -> Particle {
     }
 
     // disable Z for 2D mode before storing velocity and updating position
-    if ((params.particle_flags & PARTICLE_FLAG_DISABLE_Z) != 0u) {
+    if ((params.particle_flags & EMITTER_FLAG_DISABLE_Z) != 0u) {
         physics_velocity.z = 0.0;
     }
 
@@ -957,7 +955,7 @@ fn update_particle(p_in: Particle) -> Particle {
     var new_position = p.position.xyz + effective_velocity * dt;
 
     // force Z to 0 for 2D mode
-    if ((params.particle_flags & PARTICLE_FLAG_DISABLE_Z) != 0u) {
+    if ((params.particle_flags & EMITTER_FLAG_DISABLE_Z) != 0u) {
         new_position.z = 0.0;
     }
 
@@ -999,7 +997,7 @@ fn update_particle(p_in: Particle) -> Particle {
             col_velocity -= collision.normal * collision_response * params.collision_bounce * should_bounce;
 
             // handle 2D mode
-            if ((params.particle_flags & PARTICLE_FLAG_DISABLE_Z) != 0u) {
+            if ((params.particle_flags & EMITTER_FLAG_DISABLE_Z) != 0u) {
                 col_position.z = 0.0;
                 col_velocity.z = 0.0;
             }
@@ -1025,28 +1023,3 @@ fn update_particle(p_in: Particle) -> Particle {
 
     return p;
 }
-
-fn hash(n: u32) -> u32 {
-    var x = n;
-    x = ((x >> 16u) ^ x) * 0x45d9f3bu;
-    x = ((x >> 16u) ^ x) * 0x45d9f3bu;
-    x = (x >> 16u) ^ x;
-    return x;
-}
-
-fn hash_to_float(n: u32) -> f32 {
-    return f32(hash(n)) / f32(0xFFFFFFFFu);
-}
-
-fn random_range(seed: u32, variation: f32) -> f32 {
-    return (hash_to_float(seed) * 2.0 - 1.0) * variation;
-}
-
-fn random_vec3(seed: u32, variation: vec3<f32>) -> vec3<f32> {
-    return vec3(
-        random_range(seed, variation.x),
-        random_range(seed + 1u, variation.y),
-        random_range(seed + 2u, variation.z)
-    );
-}
-

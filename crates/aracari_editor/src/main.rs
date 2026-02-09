@@ -1,12 +1,16 @@
+mod io;
 mod plugin;
+mod project;
 mod state;
 mod ui;
 mod viewport;
 
+use bevy::asset::UnapprovedPathMode;
 use bevy::prelude::*;
 use bevy::window::WindowResolution;
 
 use plugin::AracariEditorPlugin;
+use ui::EditorUiPlugin;
 
 fn main() {
     App::new()
@@ -15,12 +19,18 @@ fn main() {
                 .set(WindowPlugin {
                     primary_window: Some(Window {
                         title: "Aracari Editor".into(),
-                        resolution: WindowResolution::new(1280, 720),
+                        resolution: WindowResolution::new(1366, 768),
                         ..default()
                     }),
                     ..default()
+                })
+                .set(AssetPlugin {
+                    unapproved_path_mode: UnapprovedPathMode::Allow,
+                    ..default()
                 }),
         )
+        .add_plugins(bevy_easings::EasingsPlugin::default())
         .add_plugins(AracariEditorPlugin)
+        .add_plugins(EditorUiPlugin)
         .run();
 }

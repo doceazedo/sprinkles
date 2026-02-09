@@ -4,740 +4,754 @@
     emitters: [
         (
             name: "Windup",
-            enabled: true,
-            position: (0.0, 0.0, 0.0),
-            amount: 10,
             time: (
-                lifetime: 0.28,
-                lifetime_randomness: 0.0,
-                delay: 0.0,
+                lifetime: 0.3,
                 one_shot: true,
                 explosiveness: 0.9,
-                randomness: 0.0,
-                fixed_fps: 30,
-                seed: 0,
-                use_fixed_seed: false,
+                fixed_fps: 60,
             ),
-            drawing: (
-                draw_order: Index,
+            draw_pass: (
+                mesh: Cylinder(
+                    top_radius: 0.1,
+                    bottom_radius: 0.0,
+                    height: 4.0,
+                    radial_segments: 16,
+                    rings: 4,
+                    cap_top: true,
+                    cap_bottom: true,
+                ),
+                material: Standard((
+                    base_color: (1.0, 1.0, 1.0, 1.0),
+                    emissive: (0.0, 0.0, 0.0, 0.0),
+                    alpha_mode: Blend,
+                    perceptual_roughness: 0.5,
+                    reflectance: 0.5,
+                )),
+                shadow_caster: false,
             ),
-            draw_passes: [
-                (
-                    mesh: Cylinder(
-                        top_radius: 0.1,
-                        bottom_radius: 0.0,
-                        height: 3.0,
-                        radial_segments: 16,
-                        rings: 4,
-                        cap_top: true,
-                        cap_bottom: true,
-                    ),
-                    material: Standard((
-                        base_color: (1.0, 1.0, 1.0, 1.0),
-                        emissive: (0.0, 0.0, 0.0, 1.0),
-                        perceptual_roughness: 0.5,
-                        metallic: 0.0,
-                        alpha_mode: Blend,
-                        double_sided: false,
-                        unlit: false,
-                        fog_enabled: true,
-                        reflectance: 0.5,
-                    )),
-                    shadow_caster: false,
+            emission: (
+                scale: (1.2, 1.2, 1.2),
+                shape: SphereSurface(
+                    radius: 2.0,
                 ),
-            ],
-            process: (
-                particle_flags: "ALIGN_Y_TO_VELOCITY",
-                spawn: (
-                    position: (
-                        emission_shape: SphereSurface(
-                            radius: 2.0,
-                        ),
-                        emission_shape_offset: (0.0, 0.0, 0.0),
-                        emission_shape_scale: (1.0, 1.0, 1.0),
-                    ),
-                    velocity: (
-                        inherit_velocity_ratio: 0.0,
-                        velocity_pivot: (0.0, 0.0, 0.0),
-                        direction: (0.0, 0.0, 0.0),
-                        spread: 180.0,
-                        flatness: 0.0,
-                        initial_velocity: (
-                            min: 0.0,
-                            max: 0.0,
-                        ),
-                    ),
+                particles_amount: 10,
+            ),
+            scale: (
+                range: (
+                    min: 0.2,
+                    max: 0.4,
                 ),
-                animated_velocity: (
-                    radial_velocity: (
-                        value: (
-                            min: -6.0,
-                            max: -5.0,
+                scale_over_lifetime: Some((
+                    points: [
+                        (
+                            position: 0.0,
+                            value: 0.0,
+                            mode: DoubleCurve,
+                            tension: 0.0,
+                            easing: Power,
                         ),
-                        curve: Some((
-                            curve: SineOutReverse,
-                            min_value: 0.0,
-                            max_value: 1.0,
-                        )),
-                    ),
-                ),
-                accelerations: (
-                    gravity: (0.0, 0.0, 0.0),
-                ),
-                display: (
-                    scale: (
-                        range: (
-                            min: 0.2,
-                            max: 0.4,
+                        (
+                            position: 0.25,
+                            value: 1.0,
+                            mode: SingleCurve,
+                            tension: -0.6900000000000001,
+                            easing: Circ,
                         ),
-                        curve: Some((
-                            curve: SineInReverse,
-                            min_value: 0.0,
-                            max_value: 1.0,
-                        )),
-                    ),
-                    color_curves: (
-                        initial_color: Solid(
-                            color: (1.0, 0.9843137, 0.92156863, 1.0),
+                        (
+                            position: 1.0,
+                            value: 0.0,
+                            mode: SingleCurve,
+                            tension: 0.67,
+                            easing: Circ,
                         ),
-                        alpha_curve: Some((
-                            curve: SineIn,
-                            min_value: 0.0,
-                            max_value: 1.0,
-                        )),
-                    ),
-                ),
-                turbulence: Some((
-                    enabled: false,
-                    noise_strength: 0.1,
-                    noise_scale: 2.5,
-                    noise_speed: (0.0, 0.0, 0.0),
-                    noise_speed_random: 0.2,
-                    influence: (
-                        min: 0.01,
-                        max: 0.04,
+                    ],
+                    range: (
+                        min: 0.0,
+                        max: 1.0,
                     ),
                 )),
             ),
+            colors: (
+                initial_color: Solid(
+                    color: (1.0, 0.9843137, 0.92156863, 1.0),
+                ),
+                alpha_over_lifetime: Some((
+                    points: [
+                        (
+                            position: 0.0,
+                            value: 0.0,
+                            mode: SingleCurve,
+                            tension: 0.0,
+                            easing: Power,
+                        ),
+                        (
+                            position: 1.0,
+                            value: 1.0,
+                            mode: SingleCurve,
+                            tension: 0.5,
+                            easing: Power,
+                        ),
+                    ],
+                    range: (
+                        min: 0.0,
+                        max: 1.0,
+                    ),
+                )),
+            ),
+            velocities: (
+                initial_direction: (0.0, 0.0, 0.0),
+                spread: 180.0,
+                radial_velocity: (
+                    velocity: (
+                        min: -6.0,
+                        max: -5.0,
+                    ),
+                    velocity_over_lifetime: Some((
+                        name: Some("Sine out"),
+                        points: [
+                            (
+                                position: 0.0,
+                                value: 1.0,
+                                mode: DoubleCurve,
+                                tension: 0.0,
+                                easing: Power,
+                            ),
+                            (
+                                position: 1.0,
+                                value: 0.0,
+                                mode: SingleCurve,
+                                tension: -1.0,
+                                easing: Sine,
+                            ),
+                        ],
+                        range: (
+                            min: 0.0,
+                            max: 1.0,
+                        ),
+                    )),
+                ),
+            ),
+            accelerations: (
+                gravity: (0.0, 0.0, 0.0),
+            ),
+            turbulence: (
+                noise_strength: 0.1,
+                noise_scale: 2.5,
+                noise_speed_random: 0.2,
+                influence: (
+                    min: 0.01,
+                    max: 0.04,
+                ),
+            ),
+            collision: (
+                base_size: 0.01,
+            ),
+            particle_flags: "ALIGN_Y_TO_VELOCITY",
         ),
         (
             name: "Smoke",
-            enabled: true,
-            position: (0.0, 0.0, 0.0),
-            amount: 16,
             time: (
                 lifetime: 2.0,
-                lifetime_randomness: 0.0,
                 delay: 0.3,
                 one_shot: true,
                 explosiveness: 0.9,
-                randomness: 0.0,
-                fixed_fps: 30,
-                seed: 0,
-                use_fixed_seed: false,
+                fixed_fps: 60,
             ),
-            drawing: (
-                draw_order: Index,
+            draw_pass: (
+                mesh: Sphere(
+                    radius: 1.0,
+                ),
+                material: Standard((
+                    base_color: (1.0, 1.0, 1.0, 1.0),
+                    emissive: (0.0, 0.0, 0.0, 0.0),
+                    alpha_mode: Blend,
+                    perceptual_roughness: 1.0,
+                    reflectance: 0.5,
+                )),
+                shadow_caster: false,
             ),
-            draw_passes: [
-                (
-                    mesh: Sphere(
-                        radius: 1.0,
-                    ),
-                    material: Standard((
-                        base_color: (1.0, 1.0, 1.0, 1.0),
-                        emissive: (0.0, 0.0, 0.0, 1.0),
-                        perceptual_roughness: 1.0,
-                        metallic: 0.0,
-                        alpha_mode: Blend,
-                        double_sided: false,
-                        unlit: false,
-                        fog_enabled: true,
-                        reflectance: 0.5,
-                    )),
-                    shadow_caster: false,
+            emission: (
+                shape: Sphere(
+                    radius: 0.3,
                 ),
-            ],
-            process: (
-                particle_flags: "",
-                spawn: (
-                    position: (
-                        emission_shape: Sphere(
-                            radius: 0.3,
-                        ),
-                        emission_shape_offset: (0.0, 0.0, 0.0),
-                        emission_shape_scale: (1.0, 1.0, 1.0),
-                    ),
-                    velocity: (
-                        inherit_velocity_ratio: 0.0,
-                        velocity_pivot: (0.0, 0.0, 0.0),
-                        direction: (1.0, 0.0, 0.0),
-                        spread: 45.0,
-                        flatness: 0.0,
-                        initial_velocity: (
-                            min: 0.0,
-                            max: 0.5,
-                        ),
-                    ),
+                particles_amount: 16,
+            ),
+            scale: (
+                range: (
+                    min: 0.2,
+                    max: 0.3,
                 ),
-                animated_velocity: (
-                    radial_velocity: (
-                        value: (
-                            min: 0.0,
-                            max: 0.0,
+                scale_over_lifetime: Some((
+                    points: [
+                        (
+                            position: 0.0,
+                            value: 0.0,
+                            mode: DoubleCurve,
+                            tension: 0.0,
+                            easing: Power,
                         ),
-                    ),
-                ),
-                accelerations: (
-                    gravity: (0.0, 1.0, 0.0),
-                ),
-                display: (
-                    scale: (
-                        range: (
-                            min: 0.2,
-                            max: 0.3,
+                        (
+                            position: 0.13,
+                            value: 1.0,
+                            mode: SingleCurve,
+                            tension: -1.0,
+                            easing: Circ,
                         ),
-                        curve: Some((
-                            curve: LinearReverse,
-                            min_value: 0.0,
-                            max_value: 1.0,
-                        )),
-                    ),
-                    color_curves: (
-                        initial_color: Gradient(
-                            gradient: (
-                                stops: [
-                                    (
-                                        color: (0.047058824, 0.039215688, 0.03529412, 1.0),
-                                        position: 0.0,
-                                    ),
-                                    (
-                                        color: (0.10980392, 0.09803922, 0.09019608, 1.0),
-                                        position: 1.0,
-                                    ),
-                                ],
-                                interpolation: Linear,
-                            ),
+                        (
+                            position: 1.0,
+                            value: 0.0,
+                            mode: SingleCurve,
+                            tension: -1.0,
+                            easing: Circ,
                         ),
-                        alpha_curve: Some((
-                            curve: SineOutReverse,
-                            min_value: 0.0,
-                            max_value: 1.0,
-                        )),
+                    ],
+                    range: (
+                        min: 0.0,
+                        max: 1.0,
                     ),
-                ),
-                turbulence: Some((
-                    enabled: true,
-                    noise_strength: 0.1,
-                    noise_scale: 0.2,
-                    noise_speed: (0.0, 0.0, 0.0),
-                    noise_speed_random: 0.2,
-                    influence: (
-                        min: 0.01,
-                        max: 0.04,
-                    ),
-                    influence_curve: Some((
-                        curve: SineInOut,
-                        min_value: 0.0,
-                        max_value: 1.0,
-                    )),
                 )),
             ),
+            colors: (
+                initial_color: Gradient(
+                    gradient: (
+                        stops: [
+                            (
+                                color: (0.047058824, 0.039215688, 0.03529412, 1.0),
+                                position: 0.0,
+                            ),
+                            (
+                                color: (0.10980392, 0.09803922, 0.09019608, 1.0),
+                                position: 1.0,
+                            ),
+                        ],
+                    ),
+                ),
+                alpha_over_lifetime: Some((
+                    points: [
+                        (
+                            position: 0.0,
+                            value: 1.0,
+                            mode: SingleCurve,
+                            tension: 0.0,
+                            easing: Power,
+                        ),
+                        (
+                            position: 1.0,
+                            value: 0.0,
+                            mode: SingleCurve,
+                            tension: -0.5,
+                            easing: Power,
+                        ),
+                    ],
+                    range: (
+                        min: 0.0,
+                        max: 1.0,
+                    ),
+                )),
+            ),
+            velocities: (
+                initial_direction: (1.0, 0.0, 0.0),
+                spread: 45.0,
+                initial_velocity: (
+                    min: 0.0,
+                    max: 0.5,
+                ),
+                radial_velocity: (),
+            ),
+            accelerations: (
+                gravity: (0.0, 1.0, 0.0),
+            ),
+            turbulence: (
+                enabled: true,
+                noise_strength: 0.1,
+                noise_scale: 0.2,
+                noise_speed_random: 0.2,
+                influence: (
+                    min: 0.01,
+                    max: 0.04,
+                ),
+                influence_over_lifetime: Some((
+                    points: [
+                        (
+                            position: 0.0,
+                            value: 0.0,
+                            mode: DoubleCurve,
+                            tension: 0.0,
+                            easing: Power,
+                        ),
+                        (
+                            position: 0.5,
+                            value: 0.75,
+                            mode: SingleCurve,
+                            tension: -1.0,
+                            easing: Circ,
+                        ),
+                        (
+                            position: 1.0,
+                            value: 1.0,
+                            mode: SingleCurve,
+                            tension: 1.0,
+                            easing: Circ,
+                        ),
+                    ],
+                    range: (
+                        min: 0.0,
+                        max: 1.0,
+                    ),
+                )),
+            ),
+            collision: (
+                base_size: 0.01,
+            ),
+            particle_flags: "",
         ),
         (
             name: "Fire",
-            enabled: true,
-            position: (0.0, 0.0, 0.0),
-            amount: 16,
             time: (
                 lifetime: 1.0,
-                lifetime_randomness: 0.0,
                 delay: 0.3,
                 one_shot: true,
                 explosiveness: 0.9,
-                randomness: 0.0,
-                fixed_fps: 30,
-                seed: 0,
-                use_fixed_seed: false,
+                fixed_fps: 60,
             ),
-            drawing: (
-                draw_order: Index,
+            draw_pass: (
+                mesh: Sphere(
+                    radius: 1.0,
+                ),
+                material: Standard((
+                    base_color: (1.0, 1.0, 1.0, 1.0),
+                    emissive: (0.0, 0.0, 0.0, 0.0),
+                    alpha_mode: Opaque,
+                    perceptual_roughness: 1.0,
+                    reflectance: 0.5,
+                )),
+                shadow_caster: false,
             ),
-            draw_passes: [
-                (
-                    mesh: Sphere(
-                        radius: 1.0,
-                    ),
-                    material: Standard((
-                        base_color: (1.0, 1.0, 1.0, 1.0),
-                        emissive: (0.0, 0.0, 0.0, 1.0),
-                        perceptual_roughness: 1.0,
-                        metallic: 0.0,
-                        alpha_mode: Opaque,
-                        double_sided: false,
-                        unlit: false,
-                        fog_enabled: true,
-                        reflectance: 0.5,
-                    )),
-                    shadow_caster: false,
+            emission: (
+                shape: Sphere(
+                    radius: 0.2,
                 ),
-            ],
-            process: (
-                particle_flags: "",
-                spawn: (
-                    position: (
-                        emission_shape: Sphere(
-                            radius: 0.2,
-                        ),
-                        emission_shape_offset: (0.0, 0.0, 0.0),
-                        emission_shape_scale: (1.0, 1.0, 1.0),
-                    ),
-                    velocity: (
-                        inherit_velocity_ratio: 0.0,
-                        velocity_pivot: (0.0, 0.0, 0.0),
-                        direction: (1.0, 0.0, 0.0),
-                        spread: 180.0,
-                        flatness: 0.0,
-                        initial_velocity: (
-                            min: 0.0,
-                            max: 5.0,
-                        ),
-                    ),
+                particles_amount: 16,
+            ),
+            scale: (
+                range: (
+                    min: 0.2,
+                    max: 0.4,
                 ),
-                animated_velocity: (
-                    radial_velocity: (
-                        value: (
-                            min: 0.0,
-                            max: 0.0,
+                scale_over_lifetime: Some((
+                    name: Some("Sine out"),
+                    points: [
+                        (
+                            position: 0.0,
+                            value: 1.0,
+                            mode: DoubleCurve,
+                            tension: 0.0,
+                            easing: Power,
                         ),
-                    ),
-                ),
-                accelerations: (
-                    gravity: (0.0, 0.3, 0.0),
-                ),
-                display: (
-                    scale: (
-                        range: (
-                            min: 0.2,
-                            max: 0.4,
+                        (
+                            position: 1.0,
+                            value: 0.0,
+                            mode: SingleCurve,
+                            tension: -1.0,
+                            easing: Sine,
                         ),
-                        curve: Some((
-                            curve: SineInOutReverse,
-                            min_value: 0.0,
-                            max_value: 1.0,
-                        )),
-                    ),
-                    color_curves: (
-                        initial_color: Gradient(
-                            gradient: (
-                                stops: [
-                                    (
-                                        color: (0.9607843, 0.61960787, 0.043137256, 1.0),
-                                        position: 0.0,
-                                    ),
-                                    (
-                                        color: (0.9764706, 0.4509804, 0.08627451, 1.0),
-                                        position: 1.0,
-                                    ),
-                                ],
-                                interpolation: Linear,
-                            ),
-                        ),
-                        emission_curve: Some((
-                            curve: SineOutReverse,
-                            min_value: 0.0,
-                            max_value: 10.0,
-                        )),
-                    ),
-                ),
-                turbulence: Some((
-                    enabled: false,
-                    noise_strength: 0.1,
-                    noise_scale: 2.5,
-                    noise_speed: (0.0, 0.0, 0.0),
-                    noise_speed_random: 0.2,
-                    influence: (
-                        min: 0.01,
-                        max: 0.04,
+                    ],
+                    range: (
+                        min: 0.0,
+                        max: 1.0,
                     ),
                 )),
             ),
+            colors: (
+                initial_color: Gradient(
+                    gradient: (
+                        stops: [
+                            (
+                                color: (0.9607843, 0.61960787, 0.043137256, 1.0),
+                                position: 0.0,
+                            ),
+                            (
+                                color: (0.9764706, 0.4509804, 0.08627451, 1.0),
+                                position: 1.0,
+                            ),
+                        ],
+                    ),
+                ),
+                emission_over_lifetime: Some((
+                    points: [
+                        (
+                            position: 0.0,
+                            value: 1.0,
+                            mode: SingleCurve,
+                            tension: 0.0,
+                            easing: Power,
+                        ),
+                        (
+                            position: 1.0,
+                            value: 0.0,
+                            mode: SingleCurve,
+                            tension: -0.5,
+                            easing: Power,
+                        ),
+                    ],
+                    range: (
+                        min: 0.0,
+                        max: 10.0,
+                    ),
+                )),
+            ),
+            velocities: (
+                initial_direction: (1.0, 0.0, 0.0),
+                spread: 180.0,
+                initial_velocity: (
+                    min: 0.0,
+                    max: 5.0,
+                ),
+                radial_velocity: (),
+            ),
+            accelerations: (
+                gravity: (0.0, 0.3, 0.0),
+            ),
+            turbulence: (
+                noise_strength: 0.1,
+                noise_scale: 2.5,
+                noise_speed_random: 0.2,
+                influence: (
+                    min: 0.01,
+                    max: 0.04,
+                ),
+            ),
+            collision: (
+                base_size: 0.01,
+            ),
+            particle_flags: "",
         ),
         (
             name: "Sparks",
-            enabled: true,
-            position: (0.0, 0.0, 0.0),
-            amount: 20,
             time: (
                 lifetime: 0.7,
-                lifetime_randomness: 0.0,
                 delay: 0.3,
                 one_shot: true,
                 explosiveness: 0.9,
-                randomness: 0.0,
-                fixed_fps: 30,
-                seed: 0,
-                use_fixed_seed: false,
+                fixed_fps: 60,
             ),
-            drawing: (
-                draw_order: Index,
+            draw_pass: (
+                mesh: Cylinder(
+                    top_radius: 0.2,
+                    bottom_radius: 0.0,
+                    height: 3.0,
+                    radial_segments: 16,
+                    rings: 4,
+                    cap_top: true,
+                    cap_bottom: true,
+                ),
+                material: Standard((
+                    base_color: (1.0, 1.0, 1.0, 1.0),
+                    emissive: (0.0, 0.0, 0.0, 0.0),
+                    alpha_mode: Blend,
+                    perceptual_roughness: 0.5,
+                    reflectance: 0.5,
+                )),
+                shadow_caster: false,
             ),
-            draw_passes: [
-                (
-                    mesh: Cylinder(
-                        top_radius: 0.2,
-                        bottom_radius: 0.0,
-                        height: 3.0,
-                        radial_segments: 16,
-                        rings: 4,
-                        cap_top: true,
-                        cap_bottom: true,
-                    ),
-                    material: Standard((
-                        base_color: (1.0, 1.0, 1.0, 1.0),
-                        emissive: (0.0, 0.0, 0.0, 1.0),
-                        perceptual_roughness: 0.5,
-                        metallic: 0.0,
-                        alpha_mode: Blend,
-                        double_sided: false,
-                        unlit: false,
-                        fog_enabled: true,
-                        reflectance: 0.5,
-                    )),
-                    shadow_caster: false,
+            emission: (
+                shape: Sphere(
+                    radius: 0.2,
                 ),
-            ],
-            process: (
-                particle_flags: "ALIGN_Y_TO_VELOCITY",
-                spawn: (
-                    position: (
-                        emission_shape: Sphere(
-                            radius: 0.2,
-                        ),
-                        emission_shape_offset: (0.0, 0.0, 0.0),
-                        emission_shape_scale: (1.0, 1.0, 1.0),
-                    ),
-                    velocity: (
-                        inherit_velocity_ratio: 0.0,
-                        velocity_pivot: (0.0, 0.0, 0.0),
-                        direction: (1.0, 0.0, 0.0),
-                        spread: 180.0,
-                        flatness: 0.0,
-                        initial_velocity: (
-                            min: 2.0,
-                            max: 5.0,
-                        ),
-                    ),
+                particles_amount: 20,
+            ),
+            scale: (
+                range: (
+                    min: 0.2,
+                    max: 0.4,
                 ),
-                animated_velocity: (
-                    radial_velocity: (
-                        value: (
-                            min: 0.0,
-                            max: 0.0,
+                scale_over_lifetime: Some((
+                    name: Some("Sine out"),
+                    points: [
+                        (
+                            position: 0.0,
+                            value: 1.0,
+                            mode: DoubleCurve,
+                            tension: 0.0,
+                            easing: Power,
                         ),
-                    ),
-                ),
-                accelerations: (
-                    gravity: (0.0, -1.5, 0.0),
-                ),
-                display: (
-                    scale: (
-                        range: (
-                            min: 0.2,
-                            max: 0.4,
+                        (
+                            position: 1.0,
+                            value: 0.0,
+                            mode: SingleCurve,
+                            tension: -1.0,
+                            easing: Sine,
                         ),
-                        curve: Some((
-                            curve: SineInOutReverse,
-                            min_value: 0.0,
-                            max_value: 1.0,
-                        )),
-                    ),
-                    color_curves: (
-                        initial_color: Gradient(
-                            gradient: (
-                                stops: [
-                                    (
-                                        color: (0.9607843, 0.61960787, 0.043137256, 1.0),
-                                        position: 0.0,
-                                    ),
-                                    (
-                                        color: (0.9764706, 0.4509804, 0.08627451, 1.0),
-                                        position: 1.0,
-                                    ),
-                                ],
-                                interpolation: Linear,
-                            ),
-                        ),
-                        emission_curve: Some((
-                            curve: SineOutReverse,
-                            min_value: 0.0,
-                            max_value: 10.0,
-                        )),
-                    ),
-                ),
-                turbulence: Some((
-                    enabled: false,
-                    noise_strength: 0.1,
-                    noise_scale: 2.5,
-                    noise_speed: (0.0, 0.0, 0.0),
-                    noise_speed_random: 0.2,
-                    influence: (
-                        min: 0.01,
-                        max: 0.04,
+                    ],
+                    range: (
+                        min: 0.0,
+                        max: 1.0,
                     ),
                 )),
             ),
+            colors: (
+                initial_color: Gradient(
+                    gradient: (
+                        stops: [
+                            (
+                                color: (0.9607843, 0.61960787, 0.043137256, 1.0),
+                                position: 0.0,
+                            ),
+                            (
+                                color: (0.9764706, 0.4509804, 0.08627451, 1.0),
+                                position: 1.0,
+                            ),
+                        ],
+                    ),
+                ),
+                emission_over_lifetime: Some((
+                    points: [
+                        (
+                            position: 0.0,
+                            value: 1.0,
+                            mode: SingleCurve,
+                            tension: 0.0,
+                            easing: Power,
+                        ),
+                        (
+                            position: 1.0,
+                            value: 0.0,
+                            mode: SingleCurve,
+                            tension: -0.5,
+                            easing: Power,
+                        ),
+                    ],
+                    range: (
+                        min: 0.0,
+                        max: 10.0,
+                    ),
+                )),
+            ),
+            velocities: (
+                initial_direction: (1.0, 0.0, 0.0),
+                spread: 180.0,
+                initial_velocity: (
+                    min: 2.0,
+                    max: 5.0,
+                ),
+                radial_velocity: (),
+            ),
+            accelerations: (
+                gravity: (0.0, -1.5, 0.0),
+            ),
+            turbulence: (
+                noise_strength: 0.1,
+                noise_scale: 2.5,
+                noise_speed_random: 0.2,
+                influence: (
+                    min: 0.01,
+                    max: 0.04,
+                ),
+            ),
+            collision: (
+                base_size: 0.01,
+            ),
+            particle_flags: "ALIGN_Y_TO_VELOCITY",
         ),
         (
             name: "Shockwave",
-            enabled: true,
-            position: (0.0, 0.0, 0.0),
-            amount: 1,
             time: (
                 lifetime: 0.5,
-                lifetime_randomness: 0.0,
                 delay: 0.3,
                 one_shot: true,
-                explosiveness: 0.0,
-                randomness: 0.0,
-                fixed_fps: 30,
-                seed: 0,
-                use_fixed_seed: false,
+                fixed_fps: 60,
             ),
-            drawing: (
-                draw_order: Index,
+            draw_pass: (
+                mesh: Quad(
+                    orientation: FaceY,
+                ),
+                material: Standard((
+                    base_color: (1.0, 1.0, 1.0, 1.0),
+                    base_color_texture: Some(Preset(Circle3)),
+                    emissive: (0.0, 0.0, 0.0, 0.0),
+                    alpha_mode: Blend,
+                    perceptual_roughness: 0.5,
+                    reflectance: 0.5,
+                    double_sided: true,
+                    unlit: true,
+                )),
+                shadow_caster: false,
             ),
-            draw_passes: [
-                (
-                    mesh: Quad(
-                        orientation: FaceY,
-                    ),
-                    material: Standard((
-                        base_color: (1.0, 1.0, 1.0, 1.0),
-                        base_color_texture: Some("circle_01_a.png"),
-                        emissive: (0.0, 0.0, 0.0, 1.0),
-                        perceptual_roughness: 0.5,
-                        metallic: 0.0,
-                        alpha_mode: Blend,
-                        double_sided: true,
-                        unlit: true,
-                        fog_enabled: true,
-                        reflectance: 0.5,
-                    )),
-                    shadow_caster: false,
-                ),
-            ],
-            process: (
-                particle_flags: "",
-                spawn: (
-                    position: (
-                        emission_shape: Point,
-                        emission_shape_offset: (0.0, 0.0, 0.0),
-                        emission_shape_scale: (1.0, 1.0, 1.0),
-                    ),
-                    velocity: (
-                        inherit_velocity_ratio: 0.0,
-                        velocity_pivot: (0.0, 0.0, 0.0),
-                        direction: (1.0, 0.0, 0.0),
-                        spread: 45.0,
-                        flatness: 0.0,
-                        initial_velocity: (
-                            min: 0.0,
-                            max: 0.0,
-                        ),
-                    ),
-                ),
-                animated_velocity: (
-                    radial_velocity: (
-                        value: (
-                            min: 0.0,
-                            max: 0.0,
-                        ),
-                    ),
-                ),
-                accelerations: (
-                    gravity: (0.0, 0.0, 0.0),
-                ),
-                display: (
-                    scale: (
-                        range: (
-                            min: 6.0,
-                            max: 6.0,
-                        ),
-                        curve: Some((
-                            curve: CubicOut,
-                            min_value: 0.0,
-                            max_value: 1.0,
-                        )),
-                    ),
-                    color_curves: (
-                        initial_color: Solid(
-                            color: (1.0, 1.0, 1.0, 1.0),
-                        ),
-                        alpha_curve: Some((
-                            curve: CubicOutReverse,
-                            min_value: 0.0,
-                            max_value: 1.0,
-                        )),
-                    ),
-                ),
+            emission: (
+                particles_amount: 1,
             ),
+            scale: (
+                range: (
+                    min: 6.0,
+                    max: 6.0,
+                ),
+                scale_over_lifetime: Some((
+                    name: Some("Circ out"),
+                    points: [
+                        (
+                            position: 0.0,
+                            value: 0.0,
+                            mode: DoubleCurve,
+                            tension: 0.0,
+                            easing: Power,
+                        ),
+                        (
+                            position: 1.0,
+                            value: 1.0,
+                            mode: SingleCurve,
+                            tension: -1.0,
+                            easing: Circ,
+                        ),
+                    ],
+                    range: (
+                        min: 0.0,
+                        max: 1.0,
+                    ),
+                )),
+            ),
+            colors: (
+                initial_color: Solid(
+                    color: (1.0, 1.0, 1.0, 1.0),
+                ),
+                alpha_over_lifetime: Some((
+                    points: [
+                        (
+                            position: 0.12,
+                            value: 1.0,
+                            mode: DoubleCurve,
+                            tension: 0.0,
+                            easing: Power,
+                        ),
+                        (
+                            position: 1.0,
+                            value: 0.0,
+                            mode: SingleCurve,
+                            tension: 0.6673340007,
+                            easing: Power,
+                        ),
+                    ],
+                    range: (
+                        min: 0.0,
+                        max: 1.0,
+                    ),
+                )),
+            ),
+            velocities: (
+                initial_direction: (1.0, 0.0, 0.0),
+                spread: 45.0,
+                radial_velocity: (),
+            ),
+            accelerations: (
+                gravity: (0.0, 0.0, 0.0),
+            ),
+            collision: (
+                base_size: 0.01,
+            ),
+            particle_flags: "",
         ),
         (
             name: "Debris",
-            enabled: true,
-            position: (0.0, 0.0, 0.0),
-            amount: 16,
             time: (
                 lifetime: 3.0,
                 lifetime_randomness: 0.3,
                 delay: 0.3,
                 one_shot: true,
                 explosiveness: 0.95,
-                randomness: 0.0,
-                fixed_fps: 30,
-                seed: 0,
-                use_fixed_seed: false,
+                fixed_fps: 60,
             ),
-            drawing: (
-                draw_order: Index,
-            ),
-            draw_passes: [
-                (
-                    mesh: Prism(
-                        left_to_right: 0.5,
-                        size: (1.0, 1.0, 1.0),
-                        subdivide_width: 0,
-                        subdivide_height: 0,
-                        subdivide_depth: 0,
-                    ),
-                    material: Standard((
-                        base_color: (1.0, 1.0, 1.0, 1.0),
-                        emissive: (0.0, 0.0, 0.0, 1.0),
-                        perceptual_roughness: 0.5,
-                        metallic: 0.0,
-                        alpha_mode: Opaque,
-                        double_sided: false,
-                        unlit: false,
-                        fog_enabled: true,
-                        reflectance: 0.5,
-                    )),
-                    shadow_caster: true,
+            draw_pass: (
+                mesh: Prism(
+                    left_to_right: 0.5,
+                    size: (1.0, 1.0, 1.0),
                 ),
-            ],
-            process: (
-                particle_flags: "ALIGN_Y_TO_VELOCITY",
-                spawn: (
-                    position: (
-                        emission_shape: Sphere(
-                            radius: 0.2,
-                        ),
-                        emission_shape_offset: (0.0, 0.0, 0.0),
-                        emission_shape_scale: (1.0, 1.0, 1.0),
-                    ),
-                    velocity: (
-                        inherit_velocity_ratio: 0.0,
-                        velocity_pivot: (0.0, 0.0, 0.0),
-                        direction: (1.0, 0.0, 0.0),
-                        spread: 180.0,
-                        flatness: 0.0,
-                        initial_velocity: (
-                            min: 0.0,
-                            max: 5.0,
-                        ),
-                    ),
-                ),
-                animated_velocity: (
-                    radial_velocity: (
-                        value: (
-                            min: 0.0,
-                            max: 0.0,
-                        ),
-                    ),
-                ),
-                accelerations: (
-                    gravity: (0.0, -9.8, 0.0),
-                ),
-                display: (
-                    scale: (
-                        range: (
-                            min: 0.04,
-                            max: 0.1,
-                        ),
-                        curve: Some((
-                            curve: Custom([
-                                (
-                                    position: 0.0,
-                                    value: 1.0,
-                                ),
-                                (
-                                    position: 0.8,
-                                    value: 1.0,
-                                ),
-                                (
-                                    position: 0.825,
-                                    value: 0.962,
-                                ),
-                                (
-                                    position: 0.85,
-                                    value: 0.854,
-                                ),
-                                (
-                                    position: 0.875,
-                                    value: 0.691,
-                                ),
-                                (
-                                    position: 0.9,
-                                    value: 0.5,
-                                ),
-                                (
-                                    position: 0.925,
-                                    value: 0.309,
-                                ),
-                                (
-                                    position: 0.95,
-                                    value: 0.146,
-                                ),
-                                (
-                                    position: 0.975,
-                                    value: 0.038,
-                                ),
-                                (
-                                    position: 1.0,
-                                    value: 0.0,
-                                ),
-                            ]),
-                            min_value: 0.0,
-                            max_value: 1.0,
-                        )),
-                    ),
-                    color_curves: (
-                        initial_color: Gradient(
-                            gradient: (
-                                stops: [
-                                    (
-                                        color: (0.15294118, 0.15294118, 0.16470589, 1.0),
-                                        position: 0.0,
-                                    ),
-                                    (
-                                        color: (0.03529412, 0.03529412, 0.043137256, 1.0),
-                                        position: 1.0,
-                                    ),
-                                ],
-                                interpolation: Linear,
-                            ),
-                        ),
-                    ),
-                ),
-                collision: Some((
-                    mode: Rigid(
-                        friction: 0.1,
-                        bounce: 0.15,
-                    ),
-                    base_size: 0.01,
-                    use_scale: true,
+                material: Standard((
+                    base_color: (1.0, 1.0, 1.0, 1.0),
+                    emissive: (0.0, 0.0, 0.0, 0.0),
+                    alpha_mode: Opaque,
+                    perceptual_roughness: 0.5,
+                    reflectance: 0.5,
                 )),
             ),
+            emission: (
+                shape: Sphere(
+                    radius: 0.2,
+                ),
+                particles_amount: 16,
+            ),
+            scale: (
+                range: (
+                    min: 0.04,
+                    max: 0.1,
+                ),
+                scale_over_lifetime: Some((
+                    points: [
+                        (
+                            position: 0.5,
+                            value: 1.0,
+                            mode: DoubleCurve,
+                            tension: 0.0,
+                            easing: Power,
+                        ),
+                        (
+                            position: 1.0,
+                            value: 0.0,
+                            mode: SingleCurve,
+                            tension: -0.8008008008,
+                            easing: Power,
+                        ),
+                    ],
+                    range: (
+                        min: 0.0,
+                        max: 1.0,
+                    ),
+                )),
+            ),
+            colors: (
+                initial_color: Gradient(
+                    gradient: (
+                        stops: [
+                            (
+                                color: (0.15294118, 0.15294118, 0.16470589, 1.0),
+                                position: 0.0,
+                            ),
+                            (
+                                color: (0.03529412, 0.03529412, 0.043137256, 1.0),
+                                position: 1.0,
+                            ),
+                        ],
+                    ),
+                ),
+            ),
+            velocities: (
+                initial_direction: (1.0, 0.0, 0.0),
+                spread: 180.0,
+                initial_velocity: (
+                    min: 0.0,
+                    max: 5.0,
+                ),
+                radial_velocity: (),
+            ),
+            accelerations: (
+                gravity: (0.0, -9.8, 0.0),
+            ),
+            collision: (
+                mode: Some(Rigid(
+                    friction: 0.1,
+                    bounce: 0.15,
+                )),
+                use_scale: true,
+                base_size: 0.01,
+            ),
+            particle_flags: "ALIGN_Y_TO_VELOCITY",
+        ),
+    ],
+    colliders: [
+        (
+            name: "Floor",
+            shape: Box(
+                size: (10.0, 0.1, 10.0),
+            ),
+            position: (0.0, -2.0, 0.0),
         ),
     ],
 )

@@ -9,34 +9,40 @@ mod spawning;
 pub mod textures;
 
 use bevy::{
-    asset::embedded_asset,
+    asset::{embedded_asset, load_internal_asset, uuid_handle},
     pbr::MaterialPlugin,
     prelude::*,
-    render::{extract_resource::ExtractResourcePlugin, ExtractSchedule, RenderApp},
+    render::{ExtractSchedule, RenderApp, extract_resource::ExtractResourcePlugin},
 };
+
+const SHADER_COMMON: Handle<Shader> = uuid_handle!("10b6a301-2396-4ce0-906a-b3e38aaddddf");
 
 use asset::{ParticleSystemAsset, ParticleSystemAssetLoader};
 use compute::ParticleComputePlugin;
 use extract::{extract_colliders, extract_particle_systems};
 use sort::ParticleSortPlugin;
 use spawning::{
-    cleanup_particle_entities, clear_particle_clear_requests, setup_particle_systems,
-    sync_emitter_mesh_transforms, sync_particle_material, sync_particle_mesh, update_particle_time,
+    cleanup_particle_entities, setup_particle_systems, sync_collider_data,
+    sync_emitter_mesh_transforms, sync_particle_material, sync_particle_mesh,
+    update_particle_time,
 };
 use textures::{
+    CurveTextureCache, FallbackCurveTexture, FallbackGradientTexture, GradientTextureCache,
     create_fallback_curve_texture, create_fallback_gradient_texture, prepare_curve_textures,
-    prepare_gradient_textures, CurveTextureCache, FallbackCurveTexture, FallbackGradientTexture,
-    GradientTextureCache,
+    prepare_gradient_textures,
 };
 
 pub struct AracariPlugin;
 
 impl Plugin for AracariPlugin {
     fn build(&self, app: &mut App) {
-        embedded_asset!(app, "shaders/particle_types.wgsl");
+        load_internal_asset!(app, SHADER_COMMON, "shaders/common.wgsl", Shader::from_wgsl);
         embedded_asset!(app, "shaders/particle_simulate.wgsl");
         embedded_asset!(app, "shaders/particle_material.wgsl");
         embedded_asset!(app, "shaders/particle_sort.wgsl");
+
+        #[cfg(feature = "preset-textures")]
+        textures::preset::register_preset_textures(app);
 
         app.init_asset::<ParticleSystemAsset>()
             .init_asset_loader::<ParticleSystemAssetLoader>();
@@ -58,12 +64,11 @@ impl Plugin for AracariPlugin {
                 sync_particle_mesh,
                 sync_particle_material,
                 sync_emitter_mesh_transforms,
+                sync_collider_data,
                 update_particle_time,
                 cleanup_particle_entities,
             ),
         );
-
-        app.add_systems(First, clear_particle_clear_requests);
 
         app.add_plugins((
             ParticleComputePlugin,
@@ -83,14 +88,18 @@ impl Plugin for AracariPlugin {
 
 // re-exports
 pub use asset::{
-    DrawOrder, DrawPassMaterial, EmitterData, EmitterDrawPass, EmitterDrawing, EmitterTime,
-    ParticleFlags, ParticleMesh, ParticleProcessCollision, ParticleProcessCollisionMode,
-    ParticleProcessConfig, ParticleSystemDimension, ParticlesColliderShape3D, QuadOrientation,
-    SerializableAlphaMode, StandardParticleMaterial,
+    ColliderData, DrawOrder, DrawPassMaterial, EmitterAccelerations, EmitterCollision,
+    EmitterCollisionMode, EmitterColors, EmitterData, EmitterDrawPass, EmitterEmission,
+    EmitterScale, EmitterTime, EmitterTurbulence, EmitterVelocities, ParticleFlags, ParticleMesh,
+    ParticleSystemDimension, ParticlesColliderShape3D, QuadOrientation, SerializableAlphaMode,
+    StandardParticleMaterial,
 };
 pub use material::ParticleMaterialExtension;
+#[cfg(feature = "preset-textures")]
+pub use textures::preset::PresetTexture;
+pub use textures::preset::TextureRef;
 pub use runtime::{
-    EmitterEntity, EmitterMeshEntity, EmitterRuntime, ParticleBufferHandle, ParticleData,
-    ParticleMaterial, ParticleMaterialHandle, ParticleSystem2D, ParticleSystem3D,
+    ColliderEntity, EmitterEntity, EmitterMeshEntity, EmitterRuntime, ParticleBufferHandle,
+    ParticleData, ParticleMaterial, ParticleMaterialHandle, ParticleSystem2D, ParticleSystem3D,
     ParticleSystemRuntime, ParticlesCollider3D,
 };

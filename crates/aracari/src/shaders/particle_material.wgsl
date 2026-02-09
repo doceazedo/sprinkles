@@ -1,23 +1,8 @@
-// particle data structure matching ParticleData in Rust
-struct Particle {
-    position: vec4<f32>,       // xyz + scale
-    velocity: vec4<f32>,       // xyz + lifetime_remaining
-    color: vec4<f32>,          // rgba
-    custom: vec4<f32>,         // age, spawn_index, seed, flags
-    alignment_dir: vec4<f32>,  // xyz direction for ALIGN_Y_TO_VELOCITY, w unused
+#import aracari::common::{
+    Particle,
+    PARTICLE_FLAG_ACTIVE,
+    EMITTER_FLAG_ALIGN_Y_TO_VELOCITY,
 }
-
-
-// per-particle flags (stored in particle.custom.w)
-const PARTICLE_FLAG_ACTIVE: u32 = 1u;
-
-// emitter-level particle flags (from particle_flags uniform)
-const EMITTER_FLAG_ALIGN_Y_TO_VELOCITY: u32 = 1u;
-const EMITTER_FLAG_DISABLE_Z: u32 = 4u;
-
-// standard material flags (from bevy_pbr::pbr_types)
-const STANDARD_MATERIAL_FLAGS_UNLIT_BIT: u32 = 1u << 5u;
-
 #import bevy_pbr::{
     mesh_functions,
     view_transformations::position_world_to_clip,
@@ -39,6 +24,8 @@ const STANDARD_MATERIAL_FLAGS_UNLIT_BIT: u32 = 1u << 5u;
     pbr_functions::{apply_pbr_lighting, main_pass_post_lighting_processing, alpha_discard},
 }
 #endif
+
+const STANDARD_MATERIAL_FLAGS_UNLIT_BIT: u32 = 1u << 5u;
 
 // sorted particle data buffer - particles are written here in draw order by the sort compute shader
 // instance 0 contains the first particle to render (back-most), instance N is the last (front-most)

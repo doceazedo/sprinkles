@@ -11,21 +11,16 @@ use crate::{
     asset::{DrawPassMaterial, ParticleMesh, ParticleSystemAsset, QuadOrientation},
     material::ParticleMaterialExtension,
     runtime::{
-        CurrentMaterialConfig, CurrentMeshConfig, EmitterEntity, EmitterMeshEntity, EmitterRuntime,
-        ParticleBufferHandle, ParticleData, ParticleMaterial, ParticleMaterialHandle,
-        ParticleMeshHandle, ParticleSystem3D, ParticleSystemRuntime,
+        ColliderEntity, CurrentMaterialConfig, CurrentMeshConfig, EmitterEntity, EmitterMeshEntity,
+        EmitterRuntime, ParticleBufferHandle, ParticleData, ParticleMaterial,
+        ParticleMaterialHandle, ParticleMeshHandle, ParticleSystem3D, ParticleSystemRuntime,
+        ParticlesCollider3D, SimulationStep,
     },
 };
 
 // time systems
 
-pub fn clear_particle_clear_requests(mut query: Query<&mut EmitterRuntime>) {
-    for mut runtime in query.iter_mut() {
-        if runtime.clear_requested {
-            runtime.clear_requested = false;
-        }
-    }
-}
+const MAX_FRAME_DELTA: f32 = 0.1;
 
 pub fn update_particle_time(
     time: Res<Time>,
@@ -38,10 +33,6 @@ pub fn update_particle_time(
             continue;
         };
 
-        if system_runtime.paused {
-            continue;
-        }
-
         let Some(asset) = assets.get(&particle_system.handle) else {
             continue;
         };
@@ -50,31 +41,86 @@ pub fn update_particle_time(
             continue;
         };
 
+        runtime.simulation_steps.clear();
+
+        // consume clear_requested flag here (like godot clearing it inside _particles_process)
+        let clear_requested = runtime.clear_requested;
+        runtime.clear_requested = false;
+
+        if system_runtime.paused {
+            // when paused, only dispatch if a clear is needed
+            if clear_requested {
+                let step = SimulationStep {
+                    prev_system_time: runtime.system_time,
+                    system_time: runtime.system_time,
+                    cycle: runtime.cycle,
+                    delta_time: 0.0,
+                    clear_requested: true,
+                };
+                runtime.simulation_steps.push(step);
+            }
+            continue;
+        }
+
         let fixed_fps = emitter_data.time.fixed_fps;
         let total_duration = emitter_data.time.total_duration();
 
-        runtime.prev_system_time = runtime.system_time;
-
         if fixed_fps > 0 {
             let fixed_delta = 1.0 / fixed_fps as f32;
-            runtime.accumulated_delta += time.delta_secs();
+            let frame_delta = time.delta_secs().min(MAX_FRAME_DELTA);
+            runtime.accumulated_delta += frame_delta;
 
-            while runtime.accumulated_delta >= fixed_delta {
+            // like godot: force at least one dispatch when clear is requested
+            // (godot: `while (todo >= frame_time || particles->clear)`)
+            while runtime.accumulated_delta >= fixed_delta
+                || (clear_requested && runtime.simulation_steps.is_empty())
+            {
                 runtime.accumulated_delta -= fixed_delta;
+
+                let prev_time = runtime.system_time;
                 runtime.system_time += fixed_delta;
 
                 if runtime.system_time >= total_duration && total_duration > 0.0 {
                     runtime.system_time = runtime.system_time % total_duration;
                     runtime.cycle += 1;
                 }
+
+                let step = SimulationStep {
+                    prev_system_time: prev_time,
+                    system_time: runtime.system_time,
+                    cycle: runtime.cycle,
+                    delta_time: fixed_delta,
+                    clear_requested: if runtime.simulation_steps.is_empty() {
+                        clear_requested
+                    } else {
+                        false
+                    },
+                };
+                runtime.simulation_steps.push(step);
+            }
+
+            if !runtime.simulation_steps.is_empty() {
+                runtime.prev_system_time = runtime.simulation_steps[0].prev_system_time;
             }
         } else {
-            runtime.system_time += time.delta_secs();
+            let delta = time.delta_secs();
+            let prev_time = runtime.system_time;
+            runtime.prev_system_time = runtime.system_time;
+            runtime.system_time += delta;
 
             if runtime.system_time >= total_duration && total_duration > 0.0 {
                 runtime.system_time = runtime.system_time % total_duration;
                 runtime.cycle += 1;
             }
+
+            let step = SimulationStep {
+                prev_system_time: prev_time,
+                system_time: runtime.system_time,
+                cycle: runtime.cycle,
+                delta_time: delta,
+                clear_requested,
+            };
+            runtime.simulation_steps.push(step);
         }
 
         if emitter_data.time.one_shot && runtime.cycle > 0 && !runtime.one_shot_completed {
@@ -215,20 +261,14 @@ fn create_cylinder_mesh(
     mesh
 }
 
-fn create_prism_mesh(
-    left_to_right: f32,
-    size: Vec3,
-    subdivide_width: u32,
-    subdivide_height: u32,
-    subdivide_depth: u32,
-) -> Mesh {
+fn create_prism_mesh(left_to_right: f32, size: Vec3, subdivide: Vec3) -> Mesh {
     // a prism/wedge shape: wide at bottom, narrows to a single edge at top
     // 5 faces: front, back, left (slanted), right (slanted), bottom (no top - it's an edge)
 
     let start_pos = size * -0.5;
-    let subdivide_w = subdivide_width as usize;
-    let subdivide_h = subdivide_height as usize;
-    let subdivide_d = subdivide_depth as usize;
+    let subdivide_w = subdivide.x as usize;
+    let subdivide_h = subdivide.y as usize;
+    let subdivide_d = subdivide.z as usize;
 
     let mut positions: Vec<[f32; 3]> = Vec::new();
     let mut normals: Vec<[f32; 3]> = Vec::new();
@@ -472,16 +512,8 @@ fn create_base_mesh(config: &ParticleMesh) -> Mesh {
         ParticleMesh::Prism {
             left_to_right,
             size,
-            subdivide_width,
-            subdivide_height,
-            subdivide_depth,
-        } => create_prism_mesh(
-            *left_to_right,
-            *size,
-            *subdivide_width,
-            *subdivide_height,
-            *subdivide_depth,
-        ),
+            subdivide,
+        } => create_prism_mesh(*left_to_right, *size, *subdivide),
     }
 }
 
@@ -612,7 +644,7 @@ pub fn setup_particle_systems(
         ));
 
         for (emitter_index, emitter) in asset.emitters.iter().enumerate() {
-            let amount = emitter.amount;
+            let amount = emitter.emission.particles_amount;
 
             let particles: Vec<ParticleData> =
                 (0..amount).map(|_| ParticleData::default()).collect();
@@ -624,13 +656,9 @@ pub fn setup_particle_systems(
 
             let sorted_particles_buffer_handle = buffers.add(ShaderStorageBuffer::from(particles));
 
-            let (current_mesh, current_material, shadow_caster) = if let Some(draw_pass) =
-                emitter.draw_passes.first()
-            {
-                (draw_pass.mesh.clone(), draw_pass.material.clone(), draw_pass.shadow_caster)
-            } else {
-                (ParticleMesh::default(), DrawPassMaterial::default(), true)
-            };
+            let current_mesh = emitter.draw_pass.mesh.clone();
+            let current_material = emitter.draw_pass.material.clone();
+            let shadow_caster = emitter.draw_pass.shadow_caster;
 
             let particle_mesh_handle = create_particle_mesh(&current_mesh, amount, &mut meshes);
 
@@ -638,21 +666,16 @@ pub fn setup_particle_systems(
                 &current_material,
                 sorted_particles_buffer_handle.clone(),
                 amount,
-                emitter.process.particle_flags.bits(),
+                emitter.particle_flags.bits(),
                 &asset_server,
             ));
 
-            let fixed_seed = if emitter.time.use_fixed_seed {
-                Some(emitter.time.seed)
-            } else {
-                None
-            };
             let emitter_entity = commands
                 .spawn((
                     EmitterEntity {
                         parent_system: system_entity,
                     },
-                    EmitterRuntime::new(emitter_index, fixed_seed),
+                    EmitterRuntime::new(emitter_index, emitter.time.fixed_seed),
                     ParticleBufferHandle {
                         particle_buffer: particle_buffer_handle.clone(),
                         indices_buffer: indices_buffer_handle.clone(),
@@ -681,6 +704,25 @@ pub fn setup_particle_systems(
             if !shadow_caster {
                 mesh_entity.insert(NotShadowCaster);
             }
+        }
+
+        for (collider_index, collider_data) in asset.colliders.iter().enumerate() {
+            let collider_entity = commands
+                .spawn((
+                    ColliderEntity {
+                        parent_system: system_entity,
+                        collider_index,
+                    },
+                    ParticlesCollider3D {
+                        shape: collider_data.shape.clone(),
+                        position: Vec3::ZERO,
+                    },
+                    Transform::from_translation(collider_data.position),
+                    Name::new(collider_data.name.clone()),
+                ))
+                .id();
+
+            commands.entity(system_entity).add_child(collider_entity);
         }
     }
 }
@@ -715,6 +757,7 @@ pub fn cleanup_particle_entities(
     mesh_entities: Query<(Entity, &EmitterMeshEntity)>,
     emitter_entities: Query<Entity, With<EmitterEntity>>,
     emitter_parent_query: Query<&EmitterEntity>,
+    collider_entities: Query<(Entity, &ColliderEntity)>,
 ) {
     for removed_system in removed_systems.read() {
         for emitter_entity in emitter_entities.iter() {
@@ -732,6 +775,12 @@ pub fn cleanup_particle_entities(
                 }
             }
         }
+
+        for (entity, collider) in collider_entities.iter() {
+            if collider.parent_system == removed_system {
+                commands.entity(entity).despawn();
+            }
+        }
     }
 
     for removed_emitter in removed_emitters.read() {
@@ -740,6 +789,31 @@ pub fn cleanup_particle_entities(
                 commands.entity(mesh_entity).despawn();
             }
         }
+    }
+}
+
+pub fn sync_collider_data(
+    particle_systems: Query<&ParticleSystem3D>,
+    assets: Res<Assets<ParticleSystemAsset>>,
+    mut collider_query: Query<(&ColliderEntity, &mut ParticlesCollider3D, &mut Transform)>,
+) {
+    if !assets.is_changed() {
+        return;
+    }
+
+    for (collider, mut collider3d, mut transform) in collider_query.iter_mut() {
+        let Ok(particle_system) = particle_systems.get(collider.parent_system) else {
+            continue;
+        };
+        let Some(asset) = assets.get(&particle_system.handle) else {
+            continue;
+        };
+        let Some(collider_data) = asset.colliders.get(collider.collider_index) else {
+            continue;
+        };
+
+        collider3d.shape = collider_data.shape.clone();
+        transform.translation = collider_data.position;
     }
 }
 
@@ -772,11 +846,7 @@ pub fn sync_particle_mesh(
             continue;
         };
 
-        let new_mesh = if let Some(draw_pass) = emitter_data.draw_passes.first() {
-            draw_pass.mesh.clone()
-        } else {
-            ParticleMesh::default()
-        };
+        let new_mesh = emitter_data.draw_pass.mesh.clone();
 
         if current_config.0 != new_mesh {
             let new_mesh_handle =
@@ -830,11 +900,7 @@ pub fn sync_particle_material(
             continue;
         };
 
-        let new_material = if let Some(draw_pass) = emitter_data.draw_passes.first() {
-            draw_pass.material.clone()
-        } else {
-            DrawPassMaterial::default()
-        };
+        let new_material = emitter_data.draw_pass.material.clone();
 
         if current_config.0.cache_key() != new_material.cache_key() {
             let sorted_particles_handle = {
@@ -848,7 +914,7 @@ pub fn sync_particle_material(
                 &new_material,
                 sorted_particles_handle,
                 buffer_handle.max_particles,
-                emitter_data.process.particle_flags.bits(),
+                emitter_data.particle_flags.bits(),
                 &asset_server,
             ));
 
@@ -860,6 +926,13 @@ pub fn sync_particle_material(
 
             current_config.0 = new_material;
             material_handle.0 = new_material_handle;
+        } else {
+            let new_flags = emitter_data.particle_flags.bits();
+            if let Some(material) = materials.get_mut(&material_handle.0) {
+                if material.extension.particle_flags != new_flags {
+                    material.extension.particle_flags = new_flags;
+                }
+            }
         }
     }
 }
