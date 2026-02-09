@@ -22,7 +22,6 @@
                 ),
                 material: Standard((
                     base_color: (1.0, 1.0, 1.0, 1.0),
-                    base_color_texture: Some(Local("/Users/doce/Pictures/YBD DEMO RENDER 2.png")),
                     emissive: (0.0, 0.0, 0.0, 0.0),
                     alpha_mode: Blend,
                     perceptual_roughness: 0.5,
