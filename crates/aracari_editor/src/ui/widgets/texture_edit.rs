@@ -22,6 +22,7 @@ use crate::ui::widgets::variant_edit::{
 };
 
 use crate::ui::components::inspector::FieldKind;
+use crate::ui::widgets::alert::{alert, AlertSpan, AlertVariant};
 
 const PRESET_GRID_MAX_HEIGHT: f32 = 256.0;
 const PREVIEW_SIZE: f32 = 96.0;
@@ -80,6 +81,12 @@ struct TexturePreviewImage(Entity);
 
 #[derive(Component)]
 struct TexturePathText(Entity);
+
+#[derive(Component)]
+struct TextureLocalAlert(Entity);
+
+#[derive(Component)]
+struct TextureFileColumn(Entity);
 
 #[derive(Component)]
 struct TexturePresetScroll;
@@ -350,13 +357,16 @@ fn spawn_file_content(
     });
 
     let column = commands
-        .spawn(Node {
-            flex_direction: FlexDirection::Column,
-            row_gap: px(12.0),
-            align_items: AlignItems::Center,
-            width: percent(100),
-            ..default()
-        })
+        .spawn((
+            TextureFileColumn(variant_edit),
+            Node {
+                flex_direction: FlexDirection::Column,
+                row_gap: px(12.0),
+                align_items: AlignItems::Center,
+                width: percent(100),
+                ..default()
+            },
+        ))
         .id();
 
     let preview_wrapper = commands
@@ -427,7 +437,33 @@ fn spawn_file_content(
         .id();
     commands.entity(column).add_child(btn);
 
+    if matches!(current_texture, Some(TextureRef::Local(_))) {
+        spawn_local_texture_alert(commands, column, variant_edit);
+    }
+
     commands.entity(container).add_child(column);
+}
+
+fn spawn_local_texture_alert(commands: &mut Commands, parent: Entity, variant_edit: Entity) {
+    let alert_entity = commands
+        .spawn((
+            TextureLocalAlert(variant_edit),
+            alert(
+                AlertVariant::Important,
+                vec![
+                    AlertSpan::Text("This texture is outside your game's ".into()),
+                    AlertSpan::Bold("\"assets\"".into()),
+                    AlertSpan::Text(" folder, and might not load in the actual game. ".into()),
+                    AlertSpan::Link {
+                        text: "Learn more.".into(),
+                        // TODO: link to TextureRef::Local docs
+                        url: "https://github.com/doceazedo/aracari/issues/new?title=hey+dumbass&body=you+made+the+repo+public+and+forgot+to+add+the+link+to+the+AlertVariant%3A%3AImportant+docs".into(),
+                    },
+                ],
+            ),
+        ))
+        .id();
+    commands.entity(parent).add_child(alert_entity);
 }
 
 fn update_texture_scrollbar(
@@ -562,6 +598,8 @@ fn poll_texture_file_pick(
     mut configs: Query<&mut VariantEditConfig, With<EditorVariantEdit>>,
     preview_images: Query<(Entity, &TexturePreviewImage, Option<&Children>)>,
     mut path_texts: Query<(&TexturePathText, &mut Text)>,
+    existing_alerts: Query<(Entity, &TextureLocalAlert)>,
+    columns: Query<(Entity, &TextureFileColumn)>,
 ) {
     let Some(pick) = pick_result else {
         return;
@@ -621,6 +659,20 @@ fn poll_texture_file_pick(
     for (path_text, mut text) in &mut path_texts {
         if path_text.0 == variant_edit {
             **text = display_path.clone();
+        }
+    }
+
+    let is_local = matches!(texture_ref, TextureRef::Local(_));
+
+    for (alert_entity, alert_marker) in &existing_alerts {
+        if alert_marker.0 == variant_edit {
+            commands.entity(alert_entity).try_despawn();
+        }
+    }
+
+    if is_local {
+        if let Some((column_entity, _)) = columns.iter().find(|(_, c)| c.0 == variant_edit) {
+            spawn_local_texture_alert(&mut commands, column_entity, variant_edit);
         }
     }
 
