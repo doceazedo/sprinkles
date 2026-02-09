@@ -4,7 +4,6 @@ use bevy::prelude::*;
 use bevy_ui_text_input::TextInputQueue;
 
 use crate::state::{DirtyState, EditorState};
-use crate::viewport::RespawnEmittersEvent;
 use crate::ui::widgets::checkbox::{CheckboxCommitEvent, CheckboxState};
 use crate::ui::widgets::combobox::ComboBoxChangeEvent;
 use crate::ui::widgets::curve_edit::{CurveEditCommitEvent, CurveEditState, EditorCurveEdit};
@@ -13,11 +12,12 @@ use crate::ui::widgets::variant_edit::{
     EditorVariantEdit, VariantComboBox, VariantEditConfig, VariantFieldBinding,
 };
 use crate::ui::widgets::vector_edit::EditorVectorEdit;
+use crate::viewport::RespawnEmittersEvent;
 
 use super::{
-    Bound, Field, FieldKind, FieldValue, InspectedEmitterTracker, MAX_ANCESTOR_DEPTH,
-    ReflectPath, find_ancestor, find_ancestor_entity, find_ancestor_field, find_field_for_entity,
-    format_f32, get_field_value_by_reflection, get_inspecting_emitter, get_inspecting_emitter_mut,
+    Bound, Field, FieldKind, FieldValue, InspectedEmitterTracker, MAX_ANCESTOR_DEPTH, ReflectPath,
+    find_ancestor, find_ancestor_entity, find_ancestor_field, find_field_for_entity, format_f32,
+    get_field_value_by_reflection, get_inspecting_emitter, get_inspecting_emitter_mut,
     get_vec3_component, label_to_variant_name, mark_dirty_and_restart, parse_field_value,
     set_field_enum_by_name, set_field_value_by_reflection, set_variant_field_enum_by_name,
     set_vec3_component,
@@ -52,7 +52,8 @@ pub(super) fn bind_values_to_inputs(
     vector_edit_children: Query<&Children, With<EditorVectorEdit>>,
 ) {
     let has_new_checkboxes = !checkbox_set.p0().is_empty();
-    let has_new_widgets = !new_fields.is_empty() || !new_text_edits.is_empty() || has_new_checkboxes;
+    let has_new_widgets =
+        !new_fields.is_empty() || !new_text_edits.is_empty() || has_new_checkboxes;
     if !tracker.is_changed() && !has_new_widgets {
         return;
     }
@@ -62,7 +63,8 @@ pub(super) fn bind_values_to_inputs(
     };
 
     for (entity, child_of, mut queue) in &mut text_edits {
-        let Some((field_entity, field)) = find_ancestor_field(child_of.parent(), &fields, &parents) else {
+        let Some((field_entity, field)) = find_ancestor_field(child_of.parent(), &fields, &parents)
+        else {
             continue;
         };
 
@@ -95,7 +97,9 @@ pub(super) fn bind_values_to_inputs(
                             };
                             if let Some(v) = component_value {
                                 set_text_input_value(&mut queue, format_f32(v));
-                                commands.entity(entity).try_insert(Bound::direct(field_entity));
+                                commands
+                                    .entity(entity)
+                                    .try_insert(Bound::direct(field_entity));
                             }
                             break;
                         }
@@ -109,7 +113,9 @@ pub(super) fn bind_values_to_inputs(
         let text = value.to_display_string(&field.kind).unwrap_or_default();
 
         set_text_input_value(&mut queue, text);
-        commands.entity(entity).try_insert(Bound::direct(field_entity));
+        commands
+            .entity(entity)
+            .try_insert(Bound::direct(field_entity));
     }
 
     for (entity, mut state) in &mut checkbox_set.p1() {
@@ -127,7 +133,9 @@ pub(super) fn bind_values_to_inputs(
         if let Some(checked) = value.to_bool() {
             state.checked = checked;
         }
-        commands.entity(entity).try_insert(Bound::direct(field_entity));
+        commands
+            .entity(entity)
+            .try_insert(Bound::direct(field_entity));
     }
 }
 
@@ -176,7 +184,11 @@ pub(super) fn handle_combobox_change(
     }
 
     if changed {
-        mark_dirty_and_restart(&mut dirty_state, &mut emitter_runtimes, emitter.time.fixed_seed);
+        mark_dirty_and_restart(
+            &mut dirty_state,
+            &mut emitter_runtimes,
+            emitter.time.fixed_seed,
+        );
     }
 }
 
@@ -222,7 +234,9 @@ pub(super) fn bind_curve_edit_values(
         // try binding directly to CurveTexture
         if let Some(curve_texture) = value.try_downcast_ref::<CurveTexture>() {
             state.set_curve(curve_texture.clone());
-            commands.entity(entity).try_insert(Bound::direct(field_entity));
+            commands
+                .entity(entity)
+                .try_insert(Bound::direct(field_entity));
             continue;
         }
 
@@ -232,7 +246,9 @@ pub(super) fn bind_curve_edit_values(
                 state.set_curve(curve.clone());
             }
             // mark as bound even if None so we can create the curve on commit
-            commands.entity(entity).try_insert(Bound::direct(field_entity));
+            commands
+                .entity(entity)
+                .try_insert(Bound::direct(field_entity));
         }
     }
 }
@@ -271,7 +287,11 @@ pub(super) fn handle_curve_edit_commit(
     // handle direct CurveTexture binding
     if let Some(curve_texture) = target.try_downcast_mut::<CurveTexture>() {
         *curve_texture = trigger.curve.clone();
-        mark_dirty_and_restart(&mut dirty_state, &mut emitter_runtimes, emitter.time.fixed_seed);
+        mark_dirty_and_restart(
+            &mut dirty_state,
+            &mut emitter_runtimes,
+            emitter.time.fixed_seed,
+        );
         return;
     }
 
@@ -285,7 +305,11 @@ pub(super) fn handle_curve_edit_commit(
                 *curve_opt = Some(trigger.curve.clone());
             }
         }
-        mark_dirty_and_restart(&mut dirty_state, &mut emitter_runtimes, emitter.time.fixed_seed);
+        mark_dirty_and_restart(
+            &mut dirty_state,
+            &mut emitter_runtimes,
+            emitter.time.fixed_seed,
+        );
     }
 }
 
@@ -451,14 +475,22 @@ pub(super) fn handle_checkbox_commit(
             &binding.field_name,
             &value,
         ) {
-            mark_dirty_and_restart(&mut dirty_state, &mut emitter_runtimes, emitter.time.fixed_seed);
+            mark_dirty_and_restart(
+                &mut dirty_state,
+                &mut emitter_runtimes,
+                emitter.time.fixed_seed,
+            );
         }
     } else {
         let Some((_, field)) = find_field_for_entity(trigger.entity, &fields, &parents) else {
             return;
         };
         if super::set_field_value_by_reflection(emitter, &field.path, &value) {
-            mark_dirty_and_restart(&mut dirty_state, &mut emitter_runtimes, emitter.time.fixed_seed);
+            mark_dirty_and_restart(
+                &mut dirty_state,
+                &mut emitter_runtimes,
+                emitter.time.fixed_seed,
+            );
             if field.path == "enabled" {
                 commands.trigger(RespawnEmittersEvent);
             }

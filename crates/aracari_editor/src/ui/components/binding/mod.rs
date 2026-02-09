@@ -9,8 +9,8 @@ use bevy::reflect::{DynamicEnum, DynamicVariant, PartialReflect, ReflectMut, Ref
 use crate::state::{DirtyState, EditorState, Inspectable};
 use crate::ui::widgets::variant_edit::VariantDefinition;
 
-pub(super) use super::inspector::InspectedEmitterTracker;
 pub(super) use super::inspector::FieldKind;
+pub(super) use super::inspector::InspectedEmitterTracker;
 
 pub(super) const MAX_ANCESTOR_DEPTH: usize = 10;
 
@@ -535,9 +535,11 @@ fn apply_field_value_to_reflect(target: &mut dyn PartialReflect, value: &FieldVa
         FieldValue::OptionalU32(v) => v.apply_to_reflect(target),
         FieldValue::Bool(v) => v.apply_to_reflect(target),
         FieldValue::Vec3(v) => v.apply_to_reflect(target),
-        FieldValue::Range(min, max) => {
-            ParticleRange { min: *min, max: *max }.apply_to_reflect(target)
+        FieldValue::Range(min, max) => ParticleRange {
+            min: *min,
+            max: *max,
         }
+        .apply_to_reflect(target),
         FieldValue::Color(c) => c.apply_to_reflect(target),
         FieldValue::None => false,
     }
@@ -671,7 +673,11 @@ pub(super) fn create_variant_from_definition(
     true
 }
 
-pub(super) fn find_ancestor_entity(entity: Entity, target: Entity, parents: &Query<&ChildOf>) -> bool {
+pub(super) fn find_ancestor_entity(
+    entity: Entity,
+    target: Entity,
+    parents: &Query<&ChildOf>,
+) -> bool {
     find_ancestor(entity, parents, MAX_ANCESTOR_DEPTH, |e| e == target).is_some()
 }
 
@@ -680,8 +686,10 @@ pub(super) fn find_ancestor_field<'a>(
     fields: &'a Query<&Field>,
     parents: &Query<&ChildOf>,
 ) -> Option<(Entity, &'a Field)> {
-    find_ancestor(entity, parents, MAX_ANCESTOR_DEPTH, |e| fields.get(e).is_ok())
-        .and_then(|e| fields.get(e).ok().map(|f| (e, f)))
+    find_ancestor(entity, parents, MAX_ANCESTOR_DEPTH, |e| {
+        fields.get(e).is_ok()
+    })
+    .and_then(|e| fields.get(e).ok().map(|f| (e, f)))
 }
 
 pub(super) fn find_field_for_entity<'a>(
@@ -729,7 +737,11 @@ pub(super) fn set_variant_field_enum_by_name(
     .unwrap_or(false)
 }
 
-pub(super) fn set_field_enum_by_name(emitter: &mut EmitterData, path: &str, variant_name: &str) -> bool {
+pub(super) fn set_field_enum_by_name(
+    emitter: &mut EmitterData,
+    path: &str,
+    variant_name: &str,
+) -> bool {
     let reflect_path = ReflectPath::new(path);
     let Ok(target) = emitter.reflect_path_mut(reflect_path.as_str()) else {
         return false;

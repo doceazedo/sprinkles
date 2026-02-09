@@ -1,33 +1,36 @@
 use aracari::prelude::{CurveEasing, CurveMode, CurvePoint, CurveTexture};
 use bevy::input_focus::InputFocus;
 use bevy::picking::events::{Press, Release};
-use bevy::picking::pointer::PointerButton;
 use bevy::picking::hover::Hovered;
+use bevy::picking::pointer::PointerButton;
 use bevy::picking::prelude::Pickable;
 use bevy::prelude::*;
 use bevy::reflect::{TypePath, Typed};
 use bevy::render::render_resource::*;
 use bevy::shader::ShaderRef;
 use bevy::ui::UiGlobalTransform;
-use inflector::Inflector;
 use bevy::window::SystemCursorIcon;
+use inflector::Inflector;
 
-use crate::ui::tokens::{BACKGROUND_COLOR, BORDER_COLOR, FONT_PATH, PRIMARY_COLOR, TEXT_MUTED_COLOR, TEXT_SIZE_SM};
-use crate::ui::widgets::cursor::{ActiveCursor, HoverCursor};
+use crate::ui::icons::{ICON_ARROW_LEFT_RIGHT, ICON_FCURVE, ICON_MORE};
+use crate::ui::tokens::{
+    BACKGROUND_COLOR, BORDER_COLOR, FONT_PATH, PRIMARY_COLOR, TEXT_MUTED_COLOR, TEXT_SIZE_SM,
+};
 use crate::ui::widgets::button::{
-    ButtonClickEvent, ButtonProps, ButtonVariant, IconButtonProps, button, icon_button, set_button_variant,
+    ButtonClickEvent, ButtonProps, ButtonVariant, IconButtonProps, button, icon_button,
+    set_button_variant,
 };
-use crate::ui::widgets::combobox::{
-    ComboBoxChangeEvent, ComboBoxOptionData, combobox_with_label,
-};
+use crate::ui::widgets::combobox::{ComboBoxChangeEvent, ComboBoxOptionData, combobox_with_label};
+use crate::ui::widgets::cursor::{ActiveCursor, HoverCursor};
 use crate::ui::widgets::popover::{
     EditorPopover, PopoverHeaderProps, PopoverPlacement, PopoverProps, popover, popover_content,
     popover_header,
 };
 use crate::ui::widgets::text_edit::EditorTextEdit;
 use crate::ui::widgets::utils::is_descendant_of;
-use crate::ui::widgets::vector_edit::{EditorVectorEdit, VectorEditProps, VectorSize, VectorSuffixes, vector_edit};
-use crate::ui::icons::{ICON_ARROW_LEFT_RIGHT, ICON_FCURVE, ICON_MORE};
+use crate::ui::widgets::vector_edit::{
+    EditorVectorEdit, VectorEditProps, VectorSize, VectorSuffixes, vector_edit,
+};
 use bevy_ui_text_input::TextInputQueue;
 use bevy_ui_text_input::actions::{TextInputAction, TextInputEdit};
 
@@ -128,7 +131,6 @@ fn trigger_curve_events(commands: &mut Commands, entity: Entity, curve: &CurveTe
     });
 }
 
-
 #[derive(Default)]
 pub struct CurveEditProps {
     pub curve: Option<CurveTexture>,
@@ -157,9 +159,7 @@ pub struct CurveEditLabel(pub Option<String>);
 pub fn curve_edit(props: CurveEditProps) -> impl Bundle {
     let CurveEditProps { curve, label } = props;
 
-    let state = curve
-        .map(CurveEditState::from_curve)
-        .unwrap_or_default();
+    let state = curve.map(CurveEditState::from_curve).unwrap_or_default();
 
     (
         EditorCurveEdit,
@@ -375,7 +375,8 @@ impl CurveControl for PointHandle {
         let range_max = state.curve.range.max as f64;
         let range_span = state.curve.range.span() as f64;
         let normalized_value = 0.5 - normalized.y;
-        let raw_value = (range_min + normalized_value as f64 * range_span).clamp(range_min, range_max);
+        let raw_value =
+            (range_min + normalized_value as f64 * range_span).clamp(range_min, range_max);
         let snapped_value = (raw_value / DRAG_SNAP_STEP).round() * DRAG_SNAP_STEP;
 
         state.curve.points[self.index].position = clamped_pos;
@@ -605,9 +606,7 @@ fn setup_curve_edit(
     let font: Handle<Font> = asset_server.load(FONT_PATH);
 
     for (entity, state, edit_label) in &curve_edits {
-        let label_text = edit_label
-            .and_then(|l| l.0.as_deref())
-            .unwrap_or("Curve");
+        let label_text = edit_label.and_then(|l| l.0.as_deref()).unwrap_or("Curve");
         let label_entity = commands
             .spawn((
                 Text::new(label_text),
@@ -685,7 +684,10 @@ fn handle_trigger_click(
         set_button_variant(ButtonVariant::ActiveAlt, &mut bg, &mut border);
     }
 
-    let presets: Vec<_> = CURVE_PRESETS.iter().map(|p| ComboBoxOptionData::new(p.name)).collect();
+    let presets: Vec<_> = CURVE_PRESETS
+        .iter()
+        .map(|p| ComboBoxOptionData::new(p.name))
+        .collect();
 
     let popover_entity = commands
         .spawn((
@@ -728,24 +730,21 @@ fn handle_trigger_click(
                         PresetComboBox(curve_edit_entity),
                         combobox_with_label(presets, "Presets"),
                     ));
-                    row.spawn((
-                        Node {
-                            flex_shrink: 0.0,
-                            ..default()
-                        },
-                    )).with_child((
-                        FlipButton(curve_edit_entity),
-                        icon_button(
-                            IconButtonProps::new(ICON_ARROW_LEFT_RIGHT).variant(ButtonVariant::Default),
-                            &asset_server,
-                        ),
-                    ));
+                    row.spawn((Node {
+                        flex_shrink: 0.0,
+                        ..default()
+                    },))
+                        .with_child((
+                            FlipButton(curve_edit_entity),
+                            icon_button(
+                                IconButtonProps::new(ICON_ARROW_LEFT_RIGHT)
+                                    .variant(ButtonVariant::Default),
+                                &asset_server,
+                            ),
+                        ));
                 });
 
-            parent.spawn((
-                CurveEditContent(curve_edit_entity),
-                popover_content(),
-            ));
+            parent.spawn((CurveEditContent(curve_edit_entity), popover_content()));
         });
 }
 
@@ -777,22 +776,35 @@ fn setup_curve_edit_content(
                 ))
                 .id();
 
-            parent.commands().entity(canvas_entity).with_children(|canvas_parent| {
-                canvas_parent.spawn((
-                    CurveMaterialNode(curve_edit_entity),
-                    Pickable::IGNORE,
-                    MaterialNode(curve_materials.add(CurveMaterial::from_curve(&state.curve))),
-                    Node {
-                        position_type: PositionType::Absolute,
-                        width: percent(100.0),
-                        height: percent(100.0),
-                        ..default()
-                    },
-                ));
+            parent
+                .commands()
+                .entity(canvas_entity)
+                .with_children(|canvas_parent| {
+                    canvas_parent.spawn((
+                        CurveMaterialNode(curve_edit_entity),
+                        Pickable::IGNORE,
+                        MaterialNode(curve_materials.add(CurveMaterial::from_curve(&state.curve))),
+                        Node {
+                            position_type: PositionType::Absolute,
+                            width: percent(100.0),
+                            height: percent(100.0),
+                            ..default()
+                        },
+                    ));
 
-                spawn_point_handles(canvas_parent, curve_edit_entity, canvas_entity, &state.curve);
-                spawn_tension_handles(canvas_parent, curve_edit_entity, canvas_entity, &state.curve);
-            });
+                    spawn_point_handles(
+                        canvas_parent,
+                        curve_edit_entity,
+                        canvas_entity,
+                        &state.curve,
+                    );
+                    spawn_tension_handles(
+                        canvas_parent,
+                        curve_edit_entity,
+                        canvas_entity,
+                        &state.curve,
+                    );
+                });
 
             parent.spawn((
                 RangeEdit(curve_edit_entity),
@@ -808,7 +820,12 @@ fn setup_curve_edit_content(
     }
 }
 
-fn spawn_point_handles(parent: &mut ChildSpawnerCommands, curve_edit_entity: Entity, canvas_entity: Entity, curve: &CurveTexture) {
+fn spawn_point_handles(
+    parent: &mut ChildSpawnerCommands,
+    curve_edit_entity: Entity,
+    canvas_entity: Entity,
+    curve: &CurveTexture,
+) {
     let range_span = curve.range.span();
 
     for (i, point) in curve.points.iter().enumerate() {
@@ -834,7 +851,12 @@ fn spawn_point_handles(parent: &mut ChildSpawnerCommands, curve_edit_entity: Ent
     }
 }
 
-fn spawn_tension_handles(parent: &mut ChildSpawnerCommands, curve_edit_entity: Entity, canvas_entity: Entity, curve: &CurveTexture) {
+fn spawn_tension_handles(
+    parent: &mut ChildSpawnerCommands,
+    curve_edit_entity: Entity,
+    canvas_entity: Entity,
+    curve: &CurveTexture,
+) {
     let range_span = curve.range.span();
 
     for i in 1..curve.points.len() {
@@ -896,10 +918,7 @@ fn update_curve_visuals(
     mut tension_handles: Query<(&TensionHandle, &mut Node), Without<PointHandle>>,
 ) {
     for state in &states {
-        let curve_edit_entity = match material_nodes
-            .iter()
-            .find(|(m, _)| states.get(m.0).is_ok())
-        {
+        let curve_edit_entity = match material_nodes.iter().find(|(m, _)| states.get(m.0).is_ok()) {
             Some((m, _)) => m.0,
             None => continue,
         };
@@ -997,18 +1016,17 @@ fn respawn_handles_on_point_change(
     }
 }
 
-
 fn update_handle_colors(
     mut removed_dragging: RemovedComponents<Dragging>,
     mut handles: ParamSet<(
         Query<
             (Entity, &Hovered, Has<Dragging>, &mut BackgroundColor),
-            (Or<(With<PointHandle>, With<TensionHandle>)>, Or<(Changed<Hovered>, Added<Dragging>)>),
+            (
+                Or<(With<PointHandle>, With<TensionHandle>)>,
+                Or<(Changed<Hovered>, Added<Dragging>)>,
+            ),
         >,
-        Query<
-            (&Hovered, &mut BackgroundColor),
-            Or<(With<PointHandle>, With<TensionHandle>)>,
-        >,
+        Query<(&Hovered, &mut BackgroundColor), Or<(With<PointHandle>, With<TensionHandle>)>>,
     )>,
 ) {
     let removed: Vec<Entity> = removed_dragging.read().collect();
@@ -1054,11 +1072,23 @@ struct CurvePreset {
 
 impl CurvePreset {
     const fn new(name: &'static str, mode: CurveMode, easing: CurveEasing, tension: f64) -> Self {
-        Self { name, start_value: 0.0, mode, easing, tension }
+        Self {
+            name,
+            start_value: 0.0,
+            mode,
+            easing,
+            tension,
+        }
     }
 
     const fn constant(name: &'static str) -> Self {
-        Self { name, start_value: 1.0, mode: CurveMode::DoubleCurve, easing: CurveEasing::Power, tension: 0.0 }
+        Self {
+            name,
+            start_value: 1.0,
+            mode: CurveMode::DoubleCurve,
+            easing: CurveEasing::Power,
+            tension: 0.0,
+        }
     }
 
     fn to_curve(&self, range: aracari::prelude::ParticleRange) -> CurveTexture {
@@ -1078,33 +1108,108 @@ const CURVE_PRESETS: &[CurvePreset] = &[
     CurvePreset::constant("Constant"),
     CurvePreset::new("Linear", CurveMode::DoubleCurve, CurveEasing::Power, 0.0),
     // Quad
-    CurvePreset::new("Quad in", CurveMode::SingleCurve, CurveEasing::Power, QUAD_TENSION),
-    CurvePreset::new("Quad out", CurveMode::SingleCurve, CurveEasing::Power, -QUAD_TENSION),
-    CurvePreset::new("Quad in out", CurveMode::DoubleCurve, CurveEasing::Power, QUAD_TENSION),
+    CurvePreset::new(
+        "Quad in",
+        CurveMode::SingleCurve,
+        CurveEasing::Power,
+        QUAD_TENSION,
+    ),
+    CurvePreset::new(
+        "Quad out",
+        CurveMode::SingleCurve,
+        CurveEasing::Power,
+        -QUAD_TENSION,
+    ),
+    CurvePreset::new(
+        "Quad in out",
+        CurveMode::DoubleCurve,
+        CurveEasing::Power,
+        QUAD_TENSION,
+    ),
     // Cubic
-    CurvePreset::new("Cubic in", CurveMode::SingleCurve, CurveEasing::Power, CUBIC_TENSION),
-    CurvePreset::new("Cubic out", CurveMode::SingleCurve, CurveEasing::Power, -CUBIC_TENSION),
-    CurvePreset::new("Cubic in out", CurveMode::DoubleCurve, CurveEasing::Power, CUBIC_TENSION),
+    CurvePreset::new(
+        "Cubic in",
+        CurveMode::SingleCurve,
+        CurveEasing::Power,
+        CUBIC_TENSION,
+    ),
+    CurvePreset::new(
+        "Cubic out",
+        CurveMode::SingleCurve,
+        CurveEasing::Power,
+        -CUBIC_TENSION,
+    ),
+    CurvePreset::new(
+        "Cubic in out",
+        CurveMode::DoubleCurve,
+        CurveEasing::Power,
+        CUBIC_TENSION,
+    ),
     // Quart
-    CurvePreset::new("Quart in", CurveMode::SingleCurve, CurveEasing::Power, QUART_TENSION),
-    CurvePreset::new("Quart out", CurveMode::SingleCurve, CurveEasing::Power, -QUART_TENSION),
-    CurvePreset::new("Quart in out", CurveMode::DoubleCurve, CurveEasing::Power, QUART_TENSION),
+    CurvePreset::new(
+        "Quart in",
+        CurveMode::SingleCurve,
+        CurveEasing::Power,
+        QUART_TENSION,
+    ),
+    CurvePreset::new(
+        "Quart out",
+        CurveMode::SingleCurve,
+        CurveEasing::Power,
+        -QUART_TENSION,
+    ),
+    CurvePreset::new(
+        "Quart in out",
+        CurveMode::DoubleCurve,
+        CurveEasing::Power,
+        QUART_TENSION,
+    ),
     // Quint
-    CurvePreset::new("Quint in", CurveMode::SingleCurve, CurveEasing::Power, QUINT_TENSION),
-    CurvePreset::new("Quint out", CurveMode::SingleCurve, CurveEasing::Power, -QUINT_TENSION),
-    CurvePreset::new("Quint in out", CurveMode::DoubleCurve, CurveEasing::Power, QUINT_TENSION),
+    CurvePreset::new(
+        "Quint in",
+        CurveMode::SingleCurve,
+        CurveEasing::Power,
+        QUINT_TENSION,
+    ),
+    CurvePreset::new(
+        "Quint out",
+        CurveMode::SingleCurve,
+        CurveEasing::Power,
+        -QUINT_TENSION,
+    ),
+    CurvePreset::new(
+        "Quint in out",
+        CurveMode::DoubleCurve,
+        CurveEasing::Power,
+        QUINT_TENSION,
+    ),
     // Sine
     CurvePreset::new("Sine in", CurveMode::SingleCurve, CurveEasing::Sine, 1.0),
     CurvePreset::new("Sine out", CurveMode::SingleCurve, CurveEasing::Sine, -1.0),
-    CurvePreset::new("Sine in out", CurveMode::DoubleCurve, CurveEasing::Sine, 1.0),
+    CurvePreset::new(
+        "Sine in out",
+        CurveMode::DoubleCurve,
+        CurveEasing::Sine,
+        1.0,
+    ),
     // Expo
     CurvePreset::new("Expo in", CurveMode::SingleCurve, CurveEasing::Expo, 1.0),
     CurvePreset::new("Expo out", CurveMode::SingleCurve, CurveEasing::Expo, -1.0),
-    CurvePreset::new("Expo in out", CurveMode::DoubleCurve, CurveEasing::Expo, 1.0),
+    CurvePreset::new(
+        "Expo in out",
+        CurveMode::DoubleCurve,
+        CurveEasing::Expo,
+        1.0,
+    ),
     // Circ
     CurvePreset::new("Circ in", CurveMode::SingleCurve, CurveEasing::Circ, 1.0),
     CurvePreset::new("Circ out", CurveMode::SingleCurve, CurveEasing::Circ, -1.0),
-    CurvePreset::new("Circ in out", CurveMode::DoubleCurve, CurveEasing::Circ, 1.0),
+    CurvePreset::new(
+        "Circ in out",
+        CurveMode::DoubleCurve,
+        CurveEasing::Circ,
+        1.0,
+    ),
 ];
 
 fn handle_preset_change(
@@ -1147,7 +1252,10 @@ fn handle_flip_click(
     };
 
     // collect interpolation properties from points (skip first, it doesn't control any segment)
-    let interp_props: Vec<_> = state.curve.points.iter()
+    let interp_props: Vec<_> = state
+        .curve
+        .points
+        .iter()
         .skip(1)
         .map(|p| (p.mode, p.easing, p.tension))
         .collect();
@@ -1472,8 +1580,7 @@ fn spawn_enum_options<T, C, F>(
     current: T,
     is_disabled: bool,
     make_component: F,
-)
-where
+) where
     T: Typed + PartialEq + std::str::FromStr + Copy,
     C: Component,
     F: Fn(T, bool) -> C,
@@ -1505,7 +1612,12 @@ fn spawn_mode_options(
     is_first: bool,
 ) {
     spawn_enum_options(parent, current_mode, is_first, |mode, disabled| {
-        ModeOption { curve_edit, point_index, mode, disabled }
+        ModeOption {
+            curve_edit,
+            point_index,
+            mode,
+            disabled,
+        }
     });
 }
 
@@ -1517,7 +1629,12 @@ fn spawn_easing_options(
     is_first: bool,
 ) {
     spawn_enum_options(parent, current_easing, is_first, |easing, disabled| {
-        EasingOption { curve_edit, point_index, easing, disabled }
+        EasingOption {
+            curve_edit,
+            point_index,
+            easing,
+            disabled,
+        }
     });
 }
 
@@ -1535,7 +1652,11 @@ fn spawn_delete_option(
             point_index,
             disabled: !can_delete,
         },
-        button(ButtonProps::new("Delete").with_variant(variant).align_left()),
+        button(
+            ButtonProps::new("Delete")
+                .with_variant(variant)
+                .align_left(),
+        ),
     ));
 }
 
@@ -1583,11 +1704,28 @@ fn handle_point_right_click(
             .id();
 
         commands.entity(popover_entity).with_children(|parent| {
-            spawn_mode_options(parent, point_handle.curve_edit, point_handle.index, point.mode, is_first);
+            spawn_mode_options(
+                parent,
+                point_handle.curve_edit,
+                point_handle.index,
+                point.mode,
+                is_first,
+            );
             parent.spawn(menu_separator());
-            spawn_easing_options(parent, point_handle.curve_edit, point_handle.index, point.easing, is_first);
+            spawn_easing_options(
+                parent,
+                point_handle.curve_edit,
+                point_handle.index,
+                point.easing,
+                is_first,
+            );
             parent.spawn(menu_separator());
-            spawn_delete_option(parent, point_handle.curve_edit, point_handle.index, can_delete);
+            spawn_delete_option(
+                parent,
+                point_handle.curve_edit,
+                point_handle.index,
+                can_delete,
+            );
         });
 
         break;

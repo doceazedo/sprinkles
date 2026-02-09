@@ -18,6 +18,9 @@ use crate::project::{
     save_project_to_path,
 };
 use crate::state::{DirtyState, EditorState, Inspectable, Inspecting};
+use crate::ui::icons::{
+    ICON_ARROW_DOWN, ICON_CLOSE, ICON_FILE_ADD, ICON_FOLDER_IMAGE, ICON_FOLDER_OPEN,
+};
 use crate::ui::tokens::{
     BORDER_COLOR, FONT_PATH, TEXT_BODY_COLOR, TEXT_MUTED_COLOR, TEXT_SIZE, TEXT_SIZE_SM,
 };
@@ -30,8 +33,6 @@ use crate::ui::widgets::dialog::{
 use crate::ui::widgets::popover::{EditorPopover, PopoverPlacement, PopoverProps, popover};
 use crate::ui::widgets::text_edit::{EditorTextEdit, TextEditProps, text_edit};
 use crate::ui::widgets::utils::is_descendant_of;
-use crate::ui::icons::{ICON_ARROW_DOWN, ICON_CLOSE, ICON_FILE_ADD, ICON_FOLDER_IMAGE, ICON_FOLDER_OPEN};
-
 
 pub fn plugin(app: &mut App) {
     app.add_observer(handle_trigger_click)
@@ -596,11 +597,14 @@ fn setup_new_project_dialog_content(
         ))
         .id();
 
-    commands.entity(browse_button).entry::<Node>().and_modify(|mut node| {
-        node.position_type = PositionType::Absolute;
-        node.right = px(2);
-        node.top = px(2);
-    });
+    commands
+        .entity(browse_button)
+        .entry::<Node>()
+        .and_modify(|mut node| {
+            node.position_type = PositionType::Absolute;
+            node.right = px(2);
+            node.top = px(2);
+        });
 
     let location_text_edit_wrapper = commands
         .spawn(Node {

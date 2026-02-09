@@ -24,8 +24,7 @@ struct AlphaDisabledOverlay;
 pub fn plugin(app: &mut App) {
     app.add_systems(
         Update,
-        (setup_alpha_alert, sync_alpha_disabled)
-            .after(super::update_inspected_emitter_tracker),
+        (setup_alpha_alert, sync_alpha_disabled).after(super::update_inspected_emitter_tracker),
     );
 }
 
@@ -131,7 +130,11 @@ fn sync_alpha_disabled(
         .unwrap_or(false);
 
     for mut node in &mut alert_nodes {
-        let display = if is_opaque { Display::Flex } else { Display::None };
+        let display = if is_opaque {
+            Display::Flex
+        } else {
+            Display::None
+        };
         if node.display != display {
             node.display = display;
         }

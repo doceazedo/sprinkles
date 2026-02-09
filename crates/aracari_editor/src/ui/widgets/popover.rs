@@ -400,8 +400,8 @@ pub fn popover_content() -> impl Bundle {
     }
 }
 
+use crate::ui::icons::ICON_CLOSE;
 use crate::ui::widgets::button::ButtonClickEvent;
-use crate::ui::icons::{ICON_CLOSE};
 
 fn handle_popover_close_click(
     trigger: On<ButtonClickEvent>,

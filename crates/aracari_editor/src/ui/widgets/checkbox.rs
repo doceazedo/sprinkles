@@ -1,9 +1,8 @@
 use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
 
+use crate::ui::icons::ICON_CHECK;
 use crate::ui::tokens::{BORDER_COLOR, FONT_PATH, TEXT_BODY_COLOR, TEXT_SIZE};
-use crate::ui::icons::{ICON_CHECK};
-
 
 #[derive(Event)]
 pub struct CheckboxCommitEvent {
@@ -14,7 +13,11 @@ pub struct CheckboxCommitEvent {
 pub fn plugin(app: &mut App) {
     app.add_systems(
         Update,
-        (handle_checkbox_hover, handle_checkbox_click, sync_checkbox_icon),
+        (
+            handle_checkbox_hover,
+            handle_checkbox_click,
+            sync_checkbox_icon,
+        ),
     );
 }
 

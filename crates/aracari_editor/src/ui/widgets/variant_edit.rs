@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy::reflect::{Typed, TypeInfo, VariantInfo};
+use bevy::reflect::{TypeInfo, Typed, VariantInfo};
 
 use crate::ui::components::inspector::utils::field_from_type_path;
 use crate::ui::components::inspector::{FieldKind, VariantField, name_to_label, path_to_label};
@@ -13,18 +13,17 @@ use crate::ui::widgets::color_picker::{ColorPickerProps, color_picker};
 use crate::ui::widgets::combobox::{
     ComboBoxChangeEvent, ComboBoxOptionData, combobox, combobox_with_selected,
 };
+use crate::ui::widgets::gradient_edit::{GradientEditProps, gradient_edit};
 use crate::ui::widgets::popover::{
     EditorPopover, PopoverHeaderProps, PopoverPlacement, PopoverProps, popover, popover_content,
     popover_header,
 };
-use crate::ui::widgets::gradient_edit::{GradientEditProps, gradient_edit};
 use crate::ui::widgets::text_edit::{TextEditProps, text_edit};
 
+use crate::ui::icons::ICON_MORE;
 use crate::ui::widgets::vector_edit::{VectorEditProps, vector_edit};
-use crate::ui::icons::{ICON_MORE};
 
 use aracari::textures::preset::{PresetTexture, TextureRef};
-
 
 #[derive(Clone, Default)]
 pub enum VariantContentMode {
@@ -43,18 +42,19 @@ pub struct VariantDefinition {
 
 impl Clone for VariantDefinition {
     fn clone(&self) -> Self {
-        let cloned_default = self.default_value.as_ref().and_then(|v| {
-            match v.as_ref().reflect_clone() {
-                Ok(cloned) => Some(cloned.into_partial_reflect()),
-                Err(err) => {
-                    warn!(
-                        "VariantDefinition::clone: reflect_clone failed for variant '{}': {:?}",
-                        self.name, err
-                    );
-                    None
-                }
-            }
-        });
+        let cloned_default =
+            self.default_value
+                .as_ref()
+                .and_then(|v| match v.as_ref().reflect_clone() {
+                    Ok(cloned) => Some(cloned.into_partial_reflect()),
+                    Err(err) => {
+                        warn!(
+                            "VariantDefinition::clone: reflect_clone failed for variant '{}': {:?}",
+                            self.name, err
+                        );
+                        None
+                    }
+                });
 
         Self {
             name: self.name.clone(),
@@ -116,7 +116,10 @@ impl VariantDefinition {
 
     pub fn create_default(&self) -> Option<Box<dyn PartialReflect>> {
         let Some(default_value) = self.default_value.as_ref() else {
-            warn!("VariantDefinition::create_default: no default_value stored for variant '{}'", self.name);
+            warn!(
+                "VariantDefinition::create_default: no default_value stored for variant '{}'",
+                self.name
+            );
             return None;
         };
 
@@ -181,7 +184,11 @@ pub fn plugin(app: &mut App) {
         .add_observer(handle_variant_combobox_change)
         .add_systems(
             Update,
-            (setup_variant_edit, sync_variant_edit_button, handle_popover_closed),
+            (
+                setup_variant_edit,
+                sync_variant_edit_button,
+                handle_popover_closed,
+            ),
         );
 }
 
@@ -501,13 +508,15 @@ fn handle_variant_edit_click(
         return;
     };
 
-    let variant_edit_entity = if let Ok(button_child_of) = variant_edit_buttons.get(child_of.parent()) {
-        button_child_of.parent()
-    } else {
-        child_of.parent()
-    };
+    let variant_edit_entity =
+        if let Ok(button_child_of) = variant_edit_buttons.get(child_of.parent()) {
+            button_child_of.parent()
+        } else {
+            child_of.parent()
+        };
 
-    let Ok((entity, mut state, config, children)) = variant_edits.get_mut(variant_edit_entity) else {
+    let Ok((entity, mut state, config, children)) = variant_edits.get_mut(variant_edit_entity)
+    else {
         return;
     };
 
@@ -565,7 +574,9 @@ fn handle_variant_edit_click(
 
     let selected_variant = config.variants.get(config.selected_index);
     let has_auto_fields = matches!(config.content_mode, VariantContentMode::AutoFields)
-        && selected_variant.map(|v| !v.rows.is_empty()).unwrap_or(false);
+        && selected_variant
+            .map(|v| !v.rows.is_empty())
+            .unwrap_or(false);
     let has_custom_content = matches!(config.content_mode, VariantContentMode::CustomContent);
     let show_fields_container = has_auto_fields || has_custom_content;
 
@@ -619,10 +630,7 @@ fn handle_variant_edit_click(
 
             if show_fields_container {
                 let fields_container = parent
-                    .spawn((
-                        VariantFieldsContainer(entity),
-                        popover_content(),
-                    ))
+                    .spawn((VariantFieldsContainer(entity), popover_content()))
                     .id();
 
                 // only auto-spawn fields in AutoFields mode
@@ -755,7 +763,8 @@ fn spawn_variant_fields_for_entity(
                 field_kind: field.kind.clone(),
             };
 
-            let field_entity = spawn_field_widget(commands, asset_server, &field.kind, label, binding);
+            let field_entity =
+                spawn_field_widget(commands, asset_server, &field.kind, label, binding);
             commands.entity(row_entity).add_child(field_entity);
         }
     }
@@ -802,16 +811,30 @@ fn spawn_field_widget(
         FieldKind::ComboBox { options } => {
             let combobox_options: Vec<ComboBoxOptionData> =
                 options.iter().map(|o| ComboBoxOptionData::new(o)).collect();
-            spawn_labeled_field(commands, asset_server, &label, binding, combobox(combobox_options))
+            spawn_labeled_field(
+                commands,
+                asset_server,
+                &label,
+                binding,
+                combobox(combobox_options),
+            )
         }
 
-        FieldKind::Color => {
-            spawn_labeled_field(commands, asset_server, &label, binding, color_picker(ColorPickerProps::new()))
-        }
+        FieldKind::Color => spawn_labeled_field(
+            commands,
+            asset_server,
+            &label,
+            binding,
+            color_picker(ColorPickerProps::new()),
+        ),
 
-        FieldKind::Gradient => {
-            spawn_labeled_field(commands, asset_server, &label, binding, gradient_edit(GradientEditProps::new()))
-        }
+        FieldKind::Gradient => spawn_labeled_field(
+            commands,
+            asset_server,
+            &label,
+            binding,
+            gradient_edit(GradientEditProps::new()),
+        ),
 
         FieldKind::TextureRef => {
             let props = VariantEditProps::new(&binding.field_name)

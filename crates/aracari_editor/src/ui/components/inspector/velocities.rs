@@ -4,8 +4,8 @@ use bevy::prelude::*;
 use crate::state::{DirtyState, EditorState};
 use crate::ui::tokens::BORDER_COLOR;
 use crate::ui::widgets::button::{
-    ButtonClickEvent, ButtonProps, ButtonVariant, EditorButton, IconButtonProps, button, icon_button,
-    set_button_variant,
+    ButtonClickEvent, ButtonProps, ButtonVariant, EditorButton, IconButtonProps, button,
+    icon_button, set_button_variant,
 };
 use crate::ui::widgets::inspector_field::{InspectorFieldProps, fields_row, spawn_inspector_field};
 use crate::ui::widgets::panel_section::{
@@ -16,9 +16,11 @@ use crate::ui::widgets::popover::{
 };
 use crate::ui::widgets::vector_edit::VectorSuffixes;
 
-use crate::ui::components::binding::{get_inspecting_emitter, get_inspecting_emitter_mut, mark_dirty_and_restart};
-use super::utils::name_to_label;
 use super::InspectorSection;
+use super::utils::name_to_label;
+use crate::ui::components::binding::{
+    get_inspecting_emitter, get_inspecting_emitter_mut, mark_dirty_and_restart,
+};
 use crate::ui::icons::{ICON_CLOSE, ICON_MORE};
 
 const ANIMATED_VELOCITY_FIELDS: &[&str] = &["radial_velocity"];
@@ -78,15 +80,21 @@ pub fn velocities_section(asset_server: &AssetServer) -> impl Bundle {
         InspectorSection::new(
             "Velocities",
             vec![
-                vec![InspectorFieldProps::new("velocities.initial_velocity")
-                    .vector(VectorSuffixes::Range)
-                    .into()],
-                vec![InspectorFieldProps::new("velocities.initial_direction")
-                    .vector(VectorSuffixes::XYZ)
-                    .into()],
-                vec![InspectorFieldProps::new("velocities.pivot")
-                    .vector(VectorSuffixes::XYZ)
-                    .into()],
+                vec![
+                    InspectorFieldProps::new("velocities.initial_velocity")
+                        .vector(VectorSuffixes::Range)
+                        .into(),
+                ],
+                vec![
+                    InspectorFieldProps::new("velocities.initial_direction")
+                        .vector(VectorSuffixes::XYZ)
+                        .into(),
+                ],
+                vec![
+                    InspectorFieldProps::new("velocities.pivot")
+                        .vector(VectorSuffixes::XYZ)
+                        .into(),
+                ],
                 vec![
                     InspectorFieldProps::new("velocities.inherit_ratio").into(),
                     InspectorFieldProps::new("velocities.spread").into(),
@@ -244,10 +252,7 @@ fn spawn_velocity_item(
     row
 }
 
-fn update_separator(
-    has_items: bool,
-    separators: &mut Query<&mut Node, With<VelocitySeparator>>,
-) {
+fn update_separator(has_items: bool, separators: &mut Query<&mut Node, With<VelocitySeparator>>) {
     for mut node in separators.iter_mut() {
         node.display = if has_items {
             Display::Flex
@@ -380,7 +385,11 @@ fn handle_add_button_click(
         let label = name_to_label(field_name);
         commands.entity(popover_entity).with_child((
             AddVelocityOption(field_name.to_string()),
-            button(ButtonProps::new(&label).with_variant(ButtonVariant::Ghost).align_left()),
+            button(
+                ButtonProps::new(&label)
+                    .with_variant(ButtonVariant::Ghost)
+                    .align_left(),
+            ),
         ));
     }
 }
@@ -531,29 +540,22 @@ fn handle_velocity_edit(
             &asset_server,
         ))
         .with_children(|parent| {
-            parent
-                .spawn(popover_content())
-                .with_children(|content| {
-                    content
-                        .spawn(fields_row())
-                        .with_children(|row| {
-                            spawn_inspector_field(
-                                row,
-                                InspectorFieldProps::new(&value_path)
-                                    .vector(VectorSuffixes::Range),
-                                &asset_server,
-                            );
-                        });
-                    content
-                        .spawn(fields_row())
-                        .with_children(|row| {
-                            spawn_inspector_field(
-                                row,
-                                InspectorFieldProps::new(&curve_path).curve(),
-                                &asset_server,
-                            );
-                        });
+            parent.spawn(popover_content()).with_children(|content| {
+                content.spawn(fields_row()).with_children(|row| {
+                    spawn_inspector_field(
+                        row,
+                        InspectorFieldProps::new(&value_path).vector(VectorSuffixes::Range),
+                        &asset_server,
+                    );
                 });
+                content.spawn(fields_row()).with_children(|row| {
+                    spawn_inspector_field(
+                        row,
+                        InspectorFieldProps::new(&curve_path).curve(),
+                        &asset_server,
+                    );
+                });
+            });
         });
 }
 

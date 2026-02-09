@@ -5,8 +5,8 @@ use crate::state::EditorState;
 use crate::ui::widgets::inspector_field::{InspectorFieldProps, fields_row, spawn_inspector_field};
 use crate::ui::widgets::vector_edit::VectorSuffixes;
 
-use crate::ui::components::binding::get_inspecting_emitter;
 use super::{InspectorSection, inspector_section, section_needs_setup};
+use crate::ui::components::binding::get_inspecting_emitter;
 
 #[derive(Component)]
 struct TurbulenceSection;
@@ -15,7 +15,10 @@ struct TurbulenceSection;
 struct TurbulenceOptions;
 
 pub fn plugin(app: &mut App) {
-    app.add_systems(Update, (setup_turbulence_options, toggle_turbulence_options));
+    app.add_systems(
+        Update,
+        (setup_turbulence_options, toggle_turbulence_options),
+    );
 }
 
 pub fn turbulence_section(asset_server: &AssetServer) -> impl Bundle {
@@ -72,14 +75,18 @@ fn setup_turbulence_options(
                     InspectorFieldProps::new("turbulence.noise_strength"),
                     InspectorFieldProps::new("turbulence.noise_scale"),
                 ],),
-                (vec![InspectorFieldProps::new("turbulence.noise_speed")
-                    .vector(VectorSuffixes::XYZ)],),
+                (vec![
+                    InspectorFieldProps::new("turbulence.noise_speed").vector(VectorSuffixes::XYZ),
+                ],),
                 (vec![InspectorFieldProps::new(
                     "turbulence.noise_speed_random",
                 )],),
-                (vec![InspectorFieldProps::new("turbulence.influence")
-                    .vector(VectorSuffixes::Range)],),
-                (vec![InspectorFieldProps::new("turbulence.influence_over_lifetime").curve()],),
+                (vec![
+                    InspectorFieldProps::new("turbulence.influence").vector(VectorSuffixes::Range),
+                ],),
+                (vec![
+                    InspectorFieldProps::new("turbulence.influence_over_lifetime").curve(),
+                ],),
             ];
 
             for (fields,) in rows {

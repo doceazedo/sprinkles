@@ -39,9 +39,7 @@ fn update_cursors(
 
     match desired {
         Some(icon) => {
-            commands
-                .entity(*window)
-                .insert(CursorIcon::from(icon));
+            commands.entity(*window).insert(CursorIcon::from(icon));
         }
         None => {
             commands.entity(*window).remove::<CursorIcon>();

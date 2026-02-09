@@ -35,8 +35,7 @@ pub fn setup_viewport(
         return;
     };
 
-    commands.entity(container_entity).insert((
-        EditorViewport,
-        ViewportNode::new(camera_entity),
-    ));
+    commands
+        .entity(container_entity)
+        .insert((EditorViewport, ViewportNode::new(camera_entity)));
 }

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use bevy::prelude::*;
-use bevy::reflect::{Typed, TypeInfo, VariantInfo};
+use bevy::reflect::{TypeInfo, Typed, VariantInfo};
 use inflector::Inflector;
 
 use crate::ui::widgets::combobox::ComboBoxOptionData;
@@ -253,9 +253,10 @@ pub fn field_from_type_path(
         path if path.contains("Gradient") && !path.contains("Interpolation") => {
             Some(VariantField::gradient(name))
         }
-        path if path.contains("Vec3") => {
-            Some(VariantField::vector(name, suffixes.unwrap_or(VectorSuffixes::XYZ)))
-        }
+        path if path.contains("Vec3") => Some(VariantField::vector(
+            name,
+            suffixes.unwrap_or(VectorSuffixes::XYZ),
+        )),
         path if path.contains("AnimatedVelocity") => Some(VariantField::animated_velocity(name)),
         path if path.contains("TextureRef") => Some(VariantField::texture_ref(name)),
         _ => None,

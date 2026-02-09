@@ -7,7 +7,9 @@ use crate::ui::widgets::vector_edit::VectorSuffixes;
 
 use super::utils::{VariantConfig, variants_from_reflect};
 use super::{InspectorItem, InspectorSection, inspector_section};
-use crate::ui::icons::{ICON_CUBE, ICON_EMPTY_AXIS, ICON_MESH_TORUS, ICON_MESH_UVSPHERE, ICON_SPHERE};
+use crate::ui::icons::{
+    ICON_CUBE, ICON_EMPTY_AXIS, ICON_MESH_TORUS, ICON_MESH_UVSPHERE, ICON_SPHERE,
+};
 
 pub fn plugin(_app: &mut App) {}
 
@@ -31,13 +33,16 @@ pub fn emission_section(asset_server: &AssetServer) -> impl Bundle {
                     props: VariantEditProps::new("emission.shape")
                         .with_variants(emission_shape_variants()),
                 }],
-                vec![InspectorFieldProps::new("emission.particles_amount").u32().into()],
+                vec![
+                    InspectorFieldProps::new("emission.particles_amount")
+                        .u32()
+                        .into(),
+                ],
             ],
         ),
         asset_server,
     )
 }
-
 
 fn emission_shape_variants() -> Vec<VariantDefinition> {
     variants_from_reflect::<EmissionShape>(&[

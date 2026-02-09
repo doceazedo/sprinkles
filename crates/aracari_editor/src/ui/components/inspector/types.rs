@@ -10,7 +10,9 @@ pub enum FieldKind {
     OptionalU32,
     Bool,
     Vector(VectorSuffixes),
-    ComboBox { options: Vec<String> },
+    ComboBox {
+        options: Vec<String>,
+    },
     Color,
     Gradient,
     Curve,

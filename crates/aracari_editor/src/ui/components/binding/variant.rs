@@ -9,24 +9,23 @@ use crate::ui::widgets::color_picker::{
     ColorPickerCommitEvent, ColorPickerState, EditorColorPicker, TriggerSwatchMaterial,
 };
 use crate::ui::widgets::combobox::{ComboBoxChangeEvent, ComboBoxConfig};
-use crate::ui::widgets::text_edit::set_text_input_value;
 use crate::ui::widgets::gradient_edit::{
     EditorGradientEdit, GradientEditCommitEvent, GradientEditState,
 };
+use crate::ui::widgets::text_edit::set_text_input_value;
 use crate::ui::widgets::texture_edit::TextureEditCommitEvent;
 use crate::ui::widgets::variant_edit::{
-    EditorVariantEdit, VariantComboBox, VariantEditConfig, VariantFieldBinding,
-    VariantDefinition,
+    EditorVariantEdit, VariantComboBox, VariantDefinition, VariantEditConfig, VariantFieldBinding,
 };
 use crate::ui::widgets::vector_edit::EditorVectorEdit;
 
 use super::{
-    Bound, FieldKind, FieldValue, InspectedEmitterTracker, MAX_ANCESTOR_DEPTH, ReflectPath,
+    Bound, Field, FieldKind, FieldValue, InspectedEmitterTracker, MAX_ANCESTOR_DEPTH, ReflectPath,
     create_variant_from_definition, find_ancestor, find_ancestor_entity, format_f32,
     get_inspecting_emitter, get_inspecting_emitter_mut, get_variant_field_value_by_reflection,
     get_variant_index_by_reflection, get_vec3_component, mark_dirty_and_restart,
     resolve_variant_field_ref, set_variant_field_value_by_reflection, set_vec3_component,
-    with_variant_field_mut, Field,
+    with_variant_field_mut,
 };
 
 pub(super) fn bind_variant_edits(
@@ -66,7 +65,10 @@ pub(super) fn bind_variant_field_values(
     variant_edit_configs: Query<&VariantEditConfig>,
     mut text_edits: Query<
         (Entity, &ChildOf, &mut TextInputQueue),
-        (With<crate::ui::widgets::text_edit::EditorTextEdit>, Without<Bound>),
+        (
+            With<crate::ui::widgets::text_edit::EditorTextEdit>,
+            Without<Bound>,
+        ),
     >,
     mut checkbox_states: Query<&mut CheckboxState>,
     parents: Query<&ChildOf>,
@@ -206,7 +208,11 @@ pub(super) fn handle_variant_change(
             );
         }
     } else if create_variant_from_definition(emitter, &config.path, variant_def) {
-        mark_dirty_and_restart(&mut dirty_state, &mut emitter_runtimes, emitter.time.fixed_seed);
+        mark_dirty_and_restart(
+            &mut dirty_state,
+            &mut emitter_runtimes,
+            emitter.time.fixed_seed,
+        );
     }
 }
 
@@ -215,8 +221,10 @@ fn find_variant_field_binding<'a>(
     bindings: &'a Query<(&VariantFieldBinding, &ChildOf)>,
     parents: &Query<&ChildOf>,
 ) -> Option<(&'a VariantFieldBinding, Entity)> {
-    find_ancestor(entity, parents, MAX_ANCESTOR_DEPTH, |e| bindings.get(e).is_ok())
-        .and_then(|e| bindings.get(e).ok().map(|(binding, _)| (binding, e)))
+    find_ancestor(entity, parents, MAX_ANCESTOR_DEPTH, |e| {
+        bindings.get(e).is_ok()
+    })
+    .and_then(|e| bindings.get(e).ok().map(|(binding, _)| (binding, e)))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -280,7 +288,12 @@ pub(super) fn handle_variant_text_commit(
             }
             FieldValue::Vec3(vec)
         }
-        FieldKind::ComboBox { .. } | FieldKind::Color | FieldKind::Gradient | FieldKind::Curve | FieldKind::AnimatedVelocity | FieldKind::TextureRef => FieldValue::None,
+        FieldKind::ComboBox { .. }
+        | FieldKind::Color
+        | FieldKind::Gradient
+        | FieldKind::Curve
+        | FieldKind::AnimatedVelocity
+        | FieldKind::TextureRef => FieldValue::None,
     };
 
     if matches!(value, FieldValue::None) {
@@ -370,7 +383,11 @@ pub(super) fn handle_variant_color_commit(
         set_variant_field_value_by_reflection(emitter, &config.path, &binding.field_name, &value);
 
     if changed {
-        mark_dirty_and_restart(&mut dirty_state, &mut emitter_runtimes, emitter.time.fixed_seed);
+        mark_dirty_and_restart(
+            &mut dirty_state,
+            &mut emitter_runtimes,
+            emitter.time.fixed_seed,
+        );
     }
 }
 
@@ -407,9 +424,7 @@ pub(super) fn bind_variant_gradient_edits(
 
         if let Some(gradient) = gradient {
             state.gradient = gradient;
-            commands
-                .entity(entity)
-                .try_insert(Bound::variant(entity));
+            commands.entity(entity).try_insert(Bound::variant(entity));
         }
     }
 }
@@ -446,7 +461,11 @@ pub(super) fn handle_variant_gradient_commit(
     .is_some();
 
     if changed {
-        mark_dirty_and_restart(&mut dirty_state, &mut emitter_runtimes, emitter.time.fixed_seed);
+        mark_dirty_and_restart(
+            &mut dirty_state,
+            &mut emitter_runtimes,
+            emitter.time.fixed_seed,
+        );
     }
 }
 
@@ -522,14 +541,15 @@ pub(super) fn handle_variant_texture_commit(
     .is_some();
 
     if changed {
-        mark_dirty_and_restart(&mut dirty_state, &mut emitter_runtimes, emitter.time.fixed_seed);
+        mark_dirty_and_restart(
+            &mut dirty_state,
+            &mut emitter_runtimes,
+            emitter.time.fixed_seed,
+        );
     }
 }
 
-fn get_nested_variant_index(
-    value: &dyn PartialReflect,
-    variants: &[VariantDefinition],
-) -> usize {
+fn get_nested_variant_index(value: &dyn PartialReflect, variants: &[VariantDefinition]) -> usize {
     let ReflectRef::Enum(enum_ref) = value.reflect_ref() else {
         return 0;
     };
@@ -556,7 +576,7 @@ fn get_nested_variant_index(
 }
 
 fn find_variant_index_by_name(name: &str, variants: &[VariantDefinition]) -> Option<usize> {
-    variants.iter().position(|v| {
-        v.name == name || v.aliases.iter().any(|a| a == name)
-    })
+    variants
+        .iter()
+        .position(|v| v.name == name || v.aliases.iter().any(|a| a == name))
 }

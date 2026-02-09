@@ -1,6 +1,6 @@
 mod accelerations;
-mod collision;
 mod collider_properties;
+mod collision;
 mod colors;
 mod draw_pass;
 mod emission;
@@ -32,11 +32,37 @@ use super::binding::Field;
 pub fn plugin(app: &mut App) {
     app.init_resource::<InspectedEmitterTracker>()
         .init_resource::<InspectedColliderTracker>()
-        .add_plugins((super::binding::plugin, time::plugin, emission::plugin, draw_pass::plugin, scale::plugin, colors::plugin, velocities::plugin, accelerations::plugin, turbulence::plugin, collision::plugin, particle_flags::plugin, collider_properties::plugin))
-        .add_systems(Update, (
-            (update_inspected_emitter_tracker, update_inspected_collider_tracker),
-            (setup_inspector_panel, update_panel_title, setup_inspector_section_fields, toggle_inspector_content).after(update_inspected_emitter_tracker).after(update_inspected_collider_tracker),
-        ));
+        .add_plugins((
+            super::binding::plugin,
+            time::plugin,
+            emission::plugin,
+            draw_pass::plugin,
+            scale::plugin,
+            colors::plugin,
+            velocities::plugin,
+            accelerations::plugin,
+            turbulence::plugin,
+            collision::plugin,
+            particle_flags::plugin,
+            collider_properties::plugin,
+        ))
+        .add_systems(
+            Update,
+            (
+                (
+                    update_inspected_emitter_tracker,
+                    update_inspected_collider_tracker,
+                ),
+                (
+                    setup_inspector_panel,
+                    update_panel_title,
+                    setup_inspector_section_fields,
+                    toggle_inspector_content,
+                )
+                    .after(update_inspected_emitter_tracker)
+                    .after(update_inspected_collider_tracker),
+            ),
+        );
 }
 
 #[derive(Resource, Default)]
@@ -149,11 +175,15 @@ fn setup_inspector_panel(
                                 emitter_content.spawn(emission::emission_section(&asset_server));
                                 emitter_content.spawn(scale::scale_section(&asset_server));
                                 emitter_content.spawn(colors::colors_section(&asset_server));
-                                emitter_content.spawn(velocities::velocities_section(&asset_server));
-                                emitter_content.spawn(accelerations::accelerations_section(&asset_server));
-                                emitter_content.spawn(turbulence::turbulence_section(&asset_server));
+                                emitter_content
+                                    .spawn(velocities::velocities_section(&asset_server));
+                                emitter_content
+                                    .spawn(accelerations::accelerations_section(&asset_server));
+                                emitter_content
+                                    .spawn(turbulence::turbulence_section(&asset_server));
                                 emitter_content.spawn(collision::collision_section(&asset_server));
-                                emitter_content.spawn(particle_flags::particle_flags_section(&asset_server));
+                                emitter_content
+                                    .spawn(particle_flags::particle_flags_section(&asset_server));
                             });
 
                         content
@@ -167,7 +197,9 @@ fn setup_inspector_panel(
                                 },
                             ))
                             .with_children(|collider_content| {
-                                collider_content.spawn(collider_properties::collider_properties_section(&asset_server));
+                                collider_content.spawn(
+                                    collider_properties::collider_properties_section(&asset_server),
+                                );
                             });
                     });
             });
@@ -176,9 +208,30 @@ fn setup_inspector_panel(
 
 fn toggle_inspector_content(
     editor_state: Res<EditorState>,
-    mut emitter_content: Query<&mut Node, (With<EmitterInspectorContent>, Without<ColliderInspectorContent>, Without<EnabledCheckbox>)>,
-    mut collider_content: Query<&mut Node, (With<ColliderInspectorContent>, Without<EmitterInspectorContent>, Without<EnabledCheckbox>)>,
-    mut enabled_checkbox: Query<&mut Node, (With<EnabledCheckbox>, Without<EmitterInspectorContent>, Without<ColliderInspectorContent>)>,
+    mut emitter_content: Query<
+        &mut Node,
+        (
+            With<EmitterInspectorContent>,
+            Without<ColliderInspectorContent>,
+            Without<EnabledCheckbox>,
+        ),
+    >,
+    mut collider_content: Query<
+        &mut Node,
+        (
+            With<ColliderInspectorContent>,
+            Without<EmitterInspectorContent>,
+            Without<EnabledCheckbox>,
+        ),
+    >,
+    mut enabled_checkbox: Query<
+        &mut Node,
+        (
+            With<EnabledCheckbox>,
+            Without<EmitterInspectorContent>,
+            Without<ColliderInspectorContent>,
+        ),
+    >,
 ) {
     if !editor_state.is_changed() {
         return;
@@ -262,7 +315,11 @@ fn panel_title(asset_server: &AssetServer) -> impl Bundle {
                     ),
                 ],
             ),
-            (EnabledCheckbox, Field::new("enabled").with_kind(FieldKind::Bool), checkbox(CheckboxProps::new("Enabled").checked(true), asset_server)),
+            (
+                EnabledCheckbox,
+                Field::new("enabled").with_kind(FieldKind::Bool),
+                checkbox(CheckboxProps::new("Enabled").checked(true), asset_server)
+            ),
             icon_button(
                 IconButtonProps::new("icons/ri-more-fill.png").variant(ButtonVariant::Ghost),
                 asset_server,
@@ -273,7 +330,10 @@ fn panel_title(asset_server: &AssetServer) -> impl Bundle {
 
 pub enum InspectorItem {
     Field(InspectorFieldProps),
-    Variant { path: String, props: VariantEditProps },
+    Variant {
+        path: String,
+        props: VariantEditProps,
+    },
 }
 
 impl From<InspectorFieldProps> for InspectorItem {

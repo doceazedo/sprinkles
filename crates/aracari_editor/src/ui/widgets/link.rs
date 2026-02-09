@@ -92,9 +92,7 @@ fn position_link_hitboxes(
     }
 }
 
-fn handle_link_click(
-    interactions: Query<(&Interaction, &LinkHitbox), Changed<Interaction>>,
-) {
+fn handle_link_click(interactions: Query<(&Interaction, &LinkHitbox), Changed<Interaction>>) {
     for (interaction, hitbox) in &interactions {
         if *interaction == Interaction::Pressed {
             let _ = open::that(&hitbox.url);

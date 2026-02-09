@@ -11,10 +11,12 @@ use crate::ui::widgets::combobox::{
     ComboBoxChangeEvent, ComboBoxPopover, ComboBoxTrigger, combobox_icon,
 };
 use crate::ui::widgets::dialog::{DialogActionEvent, EditorDialog, OpenConfirmationDialogEvent};
-use crate::viewport::{RespawnCollidersEvent, RespawnEmittersEvent};
 use crate::ui::widgets::panel::{PanelDirection, PanelProps, panel, panel_scrollbar};
 use crate::ui::widgets::panel_section::{PanelSectionProps, panel_section};
-use crate::ui::widgets::text_edit::{EditorTextEdit, TextEditCommitEvent, text_edit, TextEditProps};
+use crate::ui::widgets::text_edit::{
+    EditorTextEdit, TextEditCommitEvent, TextEditProps, text_edit,
+};
+use crate::viewport::{RespawnCollidersEvent, RespawnEmittersEvent};
 
 const DOUBLE_CLICK_THRESHOLD: f32 = 0.3;
 
@@ -131,7 +133,6 @@ fn setup_data_panel(
                         ),
                     ))
                     .observe(on_add_collider_click);
-
             });
     }
 }
@@ -424,11 +425,7 @@ fn on_item_menu_change(
             }
 
             dirty_state.has_unsaved_changes = true;
-            adjust_inspecting_after_insert(
-                &mut editor_state.inspecting,
-                item.kind,
-                insert_index,
-            );
+            adjust_inspecting_after_insert(&mut editor_state.inspecting, item.kind, insert_index);
             trigger_respawn(&mut commands, item.kind);
             last_project.handle = None;
         }
@@ -452,10 +449,7 @@ fn on_item_menu_change(
             });
             commands.trigger(
                 OpenConfirmationDialogEvent::new(label, "Delete")
-                    .with_description(format!(
-                        "Are you sure you want to delete {}?",
-                        item_name
-                    )),
+                    .with_description(format!("Are you sure you want to delete {}?", item_name)),
             );
         }
         _ => {}
@@ -608,10 +602,7 @@ fn start_rename(commands: &mut Commands, item_entity: Entity, name: &str) {
                 item_entity,
                 focused: false,
             },
-            text_edit(
-                TextEditProps::default()
-                    .with_default_value(name),
-            ),
+            text_edit(TextEditProps::default().with_default_value(name)),
         ))
         .id();
 

@@ -6,8 +6,10 @@ use crate::ui::components::inspector::utils::name_to_label;
 use crate::ui::widgets::checkbox::{CheckboxCommitEvent, CheckboxProps, CheckboxState, checkbox};
 use crate::ui::widgets::inspector_field::fields_row;
 
-use crate::ui::components::binding::{get_inspecting_emitter, get_inspecting_emitter_mut, mark_dirty_and_restart};
 use super::{InspectorSection, inspector_section, section_needs_setup};
+use crate::ui::components::binding::{
+    get_inspecting_emitter, get_inspecting_emitter_mut, mark_dirty_and_restart,
+};
 
 #[derive(Component)]
 struct ParticleFlagsSection;
@@ -22,10 +24,7 @@ struct ParticleFlagCheckbox {
 
 pub fn plugin(app: &mut App) {
     app.add_observer(handle_particle_flag_checkbox)
-        .add_systems(
-            Update,
-            (setup_particle_flags_content, sync_particle_flags),
-        );
+        .add_systems(Update, (setup_particle_flags_content, sync_particle_flags));
 }
 
 pub fn particle_flags_section(asset_server: &AssetServer) -> impl Bundle {
@@ -120,5 +119,9 @@ fn handle_particle_flag_checkbox(
     emitter
         .particle_flags
         .set(flag_checkbox.flag, trigger.checked);
-    mark_dirty_and_restart(&mut dirty_state, &mut emitter_runtimes, emitter.time.fixed_seed);
+    mark_dirty_and_restart(
+        &mut dirty_state,
+        &mut emitter_runtimes,
+        emitter.time.fixed_seed,
+    );
 }

@@ -11,13 +11,15 @@ use crate::ui::widgets::variant_edit::{
     VariantComboBox, VariantDefinition, VariantEditConfig, VariantEditProps, VariantFieldBinding,
     variant_edit,
 };
-use crate::ui::widgets::vector_edit::{EditorVectorEdit, VectorEditProps, VectorSuffixes, vector_edit};
+use crate::ui::widgets::vector_edit::{
+    EditorVectorEdit, VectorEditProps, VectorSuffixes, vector_edit,
+};
 
+use super::{InspectorSection, inspector_section, section_needs_setup};
 use crate::ui::components::binding::{
     find_ancestor, find_ancestor_entity, format_f32, get_inspecting_collider,
     get_inspecting_collider_mut,
 };
-use super::{InspectorSection, inspector_section, section_needs_setup};
 
 #[derive(Component)]
 struct ColliderPropertiesSection;
@@ -52,10 +54,7 @@ pub fn plugin(app: &mut App) {
 pub fn collider_properties_section(asset_server: &AssetServer) -> impl Bundle {
     (
         ColliderPropertiesSection,
-        inspector_section(
-            InspectorSection::new("Properties", vec![]),
-            asset_server,
-        ),
+        inspector_section(InspectorSection::new("Properties", vec![]), asset_server),
     )
 }
 
@@ -196,12 +195,9 @@ fn handle_collider_text_commit(
     mut assets: ResMut<Assets<ParticleSystemAsset>>,
     mut dirty_state: ResMut<DirtyState>,
 ) {
-    if let Some(binding_entity) = find_ancestor(
-        trigger.entity,
-        &parents,
-        10,
-        |e| variant_field_bindings.get(e).is_ok(),
-    ) {
+    if let Some(binding_entity) = find_ancestor(trigger.entity, &parents, 10, |e| {
+        variant_field_bindings.get(e).is_ok()
+    }) {
         let Ok(binding) = variant_field_bindings.get(binding_entity) else {
             return;
         };
@@ -211,8 +207,7 @@ fn handle_collider_text_commit(
                 return;
             };
 
-            let Some((_, collider)) =
-                get_inspecting_collider_mut(&editor_state, &mut assets)
+            let Some((_, collider)) = get_inspecting_collider_mut(&editor_state, &mut assets)
             else {
                 return;
             };
@@ -252,12 +247,9 @@ fn handle_collider_text_commit(
         }
     }
 
-    if let Some(position_entity) = find_ancestor(
-        trigger.entity,
-        &parents,
-        10,
-        |e| position_edits.get(e).is_ok(),
-    ) {
+    if let Some(position_entity) = find_ancestor(trigger.entity, &parents, 10, |e| {
+        position_edits.get(e).is_ok()
+    }) {
         let Ok(value) = trigger.text.parse::<f32>() else {
             return;
         };
@@ -337,11 +329,8 @@ fn bind_collider_shape_fields(
                     let text = format_f32(*radius);
                     let mut found = false;
                     for (text_edit_entity, text_edit_parent, mut queue) in &mut text_edits {
-                        if find_ancestor_entity(
-                            text_edit_parent.parent(),
-                            binding_entity,
-                            &parents,
-                        ) {
+                        if find_ancestor_entity(text_edit_parent.parent(), binding_entity, &parents)
+                        {
                             set_text_input_value(&mut queue, text.clone());
                             commands
                                 .entity(text_edit_entity)
@@ -369,9 +358,7 @@ fn bind_collider_shape_fields(
                                 _ => continue,
                             };
                             let text = format_f32(val);
-                            for (text_edit_entity, text_edit_parent, mut queue) in
-                                &mut text_edits
-                            {
+                            for (text_edit_entity, text_edit_parent, mut queue) in &mut text_edits {
                                 if find_ancestor_entity(
                                     text_edit_parent.parent(),
                                     vec_child,

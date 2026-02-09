@@ -787,4 +787,3 @@ fn update_input_value(
     let clamped = clamp_value(value, range);
     set_text_input_value(queue, format_numeric_value(clamped, variant));
 }
-

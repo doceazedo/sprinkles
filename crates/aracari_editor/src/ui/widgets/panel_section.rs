@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 
+use crate::ui::icons::{ICON_ADD, ICON_ARROW_DOWN};
 use crate::ui::tokens::{BORDER_COLOR, FONT_PATH, TEXT_DISPLAY_COLOR, TEXT_SIZE};
 use crate::ui::widgets::button::{ButtonClickEvent, ButtonVariant, IconButtonProps, icon_button};
-use crate::ui::icons::{ICON_ADD, ICON_ARROW_DOWN};
 
 pub fn plugin(app: &mut App) {
     app.add_systems(Update, setup_panel_section_buttons);
@@ -31,7 +31,6 @@ struct PanelSectionState {
     has_add_button: bool,
     collapsible: bool,
 }
-
 
 #[derive(Default, Clone, Copy)]
 pub enum PanelSectionSize {

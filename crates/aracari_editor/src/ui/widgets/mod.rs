@@ -1,11 +1,11 @@
 pub mod alert;
 pub mod button;
 pub mod checkbox;
-pub mod cursor;
-pub mod dialog;
 pub mod color_picker;
 pub mod combobox;
+pub mod cursor;
 pub mod curve_edit;
+pub mod dialog;
 pub mod gradient_edit;
 pub mod inspector_field;
 pub mod link;

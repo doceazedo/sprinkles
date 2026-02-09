@@ -314,7 +314,10 @@ fn on_toast_event(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     container: Query<Entity, With<ToastsContainer>>,
-    mut existing_toasts: Query<(Entity, &mut ToastIndex), (With<EditorToast>, Without<DespawningToast>)>,
+    mut existing_toasts: Query<
+        (Entity, &mut ToastIndex),
+        (With<EditorToast>, Without<DespawningToast>),
+    >,
 ) {
     let Ok(container_entity) = container.single() else {
         return;

@@ -76,7 +76,9 @@ impl InspectorFieldProps {
 
     pub fn combobox(mut self, options: Vec<ComboBoxOptionData>) -> Self {
         let option_labels: Vec<String> = options.iter().map(|o| o.label.clone()).collect();
-        self.kind = FieldKind::ComboBox { options: option_labels };
+        self.kind = FieldKind::ComboBox {
+            options: option_labels,
+        };
         self.combobox_options = Some(options);
         self
     }
@@ -132,7 +134,10 @@ impl InspectorFieldProps {
             return self.min;
         }
         match self.kind {
-            FieldKind::F32Percent | FieldKind::U32 | FieldKind::U32OrEmpty | FieldKind::OptionalU32 => Some(0.0),
+            FieldKind::F32Percent
+            | FieldKind::U32
+            | FieldKind::U32OrEmpty
+            | FieldKind::OptionalU32 => Some(0.0),
             _ => None,
         }
     }
@@ -186,18 +191,12 @@ pub fn spawn_inspector_field(
     }
 
     if props.kind == FieldKind::Curve {
-        spawner.spawn((
-            field,
-            curve_edit(CurveEditProps::new().with_label(label)),
-        ));
+        spawner.spawn((field, curve_edit(CurveEditProps::new().with_label(label))));
         return;
     }
 
     if let Some(options) = props.combobox_options {
-        spawner.spawn((
-            field,
-            combobox_field(label, options),
-        ));
+        spawner.spawn((field, combobox_field(label, options)));
         return;
     }
 

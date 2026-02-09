@@ -75,7 +75,9 @@ fn on_open_project_event(
     let path = project_path(location);
 
     let Some(asset) = load_project_from_path(&path) else {
-        commands.trigger(ToastEvent::error(format!("Failed to open project: {location}")));
+        commands.trigger(ToastEvent::error(format!(
+            "Failed to open project: {location}"
+        )));
         return;
     };
 
@@ -97,10 +99,7 @@ fn on_open_project_event(
     save_editor_data(&editor_data);
 }
 
-fn on_browse_open_project_event(
-    _event: On<BrowseOpenProjectEvent>,
-    mut commands: Commands,
-) {
+fn on_browse_open_project_event(_event: On<BrowseOpenProjectEvent>, mut commands: Commands) {
     let projects_dir = project_path("projects");
 
     let path_result = Arc::new(Mutex::new(None));
@@ -126,10 +125,7 @@ fn on_browse_open_project_event(
     commands.insert_resource(BrowseOpenResult(path_result));
 }
 
-fn poll_browse_open_result(
-    result: Option<Res<BrowseOpenResult>>,
-    mut commands: Commands,
-) {
+fn poll_browse_open_result(result: Option<Res<BrowseOpenResult>>, mut commands: Commands) {
     let Some(result) = result else {
         return;
     };

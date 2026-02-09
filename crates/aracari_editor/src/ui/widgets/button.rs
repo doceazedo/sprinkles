@@ -3,8 +3,8 @@ use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
 
 use crate::ui::tokens::{
-    CORNER_RADIUS_LG, FONT_PATH, PRIMARY_COLOR, TEXT_BODY_COLOR, TEXT_DISPLAY_COLOR, TEXT_MUTED_COLOR, TEXT_SIZE,
-    TEXT_SIZE_SM,
+    CORNER_RADIUS_LG, FONT_PATH, PRIMARY_COLOR, TEXT_BODY_COLOR, TEXT_DISPLAY_COLOR,
+    TEXT_MUTED_COLOR, TEXT_SIZE, TEXT_SIZE_SM,
 };
 
 #[derive(EntityEvent)]
@@ -235,10 +235,7 @@ pub(crate) fn button_base(
                 size.width()
             },
             height: if is_column { Val::Auto } else { size.height() },
-            padding: UiRect::axes(
-                size.padding(),
-                if is_column { px(6.0) } else { px(0.0) },
-            ),
+            padding: UiRect::axes(size.padding(), if is_column { px(6.0) } else { px(0.0) }),
             border: UiRect::all(variant.border()),
             border_radius: BorderRadius::all(CORNER_RADIUS_LG),
             flex_direction: direction,
@@ -298,7 +295,13 @@ fn setup_button(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     mut buttons: Query<
-        (Entity, &mut ButtonConfig, &ButtonVariant, &ButtonSize, &mut Node),
+        (
+            Entity,
+            &mut ButtonConfig,
+            &ButtonVariant,
+            &ButtonSize,
+            &mut Node,
+        ),
         Added<ButtonConfig>,
     >,
 ) {

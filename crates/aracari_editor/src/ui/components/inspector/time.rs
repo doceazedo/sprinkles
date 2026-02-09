@@ -21,11 +21,13 @@ pub fn time_section(asset_server: &AssetServer) -> impl Bundle {
                         .with_icon("icons/ri-time-line.png")
                         .into(),
                 ],
-                vec![InspectorFieldProps::new("time.delay")
-                    .with_min(0.)
-                    .with_icon("icons/ri-time-line.png")
-                    .with_suffix("s")
-                    .into()],
+                vec![
+                    InspectorFieldProps::new("time.delay")
+                        .with_min(0.)
+                        .with_icon("icons/ri-time-line.png")
+                        .with_suffix("s")
+                        .into(),
+                ],
                 vec![
                     InspectorFieldProps::new("time.explosiveness")
                         .percent()

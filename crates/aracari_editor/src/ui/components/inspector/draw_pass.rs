@@ -7,7 +7,9 @@ use crate::ui::widgets::vector_edit::VectorSuffixes;
 
 use super::utils::{VariantConfig, combobox_options_from_reflect, variants_from_reflect};
 use super::{InspectorItem, InspectorSection, inspector_section};
-use crate::ui::icons::{ICON_CONE, ICON_CUBE, ICON_MESH_CYLINDER, ICON_MESH_PLANE, ICON_MESH_UVSPHERE};
+use crate::ui::icons::{
+    ICON_CONE, ICON_CUBE, ICON_MESH_CYLINDER, ICON_MESH_PLANE, ICON_MESH_UVSPHERE,
+};
 
 pub fn plugin(_app: &mut App) {}
 
@@ -28,18 +30,21 @@ pub fn draw_pass_section(asset_server: &AssetServer) -> impl Bundle {
                             .with_variants(material_variants()),
                     },
                 ],
-                vec![InspectorFieldProps::new("draw_pass.draw_order")
-                    .combobox(combobox_options_from_reflect::<DrawOrder>())
-                    .into()],
-                vec![InspectorFieldProps::new("draw_pass.shadow_caster")
-                    .bool()
-                    .into()],
+                vec![
+                    InspectorFieldProps::new("draw_pass.draw_order")
+                        .combobox(combobox_options_from_reflect::<DrawOrder>())
+                        .into(),
+                ],
+                vec![
+                    InspectorFieldProps::new("draw_pass.shadow_caster")
+                        .bool()
+                        .into(),
+                ],
             ],
         ),
         asset_server,
     )
 }
-
 
 fn mesh_variants() -> Vec<VariantDefinition> {
     variants_from_reflect::<ParticleMesh>(&[

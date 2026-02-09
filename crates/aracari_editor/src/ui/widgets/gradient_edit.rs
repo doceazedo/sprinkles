@@ -11,19 +11,20 @@ use bevy::ui::UiGlobalTransform;
 
 use bevy::window::SystemCursorIcon;
 
+use crate::ui::icons::ICON_CLOSE;
 use crate::ui::tokens::{BORDER_COLOR, PRIMARY_COLOR};
-use crate::ui::widgets::cursor::{ActiveCursor, HoverCursor};
 use crate::ui::widgets::button::{
-    ButtonClickEvent, ButtonProps, ButtonVariant, EditorButton, IconButtonProps, button, icon_button,
+    ButtonClickEvent, ButtonProps, ButtonVariant, EditorButton, IconButtonProps, button,
+    icon_button,
 };
 use crate::ui::widgets::color_picker::{
     ColorPickerChangeEvent, ColorPickerCommitEvent, ColorPickerProps, EditorColorPicker,
     color_picker,
 };
+use crate::ui::widgets::cursor::{ActiveCursor, HoverCursor};
 use crate::ui::widgets::panel_section::{PanelSectionProps, panel_section};
 use crate::ui::widgets::popover::{EditorPopover, PopoverPlacement, PopoverProps, popover};
 use crate::ui::widgets::text_edit::{TextEditCommitEvent, TextEditProps, text_edit};
-use crate::ui::icons::{ICON_CLOSE};
 use bevy_ui_text_input::TextInputQueue;
 use bevy_ui_text_input::actions::{TextInputAction, TextInputEdit};
 
@@ -37,7 +38,9 @@ const CHECKERBOARD_SIZE: f32 = 6.0;
 const BAR_PADDING: f32 = 6.0;
 pub(crate) const MAX_STOPS: usize = 8;
 
-pub(crate) fn pack_gradient_stops(gradient: &ParticleGradient) -> (u32, [Vec4; 2], [Vec4; MAX_STOPS]) {
+pub(crate) fn pack_gradient_stops(
+    gradient: &ParticleGradient,
+) -> (u32, [Vec4; 2], [Vec4; MAX_STOPS]) {
     let stop_count = gradient.stops.len().min(MAX_STOPS) as u32;
     let mut positions = [Vec4::ZERO; 2];
     let mut colors = [Vec4::ZERO; MAX_STOPS];
@@ -49,7 +52,6 @@ pub(crate) fn pack_gradient_stops(gradient: &ParticleGradient) -> (u32, [Vec4; 2
 
     (stop_count, positions, colors)
 }
-
 
 pub fn plugin(app: &mut App) {
     app.add_plugins(UiMaterialPlugin::<GradientMaterial>::default())
@@ -379,13 +381,29 @@ fn fix_stop_row_sizing(
     mut commands: Commands,
     mut position_inputs: Query<
         (Entity, &mut Node),
-        (With<StopPositionInput>, Without<StopSizingApplied>, Without<StopColorPicker>),
+        (
+            With<StopPositionInput>,
+            Without<StopSizingApplied>,
+            Without<StopColorPicker>,
+        ),
     >,
     mut color_pickers: Query<
         (Entity, &mut Node, Option<&Children>),
-        (With<StopColorPicker>, Without<StopSizingApplied>, Without<EditorButton>, Without<StopPositionInput>),
+        (
+            With<StopColorPicker>,
+            Without<StopSizingApplied>,
+            Without<EditorButton>,
+            Without<StopPositionInput>,
+        ),
     >,
-    mut button_nodes: Query<&mut Node, (With<EditorButton>, Without<StopColorPicker>, Without<StopPositionInput>)>,
+    mut button_nodes: Query<
+        &mut Node,
+        (
+            With<EditorButton>,
+            Without<StopColorPicker>,
+            Without<StopPositionInput>,
+        ),
+    >,
 ) {
     for (entity, mut node) in &mut position_inputs {
         node.flex_grow = 0.0;
@@ -398,17 +416,14 @@ fn fix_stop_row_sizing(
     for (entity, mut node, children) in &mut color_pickers {
         node.flex_grow = 1.0;
 
-        let trigger_fixed = children
-            .iter()
-            .flat_map(|c| c.iter())
-            .any(|child| {
-                if let Ok(mut button_node) = button_nodes.get_mut(child) {
-                    button_node.flex_grow = 1.0;
-                    true
-                } else {
-                    false
-                }
-            });
+        let trigger_fixed = children.iter().flat_map(|c| c.iter()).any(|child| {
+            if let Ok(mut button_node) = button_nodes.get_mut(child) {
+                button_node.flex_grow = 1.0;
+                true
+            } else {
+                false
+            }
+        });
 
         if trigger_fixed {
             commands.entity(entity).insert(StopSizingApplied);
@@ -773,7 +788,14 @@ fn handle_handle_color_change(
     handle_pickers: Query<&HandleColorPicker>,
     mut states: Query<&mut GradientEditState>,
 ) {
-    update_handle_stop_color(&mut commands, &handle_pickers, &mut states, trigger.entity, trigger.color, false);
+    update_handle_stop_color(
+        &mut commands,
+        &handle_pickers,
+        &mut states,
+        trigger.entity,
+        trigger.color,
+        false,
+    );
 }
 
 fn handle_handle_color_commit(
@@ -782,7 +804,14 @@ fn handle_handle_color_commit(
     handle_pickers: Query<&HandleColorPicker>,
     mut states: Query<&mut GradientEditState>,
 ) {
-    update_handle_stop_color(&mut commands, &handle_pickers, &mut states, trigger.entity, trigger.color, true);
+    update_handle_stop_color(
+        &mut commands,
+        &handle_pickers,
+        &mut states,
+        trigger.entity,
+        trigger.color,
+        true,
+    );
 }
 
 fn update_gradient_visuals(
@@ -873,7 +902,6 @@ fn update_stop_position_inputs(
         }
     }
 }
-
 
 fn update_handle_colors(
     mut removed_dragging: RemovedComponents<Dragging>,
@@ -1322,7 +1350,14 @@ fn handle_stop_color_change(
     color_pickers: Query<&StopColorPicker>,
     mut states: Query<&mut GradientEditState>,
 ) {
-    update_stop_color(&mut commands, &color_pickers, &mut states, trigger.entity, trigger.color, false);
+    update_stop_color(
+        &mut commands,
+        &color_pickers,
+        &mut states,
+        trigger.entity,
+        trigger.color,
+        false,
+    );
 }
 
 fn handle_stop_color_commit(
@@ -1331,7 +1366,14 @@ fn handle_stop_color_commit(
     color_pickers: Query<&StopColorPicker>,
     mut states: Query<&mut GradientEditState>,
 ) {
-    update_stop_color(&mut commands, &color_pickers, &mut states, trigger.entity, trigger.color, true);
+    update_stop_color(
+        &mut commands,
+        &color_pickers,
+        &mut states,
+        trigger.entity,
+        trigger.color,
+        true,
+    );
 }
 
 fn respawn_stops_on_change(

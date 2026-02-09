@@ -1,19 +1,25 @@
 use bevy::math::Rot2;
 use bevy::prelude::*;
 
+use crate::ui::icons::{ICON_ARROW_DOWN, ICON_MORE};
 use crate::ui::widgets::button::{
-    ButtonClickEvent, ButtonProps, ButtonSize, ButtonVariant, button, icon_button, IconButtonProps,
+    ButtonClickEvent, ButtonProps, ButtonSize, ButtonVariant, IconButtonProps, button, icon_button,
     set_button_variant,
 };
 use crate::ui::widgets::popover::{EditorPopover, PopoverPlacement, PopoverProps, popover};
 use crate::ui::widgets::utils::is_descendant_of;
-use crate::ui::icons::{ICON_ARROW_DOWN, ICON_MORE};
-
 
 pub fn plugin(app: &mut App) {
     app.add_observer(handle_trigger_click)
         .add_observer(handle_option_click)
-        .add_systems(Update, (setup_combobox, handle_combobox_popover_closed, sync_combobox_selection));
+        .add_systems(
+            Update,
+            (
+                setup_combobox,
+                handle_combobox_popover_closed,
+                sync_combobox_selection,
+            ),
+        );
 }
 
 #[derive(Component)]
@@ -318,7 +324,9 @@ fn handle_trigger_click(
             ButtonVariant::Ghost
         };
 
-        let mut button_props = ButtonProps::new(&option.label).with_variant(variant).align_left();
+        let mut button_props = ButtonProps::new(&option.label)
+            .with_variant(variant)
+            .align_left();
 
         if let Some(ref icon_path) = option.icon {
             button_props = button_props.with_left_icon(icon_path);

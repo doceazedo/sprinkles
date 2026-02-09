@@ -9,8 +9,7 @@ use crate::ui::widgets::variant_edit::{
 };
 
 use super::{
-    Field, FieldKind, ReflectPath, MAX_ANCESTOR_DEPTH,
-    find_ancestor, get_inspecting_emitter,
+    Field, FieldKind, MAX_ANCESTOR_DEPTH, ReflectPath, find_ancestor, get_inspecting_emitter,
 };
 
 #[derive(Component)]
@@ -175,10 +174,7 @@ pub(super) fn sync_variant_swatch_from_gradient(
         let material_entity = commands
             .spawn((
                 GradientSwatchNode(variant_edit),
-                MaterialNode(
-                    gradient_materials
-                        .add(GradientMaterial::swatch(&state.gradient)),
-                ),
+                MaterialNode(gradient_materials.add(GradientMaterial::swatch(&state.gradient))),
                 swatch_fill_node(),
             ))
             .id();

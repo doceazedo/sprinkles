@@ -16,7 +16,7 @@ use crate::ui::tokens::{
     BORDER_COLOR, CORNER_RADIUS, FONT_PATH, TEXT_BODY_COLOR, TEXT_MUTED_COLOR, TEXT_SIZE_SM,
 };
 use crate::ui::widgets::button::{
-    ButtonClickEvent, ButtonProps, ButtonVariant, button, button_base, ButtonSize,
+    ButtonClickEvent, ButtonProps, ButtonSize, ButtonVariant, button, button_base,
     set_button_variant,
 };
 use crate::ui::widgets::variant_edit::{
@@ -24,9 +24,9 @@ use crate::ui::widgets::variant_edit::{
 };
 
 use crate::ui::components::inspector::FieldKind;
-use crate::ui::widgets::alert::{alert, AlertSpan, AlertVariant};
-use crate::ui::widgets::link::spawn_link_hitbox;
 use crate::ui::icons::{ICON_FOLDER_OPEN, ICON_HEART};
+use crate::ui::widgets::alert::{AlertSpan, AlertVariant, alert};
+use crate::ui::widgets::link::spawn_link_hitbox;
 
 const PRESET_GRID_MAX_HEIGHT: f32 = 256.0;
 const PREVIEW_SIZE: f32 = 96.0;
@@ -119,10 +119,7 @@ pub fn plugin(app: &mut App) {
         );
 }
 
-fn is_texture_ref_variant_edit(
-    entity: Entity,
-    bindings: &Query<&VariantFieldBinding>,
-) -> bool {
+fn is_texture_ref_variant_edit(entity: Entity, bindings: &Query<&VariantFieldBinding>) -> bool {
     bindings
         .get(entity)
         .map(|b| b.field_kind == FieldKind::TextureRef)
@@ -149,16 +146,17 @@ fn setup_texture_content(
             continue;
         };
 
-        let current_texture = read_current_texture_ref(
-            variant_edit, &editor_state, &p_assets, &bindings, &configs,
-        );
+        let current_texture =
+            read_current_texture_ref(variant_edit, &editor_state, &p_assets, &bindings, &configs);
 
         let variant = TextureVariant::from(config.selected_index);
 
-        commands.entity(container_entity).insert(TextureEditContent {
-            variant_edit,
-            current_variant: variant,
-        });
+        commands
+            .entity(container_entity)
+            .insert(TextureEditContent {
+                variant_edit,
+                current_variant: variant,
+            });
 
         spawn_content_for_variant(
             &mut commands,
@@ -211,7 +209,11 @@ fn respawn_texture_content_on_switch(
             content.current_variant = variant;
 
             let current_texture = read_current_texture_ref(
-                variant_edit, &editor_state, &p_assets, &bindings, &configs,
+                variant_edit,
+                &editor_state,
+                &p_assets,
+                &bindings,
+                &configs,
             );
 
             spawn_content_for_variant(
@@ -243,10 +245,22 @@ fn spawn_content_for_variant(
                 TextureRef::Preset(p) => Some(p),
                 _ => None,
             });
-            spawn_preset_grid(commands, container, variant_edit, current_preset, asset_server);
+            spawn_preset_grid(
+                commands,
+                container,
+                variant_edit,
+                current_preset,
+                asset_server,
+            );
         }
         TextureVariant::Custom => {
-            spawn_file_content(commands, container, variant_edit, current_texture, asset_server);
+            spawn_file_content(
+                commands,
+                container,
+                variant_edit,
+                current_texture,
+                asset_server,
+            );
         }
     }
 }
@@ -323,9 +337,7 @@ fn spawn_preset_grid(
 
     let scrollbar = commands
         .spawn((
-            TextureGridScrollbar {
-                scroll_container,
-            },
+            TextureGridScrollbar { scroll_container },
             Node {
                 position_type: PositionType::Absolute,
                 width: px(SCROLLBAR_WIDTH),
@@ -347,11 +359,7 @@ fn spawn_preset_grid(
     spawn_footnote(commands, container, asset_server);
 }
 
-fn spawn_footnote(
-    commands: &mut Commands,
-    parent: Entity,
-    asset_server: &AssetServer,
-) {
+fn spawn_footnote(commands: &mut Commands, parent: Entity, asset_server: &AssetServer) {
     let font: Handle<Font> = asset_server.load(FONT_PATH);
     let text_color: Color = TEXT_MUTED_COLOR.into();
     let link_color: Color = TEXT_BODY_COLOR.into();
@@ -366,8 +374,7 @@ fn spawn_footnote(
 
     let icon = commands
         .spawn((
-            ImageNode::new(asset_server.load(ICON_HEART))
-                .with_color(tailwind::PINK_600.into()),
+            ImageNode::new(asset_server.load(ICON_HEART)).with_color(tailwind::PINK_600.into()),
             Node {
                 width: px(14),
                 height: px(14),
@@ -526,10 +533,7 @@ fn spawn_file_content(
     let btn = commands
         .spawn((
             SelectFileButton(variant_edit),
-            button(
-                ButtonProps::new("Select file...")
-                    .with_left_icon(ICON_FOLDER_OPEN),
-            ),
+            button(ButtonProps::new("Select file...").with_left_icon(ICON_FOLDER_OPEN)),
         ))
         .id();
     commands.entity(column).add_child(btn);
@@ -564,10 +568,7 @@ fn spawn_local_texture_alert(commands: &mut Commands, parent: Entity, variant_ed
 }
 
 fn update_texture_scrollbar(
-    scroll_containers: Query<
-        (&Hovered, &ScrollPosition, &ComputedNode),
-        With<TexturePresetScroll>,
-    >,
+    scroll_containers: Query<(&Hovered, &ScrollPosition, &ComputedNode), With<TexturePresetScroll>>,
     mut scrollbars: Query<(&TextureGridScrollbar, &mut Node, &mut Visibility)>,
 ) {
     for (scrollbar, mut node, mut visibility) in &mut scrollbars {

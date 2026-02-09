@@ -4,12 +4,16 @@ use bevy::prelude::*;
 use crate::state::{DirtyState, EditorState};
 use crate::ui::components::inspector::utils::name_to_label;
 use crate::ui::tokens::{FONT_PATH, TEXT_MUTED_COLOR, TEXT_SIZE_SM};
-use crate::ui::widgets::combobox::{ComboBoxChangeEvent, ComboBoxConfig, ComboBoxOptionData, combobox_with_selected};
+use crate::ui::widgets::combobox::{
+    ComboBoxChangeEvent, ComboBoxConfig, ComboBoxOptionData, combobox_with_selected,
+};
 use crate::ui::widgets::inspector_field::{InspectorFieldProps, fields_row, spawn_inspector_field};
 use crate::ui::widgets::text_edit::{TextEditCommitEvent, TextEditProps, text_edit};
 
-use crate::ui::components::binding::{find_ancestor, get_inspecting_emitter, get_inspecting_emitter_mut, mark_dirty_and_restart};
 use super::{InspectorSection, inspector_section, section_needs_setup};
+use crate::ui::components::binding::{
+    find_ancestor, get_inspecting_emitter, get_inspecting_emitter_mut, mark_dirty_and_restart,
+};
 
 #[derive(Component)]
 struct CollisionSection;
@@ -48,10 +52,7 @@ pub fn plugin(app: &mut App) {
 pub fn collision_section(asset_server: &AssetServer) -> impl Bundle {
     (
         CollisionSection,
-        inspector_section(
-            InspectorSection::new("Collision", vec![]),
-            asset_server,
-        ),
+        inspector_section(InspectorSection::new("Collision", vec![]), asset_server),
     )
 }
 
@@ -100,7 +101,11 @@ fn spawn_mode_combobox(parent: &mut ChildSpawnerCommands, font: &Handle<Font>, m
     });
 }
 
-fn spawn_common_fields(parent: &mut ChildSpawnerCommands, has_mode: bool, asset_server: &AssetServer) {
+fn spawn_common_fields(
+    parent: &mut ChildSpawnerCommands,
+    has_mode: bool,
+    asset_server: &AssetServer,
+) {
     parent
         .spawn((
             CollisionCommonFields,
@@ -108,7 +113,11 @@ fn spawn_common_fields(parent: &mut ChildSpawnerCommands, has_mode: bool, asset_
                 width: percent(100),
                 flex_direction: FlexDirection::Column,
                 row_gap: px(12.0),
-                display: if has_mode { Display::Flex } else { Display::None },
+                display: if has_mode {
+                    Display::Flex
+                } else {
+                    Display::None
+                },
                 ..default()
             },
         ))
@@ -130,7 +139,12 @@ fn spawn_common_fields(parent: &mut ChildSpawnerCommands, has_mode: bool, asset_
         });
 }
 
-fn spawn_rigid_fields(parent: &mut ChildSpawnerCommands, is_rigid: bool, friction_val: &str, bounce_val: &str) {
+fn spawn_rigid_fields(
+    parent: &mut ChildSpawnerCommands,
+    is_rigid: bool,
+    friction_val: &str,
+    bounce_val: &str,
+) {
     parent
         .spawn((
             CollisionRigidFields,
@@ -138,7 +152,11 @@ fn spawn_rigid_fields(parent: &mut ChildSpawnerCommands, is_rigid: bool, frictio
                 width: percent(100),
                 flex_direction: FlexDirection::Column,
                 row_gap: px(12.0),
-                display: if is_rigid { Display::Flex } else { Display::None },
+                display: if is_rigid {
+                    Display::Flex
+                } else {
+                    Display::None
+                },
                 ..default()
             },
         ))
@@ -262,7 +280,11 @@ fn handle_collision_mode_change(
     }
 
     emitter.collision.mode = new_mode;
-    mark_dirty_and_restart(&mut dirty_state, &mut emitter_runtimes, emitter.time.fixed_seed);
+    mark_dirty_and_restart(
+        &mut dirty_state,
+        &mut emitter_runtimes,
+        emitter.time.fixed_seed,
+    );
 }
 
 fn handle_collision_field_commit(
@@ -274,12 +296,9 @@ fn handle_collision_field_commit(
     mut dirty_state: ResMut<DirtyState>,
     mut emitter_runtimes: Query<&mut EmitterRuntime>,
 ) {
-    let Some(input_entity) = find_ancestor(
-        trigger.entity,
-        &parents,
-        10,
-        |e| collision_fields.get(e).is_ok(),
-    ) else {
+    let Some(input_entity) = find_ancestor(trigger.entity, &parents, 10, |e| {
+        collision_fields.get(e).is_ok()
+    }) else {
         return;
     };
     let Ok(input) = collision_fields.get(input_entity) else {
@@ -318,7 +337,11 @@ fn handle_collision_field_commit(
     };
 
     if changed {
-        mark_dirty_and_restart(&mut dirty_state, &mut emitter_runtimes, emitter.time.fixed_seed);
+        mark_dirty_and_restart(
+            &mut dirty_state,
+            &mut emitter_runtimes,
+            emitter.time.fixed_seed,
+        );
     }
 }
 
@@ -326,8 +349,14 @@ fn sync_collision_ui(
     editor_state: Res<EditorState>,
     assets: Res<Assets<ParticleSystemAsset>>,
     mut comboboxes: Query<&mut ComboBoxConfig, With<CollisionModeComboBox>>,
-    mut rigid_fields: Query<&mut Node, (With<CollisionRigidFields>, Without<CollisionCommonFields>)>,
-    mut common_fields: Query<&mut Node, (With<CollisionCommonFields>, Without<CollisionRigidFields>)>,
+    mut rigid_fields: Query<
+        &mut Node,
+        (With<CollisionRigidFields>, Without<CollisionCommonFields>),
+    >,
+    mut common_fields: Query<
+        &mut Node,
+        (With<CollisionCommonFields>, Without<CollisionRigidFields>),
+    >,
 ) {
     if !editor_state.is_changed() && !assets.is_changed() {
         return;
@@ -349,14 +378,22 @@ fn sync_collision_ui(
     let has_mode = mode.map(|m| m.is_some()).unwrap_or(false);
 
     for mut node in &mut rigid_fields {
-        let display = if is_rigid { Display::Flex } else { Display::None };
+        let display = if is_rigid {
+            Display::Flex
+        } else {
+            Display::None
+        };
         if node.display != display {
             node.display = display;
         }
     }
 
     for mut node in &mut common_fields {
-        let display = if has_mode { Display::Flex } else { Display::None };
+        let display = if has_mode {
+            Display::Flex
+        } else {
+            Display::None
+        };
         if node.display != display {
             node.display = display;
         }

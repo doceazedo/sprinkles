@@ -15,10 +15,7 @@ pub fn plugin(app: &mut App) {
 #[derive(Component)]
 pub struct SaveButton;
 
-fn setup_save_button_observer(
-    buttons: Query<Entity, Added<SaveButton>>,
-    mut commands: Commands,
-) {
+fn setup_save_button_observer(buttons: Query<Entity, Added<SaveButton>>, mut commands: Commands) {
     for entity in &buttons {
         commands.entity(entity).observe(on_save_button_click);
     }

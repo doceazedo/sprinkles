@@ -13,10 +13,12 @@ use bevy::post_process::bloom::Bloom;
 use bevy::prelude::*;
 use bevy::render::render_resource::{TextureDimension, TextureFormat, TextureUsages};
 
-use crate::state::{EditorState, Inspectable, PlaybackPlayEvent, PlaybackResetEvent, PlaybackSeekEvent};
-use crate::ui::tokens::PRIMARY_COLOR;
+use crate::state::{
+    EditorState, Inspectable, PlaybackPlayEvent, PlaybackResetEvent, PlaybackSeekEvent,
+};
 use crate::ui::components::seekbar::SeekbarDragState;
 use crate::ui::components::viewport::EditorViewport;
+use crate::ui::tokens::PRIMARY_COLOR;
 
 const MIN_ZOOM_DISTANCE: f32 = 0.1;
 const MAX_ZOOM_DISTANCE: f32 = 20.0;
@@ -293,7 +295,9 @@ pub fn handle_respawn_emitters(
                 commands.entity(emitter_entity).despawn();
             }
         }
-        commands.entity(system_entity).remove::<ParticleSystemRuntime>();
+        commands
+            .entity(system_entity)
+            .remove::<ParticleSystemRuntime>();
     }
 }
 
@@ -309,7 +313,9 @@ pub fn handle_respawn_colliders(
                 commands.entity(collider_entity).despawn();
             }
         }
-        commands.entity(system_entity).remove::<ParticleSystemRuntime>();
+        commands
+            .entity(system_entity)
+            .remove::<ParticleSystemRuntime>();
     }
 }
 
