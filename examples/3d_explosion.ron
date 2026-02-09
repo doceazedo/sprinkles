@@ -26,6 +26,7 @@
                     alpha_mode: Blend,
                     perceptual_roughness: 0.5,
                     reflectance: 0.5,
+                    unlit: true,
                 )),
                 shadow_caster: false,
                 transform_align: Some(YToVelocity),
@@ -76,26 +77,62 @@
                 initial_color: Solid(
                     color: (1.0, 0.9843137, 0.92156863, 1.0),
                 ),
+                color_over_lifetime: (
+                    stops: [
+                        (
+                            color: (1.0, 1.0, 1.0, 1.0),
+                            position: 0.0,
+                        ),
+                        (
+                            color: (1.0, 1.0, 1.0, 1.0),
+                            position: 1.0,
+                        ),
+                    ],
+                ),
                 alpha_over_lifetime: Some((
+                    name: Some("Quad out"),
                     points: [
                         (
                             position: 0.0,
-                            value: 0.0,
-                            mode: SingleCurve,
+                            value: 1.0,
+                            mode: DoubleCurve,
                             tension: 0.0,
                             easing: Power,
                         ),
                         (
                             position: 1.0,
-                            value: 1.0,
+                            value: 0.0,
                             mode: SingleCurve,
-                            tension: 0.5,
+                            tension: -0.5005005005,
                             easing: Power,
                         ),
                     ],
                     range: (
                         min: 0.0,
                         max: 1.0,
+                    ),
+                )),
+                emission_over_lifetime: Some((
+                    name: Some("Constant"),
+                    points: [
+                        (
+                            position: 0.0,
+                            value: 1.0,
+                            mode: DoubleCurve,
+                            tension: 0.0,
+                            easing: Power,
+                        ),
+                        (
+                            position: 1.0,
+                            value: 1.0,
+                            mode: DoubleCurve,
+                            tension: 0.0,
+                            easing: Power,
+                        ),
+                    ],
+                    range: (
+                        min: 0.0,
+                        max: 10.0,
                     ),
                 )),
             ),
@@ -131,6 +168,7 @@
                         ),
                     )),
                 ),
+                angular_velocity: (),
             ),
             accelerations: (
                 gravity: (0.0, 0.0, 0.0),
@@ -227,6 +265,18 @@
                         ],
                     ),
                 ),
+                color_over_lifetime: (
+                    stops: [
+                        (
+                            color: (1.0, 1.0, 1.0, 1.0),
+                            position: 0.0,
+                        ),
+                        (
+                            color: (1.0, 1.0, 1.0, 1.0),
+                            position: 1.0,
+                        ),
+                    ],
+                ),
                 alpha_over_lifetime: Some((
                     points: [
                         (
@@ -258,6 +308,7 @@
                     max: 0.5,
                 ),
                 radial_velocity: (),
+                angular_velocity: (),
             ),
             accelerations: (
                 gravity: (0.0, 1.0, 0.0),
@@ -378,12 +429,24 @@
                         ],
                     ),
                 ),
+                color_over_lifetime: (
+                    stops: [
+                        (
+                            color: (1.0, 1.0, 1.0, 1.0),
+                            position: 0.0,
+                        ),
+                        (
+                            color: (1.0, 1.0, 1.0, 1.0),
+                            position: 1.0,
+                        ),
+                    ],
+                ),
                 emission_over_lifetime: Some((
                     points: [
                         (
                             position: 0.0,
-                            value: 1.0,
-                            mode: SingleCurve,
+                            value: 10.0,
+                            mode: DoubleCurve,
                             tension: 0.0,
                             easing: Power,
                         ),
@@ -391,8 +454,8 @@
                             position: 1.0,
                             value: 0.0,
                             mode: SingleCurve,
-                            tension: -0.5,
-                            easing: Power,
+                            tension: -1.0,
+                            easing: Circ,
                         ),
                     ],
                     range: (
@@ -409,6 +472,7 @@
                     max: 5.0,
                 ),
                 radial_velocity: (),
+                angular_velocity: (),
             ),
             accelerations: (
                 gravity: (0.0, 0.3, 0.0),
@@ -506,12 +570,24 @@
                         ],
                     ),
                 ),
+                color_over_lifetime: (
+                    stops: [
+                        (
+                            color: (1.0, 1.0, 1.0, 1.0),
+                            position: 0.0,
+                        ),
+                        (
+                            color: (1.0, 1.0, 1.0, 1.0),
+                            position: 1.0,
+                        ),
+                    ],
+                ),
                 emission_over_lifetime: Some((
                     points: [
                         (
                             position: 0.0,
-                            value: 1.0,
-                            mode: SingleCurve,
+                            value: 10.0,
+                            mode: DoubleCurve,
                             tension: 0.0,
                             easing: Power,
                         ),
@@ -519,8 +595,8 @@
                             position: 1.0,
                             value: 0.0,
                             mode: SingleCurve,
-                            tension: -0.5,
-                            easing: Power,
+                            tension: -1.0,
+                            easing: Circ,
                         ),
                     ],
                     range: (
@@ -537,6 +613,7 @@
                     max: 5.0,
                 ),
                 radial_velocity: (),
+                angular_velocity: (),
             ),
             accelerations: (
                 gravity: (0.0, -1.5, 0.0),
@@ -566,6 +643,7 @@
             draw_pass: (
                 mesh: Quad(
                     orientation: FaceY,
+                    size: (1.0, 1.0),
                 ),
                 material: Standard((
                     base_color: (1.0, 1.0, 1.0, 1.0),
@@ -615,6 +693,18 @@
                 initial_color: Solid(
                     color: (1.0, 1.0, 1.0, 1.0),
                 ),
+                color_over_lifetime: (
+                    stops: [
+                        (
+                            color: (1.0, 1.0, 1.0, 1.0),
+                            position: 0.0,
+                        ),
+                        (
+                            color: (1.0, 1.0, 1.0, 1.0),
+                            position: 1.0,
+                        ),
+                    ],
+                ),
                 alpha_over_lifetime: Some((
                     points: [
                         (
@@ -642,6 +732,7 @@
                 initial_direction: (1.0, 0.0, 0.0),
                 spread: 45.0,
                 radial_velocity: (),
+                angular_velocity: (),
             ),
             accelerations: (
                 gravity: (0.0, 0.0, 0.0),
@@ -724,6 +815,18 @@
                         ],
                     ),
                 ),
+                color_over_lifetime: (
+                    stops: [
+                        (
+                            color: (1.0, 1.0, 1.0, 1.0),
+                            position: 0.0,
+                        ),
+                        (
+                            color: (1.0, 1.0, 1.0, 1.0),
+                            position: 1.0,
+                        ),
+                    ],
+                ),
             ),
             velocities: (
                 initial_direction: (1.0, 0.0, 0.0),
@@ -733,6 +836,7 @@
                     max: 5.0,
                 ),
                 radial_velocity: (),
+                angular_velocity: (),
             ),
             accelerations: (
                 gravity: (0.0, -9.8, 0.0),

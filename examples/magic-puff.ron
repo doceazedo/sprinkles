@@ -5,13 +5,13 @@
         (
             name: "Shock",
             time: (
-                lifetime: 0.2,
+                lifetime: 0.3,
                 one_shot: true,
                 fixed_fps: 60,
             ),
             draw_pass: (
                 mesh: Sphere(
-                    radius: 0.8,
+                    radius: 1.25,
                 ),
                 material: Standard((
                     base_color: (1.0, 1.0, 1.0, 1.0),
@@ -67,7 +67,7 @@
                         ),
                         (
                             color: (1.0, 1.0, 1.0, 1.0),
-                            position: 1.0,
+                            position: 0.8,
                         ),
                     ],
                 ),
