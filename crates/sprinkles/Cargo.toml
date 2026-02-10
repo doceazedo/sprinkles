@@ -1,0 +1,20 @@
+[package]
+name = "sprinkles"
+version = "0.1.0"
+edition = "2024"
+
+[lints]
+workspace = true
+
+[features]
+default = ["preset-textures"]
+preset-textures = []
+
+[dependencies]
+bevy = { workspace = true }
+serde = { workspace = true }
+ron = { workspace = true }
+thiserror = { workspace = true }
+bytemuck = { workspace = true }
+bitflags = { workspace = true }
+

@@ -1,4 +1,4 @@
-# Aracari
+# Sprinkles
 
 GPU-accelerated particle systems for Bevy. WIP.
 

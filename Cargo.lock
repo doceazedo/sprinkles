@@ -187,33 +187,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "aracari"
-version = "0.1.0"
-dependencies = [
- "bevy",
- "bitflags 2.10.0",
- "bytemuck",
- "ron 0.10.1",
- "serde",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "aracari_editor"
-version = "0.1.0"
-dependencies = [
- "Inflector",
- "aracari",
- "bevy",
- "bevy_easings",
- "bevy_ui_text_input",
- "open",
- "rfd",
- "ron 0.10.1",
- "serde",
-]
-
-[[package]]
 name = "arboard"
 version = "3.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4957,6 +4930,33 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "eda41003dc44290527a59b13432d4a0379379fa074b70174882adfbdfd917844"
 dependencies = [
  "bitflags 2.10.0",
+]
+
+[[package]]
+name = "sprinkles"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "bitflags 2.10.0",
+ "bytemuck",
+ "ron 0.10.1",
+ "serde",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "sprinkles_editor"
+version = "0.1.0"
+dependencies = [
+ "Inflector",
+ "bevy",
+ "bevy_easings",
+ "bevy_ui_text_input",
+ "open",
+ "rfd",
+ "ron 0.10.1",
+ "serde",
+ "sprinkles",
 ]
 
 [[package]]
