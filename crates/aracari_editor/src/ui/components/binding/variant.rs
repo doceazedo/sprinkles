@@ -126,6 +126,12 @@ pub(super) fn bind_variant_field_values(
             }
         }
 
+        if bound {
+            commands
+                .entity(binding_entity)
+                .try_insert(Bound::variant(binding_entity));
+        }
+
         if let FieldKind::Vector(suffixes) = &binding.field_kind {
             let is_integer = suffixes.is_integer();
 
