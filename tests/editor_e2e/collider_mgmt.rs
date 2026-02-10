@@ -1,27 +1,8 @@
-use bevy::math::Vec3;
-use sprinkles::asset::{
-    ColliderData, EmitterData, ParticleSystemAsset, ParticleSystemDimension,
-    ParticlesColliderShape3D,
-};
-use sprinkles_editor::state::{EditorState, Inspectable, Inspecting};
+use super::helpers::*;
 
-fn create_test_asset_with_colliders(collider_names: &[&str]) -> ParticleSystemAsset {
-    ParticleSystemAsset {
-        name: "Test".to_string(),
-        dimension: ParticleSystemDimension::D3,
-        emitters: vec![EmitterData {
-            name: "Emitter".to_string(),
-            ..Default::default()
-        }],
-        colliders: collider_names
-            .iter()
-            .map(|name| ColliderData {
-                name: name.to_string(),
-                ..Default::default()
-            })
-            .collect(),
-    }
-}
+use bevy::math::Vec3;
+use sprinkles::asset::{ColliderData, ParticlesColliderShape3D};
+use sprinkles_editor::state::{EditorState, Inspectable, Inspecting};
 
 #[test]
 fn test_add_collider() {

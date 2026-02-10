@@ -1,34 +1,7 @@
-use sprinkles::asset::{EmitterData, ParticleSystemAsset, ParticleSystemDimension};
+use super::helpers::*;
+
+use sprinkles::asset::EmitterData;
 use sprinkles_editor::state::{EditorState, Inspectable, Inspecting};
-
-fn create_test_asset(emitter_names: &[&str]) -> ParticleSystemAsset {
-    ParticleSystemAsset {
-        name: "Test".to_string(),
-        dimension: ParticleSystemDimension::D3,
-        emitters: emitter_names
-            .iter()
-            .map(|name| EmitterData {
-                name: name.to_string(),
-                ..Default::default()
-            })
-            .collect(),
-        colliders: vec![],
-    }
-}
-
-fn next_unique_name(base_name: &str, existing: &[&str]) -> String {
-    if !existing.contains(&base_name) {
-        return base_name.to_string();
-    }
-    let mut n = 2;
-    loop {
-        let candidate = format!("{} {}", base_name, n);
-        if !existing.iter().any(|name| *name == candidate) {
-            return candidate;
-        }
-        n += 1;
-    }
-}
 
 #[test]
 fn test_add_emitter() {

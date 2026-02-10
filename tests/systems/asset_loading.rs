@@ -1,27 +1,7 @@
 use super::helpers::*;
 
-use bevy::asset::Assets;
 use bevy::prelude::*;
 use sprinkles::asset::*;
-
-fn load_asset(app: &mut App, fixture: &str) -> ParticleSystemAsset {
-    let handle = load_fixture(app, fixture);
-    for _ in 0..100 {
-        app.update();
-        let asset_server = app.world().resource::<bevy::asset::AssetServer>();
-        match asset_server.load_state(&handle) {
-            bevy::asset::LoadState::Loaded => {
-                let assets = app.world().resource::<Assets<ParticleSystemAsset>>();
-                return assets.get(&handle).expect("asset should exist").clone();
-            }
-            bevy::asset::LoadState::Failed(err) => {
-                panic!("fixture failed to load '{fixture}': {err:?}");
-            }
-            _ => continue,
-        }
-    }
-    panic!("fixture timed out loading: {fixture}");
-}
 
 #[test]
 fn load_minimal_particle_system() {

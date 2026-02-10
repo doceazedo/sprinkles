@@ -5,16 +5,7 @@ use sprinkles::runtime::{EmitterRuntime, ParticleSystem3D};
 
 #[test]
 fn system_time_advances_each_frame() {
-    let mut app = create_minimal_app();
-    let handle = load_fixture(&mut app, "minimal_particle_system.ron");
-    spawn_3d_particle_system(&mut app, handle.clone());
-
-    assert!(
-        run_until_loaded(&mut app, &handle, 100),
-        "fixture should load"
-    );
-
-    advance_frames(&mut app, 5);
+    let (mut app, ..) = setup_loaded_system("minimal_particle_system.ron");
 
     let runtime = app
         .world_mut()
@@ -30,16 +21,7 @@ fn system_time_advances_each_frame() {
 
 #[test]
 fn cleanup_removes_emitters_when_system_despawned() {
-    let mut app = create_minimal_app();
-    let handle = load_fixture(&mut app, "minimal_particle_system.ron");
-    let system_entity = spawn_3d_particle_system(&mut app, handle.clone());
-
-    assert!(
-        run_until_loaded(&mut app, &handle, 100),
-        "fixture should load"
-    );
-
-    advance_frames(&mut app, 5);
+    let (mut app, _, system_entity) = setup_loaded_system("minimal_particle_system.ron");
 
     let emitter_count = app
         .world_mut()

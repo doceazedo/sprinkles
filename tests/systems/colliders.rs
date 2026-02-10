@@ -7,16 +7,7 @@ use sprinkles::runtime::{ColliderEntity, ParticlesCollider3D};
 
 #[test]
 fn collider_entities_spawned_with_system() {
-    let mut app = create_minimal_app();
-    let handle = load_fixture(&mut app, "collision_test.ron");
-    let system_entity = spawn_3d_particle_system(&mut app, handle.clone());
-
-    assert!(
-        run_until_loaded(&mut app, &handle, 100),
-        "fixture should load"
-    );
-
-    advance_frames(&mut app, 5);
+    let (mut app, _, system_entity) = setup_loaded_system("collision_test.ron");
 
     let colliders: Vec<_> = app
         .world_mut()
@@ -43,16 +34,7 @@ fn collider_entities_spawned_with_system() {
 
 #[test]
 fn collider_3d_components_match_config() {
-    let mut app = create_minimal_app();
-    let handle = load_fixture(&mut app, "collision_test.ron");
-    spawn_3d_particle_system(&mut app, handle.clone());
-
-    assert!(
-        run_until_loaded(&mut app, &handle, 100),
-        "fixture should load"
-    );
-
-    advance_frames(&mut app, 5);
+    let (mut app, handle, _) = setup_loaded_system("collision_test.ron");
 
     let colliders: Vec<_> = app
         .world_mut()

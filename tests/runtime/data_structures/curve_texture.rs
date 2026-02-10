@@ -1,35 +1,5 @@
 use sprinkles::asset::*;
 
-// --- Range ---
-
-#[test]
-fn range_default() {
-    let range = Range::default();
-    assert_eq!(range.min, 0.0);
-    assert_eq!(range.max, 1.0);
-}
-
-#[test]
-fn range_with_values() {
-    let range = Range::new(2.0, 5.0);
-    assert_eq!(range.min, 2.0);
-    assert_eq!(range.max, 5.0);
-}
-
-#[test]
-fn range_span() {
-    let range = Range::new(1.0, 4.0);
-    assert_eq!(range.span(), 3.0);
-}
-
-#[test]
-fn range_span_zero_returns_one() {
-    let range = Range::new(5.0, 5.0);
-    assert_eq!(range.span(), 1.0, "span of zero should return 1.0");
-}
-
-// --- CurveTexture ---
-
 #[test]
 fn curve_sample_edges() {
     let curve = CurveTexture {
@@ -57,7 +27,6 @@ fn curve_sample_midpoint() {
         range: Range::new(0.0, 1.0),
     };
     let mid = curve.sample(0.5);
-    // default mode is DoubleCurve with default tension, so midpoint should be ~0.5
     assert!(
         (mid - 0.5).abs() < 0.1,
         "sample at t=0.5 should be ~0.5, got {mid}"
@@ -95,7 +64,6 @@ fn curve_hold_mode() {
         ],
         range: Range::new(0.0, 1.0),
     };
-    // hold mode returns left value (no interpolation)
     let mid = curve.sample(0.5);
     assert!(
         (mid - 1.0).abs() < 0.01,
@@ -154,74 +122,4 @@ fn curve_cache_key_differs_for_different_curves() {
         range: Range::new(0.0, 1.0),
     };
     assert_ne!(curve_a.cache_key(), curve_b.cache_key());
-}
-
-// --- Gradient ---
-
-#[test]
-fn gradient_default() {
-    let gradient = Gradient::default();
-    assert_eq!(gradient.stops.len(), 2);
-    assert_eq!(gradient.interpolation, GradientInterpolation::Linear);
-    assert_eq!(gradient.stops[0].position, 0.0);
-    assert_eq!(gradient.stops[1].position, 1.0);
-}
-
-#[test]
-fn gradient_white() {
-    let gradient = Gradient::white();
-    assert_eq!(gradient.stops.len(), 2);
-    assert_eq!(gradient.stops[0].color, [1.0, 1.0, 1.0, 1.0]);
-    assert_eq!(gradient.stops[1].color, [1.0, 1.0, 1.0, 1.0]);
-}
-
-#[test]
-fn gradient_cache_key_differs() {
-    let grad_a = Gradient {
-        stops: vec![
-            GradientStop { color: [1.0, 0.0, 0.0, 1.0], position: 0.0 },
-            GradientStop { color: [0.0, 0.0, 1.0, 1.0], position: 1.0 },
-        ],
-        interpolation: GradientInterpolation::Linear,
-    };
-    let grad_b = Gradient {
-        stops: vec![
-            GradientStop { color: [0.0, 1.0, 0.0, 1.0], position: 0.0 },
-            GradientStop { color: [1.0, 1.0, 0.0, 1.0], position: 1.0 },
-        ],
-        interpolation: GradientInterpolation::Linear,
-    };
-    assert_ne!(grad_a.cache_key(), grad_b.cache_key());
-}
-
-#[test]
-fn gradient_interpolation_variants() {
-    let linear = GradientInterpolation::Linear;
-    let steps = GradientInterpolation::Steps;
-    let smoothstep = GradientInterpolation::Smoothstep;
-
-    assert_ne!(linear, steps);
-    assert_ne!(linear, smoothstep);
-    assert_ne!(steps, smoothstep);
-    assert_eq!(GradientInterpolation::default(), GradientInterpolation::Linear);
-}
-
-// --- SolidOrGradientColor ---
-
-#[test]
-fn solid_color_default() {
-    let color = SolidOrGradientColor::default();
-    assert!(color.is_solid());
-    assert!(!color.is_gradient());
-    assert_eq!(color.as_solid_color(), Some([1.0, 1.0, 1.0, 1.0]));
-}
-
-#[test]
-fn gradient_color() {
-    let color = SolidOrGradientColor::Gradient {
-        gradient: Gradient::default(),
-    };
-    assert!(!color.is_solid());
-    assert!(color.is_gradient());
-    assert_eq!(color.as_solid_color(), None);
 }

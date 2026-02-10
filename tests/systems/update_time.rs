@@ -90,12 +90,7 @@ fn looping_emitter_cycles() {
 
 #[test]
 fn fixed_fps_quantizes_simulation_steps() {
-    let mut app = create_minimal_app();
-    let handle = load_fixture(&mut app, "fixed_fps.ron");
-    spawn_3d_particle_system(&mut app, handle.clone());
-
-    assert!(run_until_loaded(&mut app, &handle, 100));
-    advance_frames(&mut app, 5);
+    let (mut app, ..) = setup_loaded_system("fixed_fps.ron");
 
     // run one more frame and check steps
     app.update();
@@ -124,12 +119,7 @@ fn fixed_fps_quantizes_simulation_steps() {
 
 #[test]
 fn disabled_emitter_still_spawns_entity() {
-    let mut app = create_minimal_app();
-    let handle = load_fixture(&mut app, "disabled_emitter.ron");
-    spawn_3d_particle_system(&mut app, handle.clone());
-
-    assert!(run_until_loaded(&mut app, &handle, 100));
-    advance_frames(&mut app, 5);
+    let (mut app, ..) = setup_loaded_system("disabled_emitter.ron");
 
     let emitter_count = app
         .world_mut()

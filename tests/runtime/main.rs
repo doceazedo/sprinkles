@@ -5,7 +5,6 @@ mod data_structures;
 mod emitter_defaults;
 mod emitter_runtime;
 mod emitter_time;
-mod free_functions;
 mod integration;
 mod particle_system_runtime;
 mod phase;

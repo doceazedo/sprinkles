@@ -1,7 +1,10 @@
 use bevy::asset::{AssetPlugin, AssetServer, LoadState};
 use bevy::prelude::*;
 use bevy::render::storage::ShaderStorageBuffer;
-use sprinkles::asset::{ParticleSystemAsset, ParticleSystemAssetLoader};
+use sprinkles::asset::{
+    ColliderData, EmitterData, ParticleSystemAsset, ParticleSystemAssetLoader,
+    ParticleSystemDimension,
+};
 use sprinkles::runtime::{ParticleMaterial, ParticleSystem3D};
 use std::path::Path;
 
@@ -64,36 +67,6 @@ pub fn create_minimal_app() -> App {
     app
 }
 
-/// creates a bevy app with full rendering support for visual tests.
-///
-/// NOTE: on macOS, winit requires the main thread. standard rust tests run on
-/// worker threads, so this function will panic in `#[test]` functions.
-/// use `harness = false` with a custom `fn main()` for visual tests that need
-/// actual rendering. the image comparison utilities can be tested normally.
-pub fn create_headless_render_app() -> App {
-    use bevy::window::ExitCondition;
-
-    let mut app = App::new();
-
-    app.add_plugins(
-        DefaultPlugins
-            .set(AssetPlugin {
-                file_path: fixtures_path(),
-                ..default()
-            })
-            .set(WindowPlugin {
-                primary_window: None,
-                exit_condition: ExitCondition::DontExit,
-                ..default()
-            })
-            .set(ImagePlugin::default_nearest()),
-    );
-
-    app.add_plugins(sprinkles::SprinklesPlugin);
-
-    app
-}
-
 pub fn load_fixture(app: &mut App, filename: &str) -> Handle<ParticleSystemAsset> {
     let asset_server = app.world().resource::<AssetServer>();
     asset_server.load(filename.to_string())
@@ -117,6 +90,39 @@ pub fn spawn_3d_particle_system(app: &mut App, handle: Handle<ParticleSystemAsse
     app.world_mut()
         .spawn(ParticleSystem3D { handle })
         .id()
+}
+
+pub fn setup_loaded_system(fixture: &str) -> (App, Handle<ParticleSystemAsset>, Entity) {
+    let mut app = create_minimal_app();
+    let handle = load_fixture(&mut app, fixture);
+    let entity = spawn_3d_particle_system(&mut app, handle.clone());
+    assert!(
+        run_until_loaded(&mut app, &handle, 100),
+        "fixture should load"
+    );
+    advance_frames(&mut app, 5);
+    (app, handle, entity)
+}
+
+pub fn load_asset(app: &mut App, fixture: &str) -> ParticleSystemAsset {
+    let handle = load_fixture(app, fixture);
+    for _ in 0..100 {
+        app.update();
+        let asset_server = app.world().resource::<AssetServer>();
+        match asset_server.load_state(&handle) {
+            LoadState::Loaded => {
+                let assets = app
+                    .world()
+                    .resource::<bevy::asset::Assets<ParticleSystemAsset>>();
+                return assets.get(&handle).expect("asset should exist").clone();
+            }
+            LoadState::Failed(err) => {
+                panic!("fixture failed to load '{fixture}': {err:?}");
+            }
+            _ => continue,
+        }
+    }
+    panic!("fixture timed out loading: {fixture}");
 }
 
 pub fn advance_frames(app: &mut App, n: u32) {
@@ -189,6 +195,53 @@ pub fn compare_images(actual: &[u8], expected: &[u8], per_channel_tolerance: u8)
         different_pixels,
         max_channel_diff,
         avg_diff,
+    }
+}
+
+pub fn create_test_asset(emitter_names: &[&str]) -> ParticleSystemAsset {
+    ParticleSystemAsset {
+        name: "Test".to_string(),
+        dimension: ParticleSystemDimension::D3,
+        emitters: emitter_names
+            .iter()
+            .map(|name| EmitterData {
+                name: name.to_string(),
+                ..Default::default()
+            })
+            .collect(),
+        colliders: vec![],
+    }
+}
+
+pub fn create_test_asset_with_colliders(collider_names: &[&str]) -> ParticleSystemAsset {
+    ParticleSystemAsset {
+        name: "Test".to_string(),
+        dimension: ParticleSystemDimension::D3,
+        emitters: vec![EmitterData {
+            name: "Emitter".to_string(),
+            ..Default::default()
+        }],
+        colliders: collider_names
+            .iter()
+            .map(|name| ColliderData {
+                name: name.to_string(),
+                ..Default::default()
+            })
+            .collect(),
+    }
+}
+
+pub fn next_unique_name(base_name: &str, existing: &[&str]) -> String {
+    if !existing.contains(&base_name) {
+        return base_name.to_string();
+    }
+    let mut n = 2;
+    loop {
+        let candidate = format!("{} {}", base_name, n);
+        if !existing.iter().any(|name| *name == candidate) {
+            return candidate;
+        }
+        n += 1;
     }
 }
 

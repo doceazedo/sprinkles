@@ -10,12 +10,7 @@ use sprinkles::runtime::{
 
 #[test]
 fn mesh_config_matches_initial_asset() {
-    let mut app = create_minimal_app();
-    let handle = load_fixture(&mut app, "minimal_particle_system.ron");
-    spawn_3d_particle_system(&mut app, handle.clone());
-
-    assert!(run_until_loaded(&mut app, &handle, 100));
-    advance_frames(&mut app, 5);
+    let (mut app, handle, _) = setup_loaded_system("minimal_particle_system.ron");
 
     let config = app
         .world_mut()
@@ -34,12 +29,7 @@ fn mesh_config_matches_initial_asset() {
 
 #[test]
 fn material_config_matches_initial_asset() {
-    let mut app = create_minimal_app();
-    let handle = load_fixture(&mut app, "minimal_particle_system.ron");
-    spawn_3d_particle_system(&mut app, handle.clone());
-
-    assert!(run_until_loaded(&mut app, &handle, 100));
-    advance_frames(&mut app, 5);
+    let (mut app, _, _) = setup_loaded_system("minimal_particle_system.ron");
 
     let has_material_config = app
         .world_mut()
@@ -52,12 +42,7 @@ fn material_config_matches_initial_asset() {
 
 #[test]
 fn mesh_change_updates_config() {
-    let mut app = create_minimal_app();
-    let handle = load_fixture(&mut app, "minimal_particle_system.ron");
-    spawn_3d_particle_system(&mut app, handle.clone());
-
-    assert!(run_until_loaded(&mut app, &handle, 100));
-    advance_frames(&mut app, 5);
+    let (mut app, handle, _) = setup_loaded_system("minimal_particle_system.ron");
 
     // modify the asset's mesh to a different variant
     let mut assets = app.world_mut().resource_mut::<Assets<ParticleSystemAsset>>();
@@ -84,12 +69,7 @@ fn mesh_change_updates_config() {
 
 #[test]
 fn each_mesh_variant_can_be_assigned() {
-    let mut app = create_minimal_app();
-    let handle = load_fixture(&mut app, "all_emission_shapes.ron");
-    spawn_3d_particle_system(&mut app, handle.clone());
-
-    assert!(run_until_loaded(&mut app, &handle, 100));
-    advance_frames(&mut app, 5);
+    let (mut app, _, _) = setup_loaded_system("all_emission_shapes.ron");
 
     let mesh_count = app
         .world_mut()
@@ -101,12 +81,7 @@ fn each_mesh_variant_can_be_assigned() {
 
 #[test]
 fn material_change_updates_handle() {
-    let mut app = create_minimal_app();
-    let handle = load_fixture(&mut app, "minimal_particle_system.ron");
-    spawn_3d_particle_system(&mut app, handle.clone());
-
-    assert!(run_until_loaded(&mut app, &handle, 100));
-    advance_frames(&mut app, 5);
+    let (mut app, handle, _) = setup_loaded_system("minimal_particle_system.ron");
 
     // get original material handle id
     let original_handle = app
@@ -146,12 +121,7 @@ fn material_change_updates_handle() {
 fn collider_enabled_toggle() {
     use sprinkles::runtime::{ColliderEntity, ParticlesCollider3D};
 
-    let mut app = create_minimal_app();
-    let handle = load_fixture(&mut app, "collision_test.ron");
-    spawn_3d_particle_system(&mut app, handle.clone());
-
-    assert!(run_until_loaded(&mut app, &handle, 100));
-    advance_frames(&mut app, 5);
+    let (mut app, handle, _) = setup_loaded_system("collision_test.ron");
 
     // all colliders should be enabled by default
     let colliders: Vec<_> = app
@@ -187,12 +157,7 @@ fn collider_enabled_toggle() {
 fn removed_system_cleans_up_colliders() {
     use sprinkles::runtime::ColliderEntity;
 
-    let mut app = create_minimal_app();
-    let handle = load_fixture(&mut app, "collision_test.ron");
-    let system_entity = spawn_3d_particle_system(&mut app, handle.clone());
-
-    assert!(run_until_loaded(&mut app, &handle, 100));
-    advance_frames(&mut app, 5);
+    let (mut app, _, system_entity) = setup_loaded_system("collision_test.ron");
 
     let collider_count = app
         .world_mut()

@@ -1,6 +1,3 @@
-// extract module is private, so we test extract behavior indirectly
-// through the public spawning systems and runtime components.
-
 use super::helpers::*;
 
 use bevy::asset::Assets;
@@ -10,12 +7,7 @@ use sprinkles::runtime::{EmitterRuntime, ParticleBufferHandle};
 
 #[test]
 fn emitter_runtime_reflects_emitter_index() {
-    let mut app = create_minimal_app();
-    let handle = load_fixture(&mut app, "two_emitters.ron");
-    spawn_3d_particle_system(&mut app, handle.clone());
-
-    assert!(run_until_loaded(&mut app, &handle, 100));
-    advance_frames(&mut app, 5);
+    let (mut app, ..) = setup_loaded_system("two_emitters.ron");
 
     let mut indices: Vec<usize> = app
         .world_mut()
@@ -29,12 +21,7 @@ fn emitter_runtime_reflects_emitter_index() {
 
 #[test]
 fn emitter_buffer_matches_particle_count() {
-    let mut app = create_minimal_app();
-    let handle = load_fixture(&mut app, "two_emitters.ron");
-    spawn_3d_particle_system(&mut app, handle.clone());
-
-    assert!(run_until_loaded(&mut app, &handle, 100));
-    advance_frames(&mut app, 5);
+    let (mut app, handle, _) = setup_loaded_system("two_emitters.ron");
 
     let asset = {
         let assets = app.world().resource::<Assets<ParticleSystemAsset>>();

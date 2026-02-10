@@ -6,8 +6,6 @@ fn roundtrip_ron<T: serde::Serialize + serde::de::DeserializeOwned>(value: &T) -
     ron::from_str(&serialized).unwrap()
 }
 
-// --- ParticleMesh variants ---
-
 #[test]
 fn particle_mesh_quad_roundtrip() {
     let mesh = ParticleMesh::Quad {
@@ -56,8 +54,6 @@ fn particle_mesh_prism_roundtrip() {
     assert_eq!(roundtrip_ron(&mesh), mesh);
 }
 
-// --- EmissionShape variants ---
-
 #[test]
 fn emission_shape_point_roundtrip() {
     let shape = EmissionShape::Point;
@@ -95,8 +91,6 @@ fn emission_shape_ring_roundtrip() {
     assert_eq!(roundtrip_ron(&shape), shape);
 }
 
-// --- SerializableAlphaMode variants ---
-
 #[test]
 fn alpha_mode_all_variants_roundtrip() {
     let variants = [
@@ -113,8 +107,6 @@ fn alpha_mode_all_variants_roundtrip() {
     }
 }
 
-// --- TransformAlign variants ---
-
 #[test]
 fn transform_align_all_variants_roundtrip() {
     let variants = [
@@ -128,8 +120,6 @@ fn transform_align_all_variants_roundtrip() {
     }
 }
 
-// --- DrawOrder variants ---
-
 #[test]
 fn draw_order_all_variants_roundtrip() {
     let variants = [
@@ -142,8 +132,6 @@ fn draw_order_all_variants_roundtrip() {
         assert_eq!(&roundtrip_ron(order), order, "failed for {order:?}");
     }
 }
-
-// --- EmitterCollisionMode variants ---
 
 #[test]
 fn collision_mode_all_variants_roundtrip() {
@@ -172,8 +160,6 @@ fn collision_mode_all_variants_roundtrip() {
     }
 }
 
-// --- SubEmitterMode variants ---
-
 #[test]
 fn sub_emitter_mode_all_variants_roundtrip() {
     let variants = [
@@ -186,8 +172,6 @@ fn sub_emitter_mode_all_variants_roundtrip() {
         assert_eq!(&roundtrip_ron(mode), mode, "failed for {mode:?}");
     }
 }
-
-// --- CurveMode variants ---
 
 #[test]
 fn curve_mode_all_variants_roundtrip() {
@@ -203,8 +187,6 @@ fn curve_mode_all_variants_roundtrip() {
     }
 }
 
-// --- CurveEasing variants ---
-
 #[test]
 fn curve_easing_all_variants_roundtrip() {
     let variants = [
@@ -217,8 +199,6 @@ fn curve_easing_all_variants_roundtrip() {
         assert_eq!(&roundtrip_ron(easing), easing, "failed for {easing:?}");
     }
 }
-
-// --- ParticleFlags ---
 
 #[test]
 fn particle_flags_roundtrip() {
@@ -238,8 +218,6 @@ fn particle_flags_empty_roundtrip() {
     assert_eq!(deserialized, flags);
 }
 
-// --- GradientInterpolation variants ---
-
 #[test]
 fn gradient_interpolation_all_variants_roundtrip() {
     let variants = [
@@ -252,8 +230,6 @@ fn gradient_interpolation_all_variants_roundtrip() {
     }
 }
 
-// --- QuadOrientation variants ---
-
 #[test]
 fn quad_orientation_all_variants_roundtrip() {
     let variants = [
@@ -265,8 +241,6 @@ fn quad_orientation_all_variants_roundtrip() {
         assert_eq!(&roundtrip_ron(orient), orient, "failed for {orient:?}");
     }
 }
-
-// --- ParticleSystemDimension variants ---
 
 #[test]
 fn dimension_all_variants_roundtrip() {

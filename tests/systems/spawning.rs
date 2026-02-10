@@ -8,16 +8,7 @@ use sprinkles::runtime::{
 
 #[test]
 fn particle_system_3d_spawns_emitter_entities() {
-    let mut app = create_minimal_app();
-    let handle = load_fixture(&mut app, "minimal_particle_system.ron");
-    let system_entity = spawn_3d_particle_system(&mut app, handle.clone());
-
-    assert!(
-        run_until_loaded(&mut app, &handle, 100),
-        "fixture should load"
-    );
-
-    advance_frames(&mut app, 5);
+    let (mut app, _, system_entity) = setup_loaded_system("minimal_particle_system.ron");
 
     let emitter_count = app
         .world_mut()
@@ -40,16 +31,7 @@ fn particle_system_3d_spawns_emitter_entities() {
 
 #[test]
 fn particle_system_3d_spawns_multiple_emitters() {
-    let mut app = create_minimal_app();
-    let handle = load_fixture(&mut app, "two_emitters.ron");
-    spawn_3d_particle_system(&mut app, handle.clone());
-
-    assert!(
-        run_until_loaded(&mut app, &handle, 100),
-        "fixture should load"
-    );
-
-    advance_frames(&mut app, 5);
+    let (mut app, ..) = setup_loaded_system("two_emitters.ron");
 
     let emitter_count = app
         .world_mut()
@@ -70,16 +52,7 @@ fn particle_system_3d_spawns_multiple_emitters() {
 
 #[test]
 fn particle_system_gets_runtime_component() {
-    let mut app = create_minimal_app();
-    let handle = load_fixture(&mut app, "minimal_particle_system.ron");
-    let system_entity = spawn_3d_particle_system(&mut app, handle.clone());
-
-    assert!(
-        run_until_loaded(&mut app, &handle, 100),
-        "fixture should load"
-    );
-
-    advance_frames(&mut app, 5);
+    let (mut app, _, system_entity) = setup_loaded_system("minimal_particle_system.ron");
 
     let runtime = app
         .world()
@@ -91,16 +64,7 @@ fn particle_system_gets_runtime_component() {
 
 #[test]
 fn emitters_get_required_components() {
-    let mut app = create_minimal_app();
-    let handle = load_fixture(&mut app, "minimal_particle_system.ron");
-    spawn_3d_particle_system(&mut app, handle.clone());
-
-    assert!(
-        run_until_loaded(&mut app, &handle, 100),
-        "fixture should load"
-    );
-
-    advance_frames(&mut app, 5);
+    let (mut app, ..) = setup_loaded_system("minimal_particle_system.ron");
 
     let emitter_entity = app
         .world_mut()
@@ -147,16 +111,7 @@ fn emitters_get_required_components() {
 
 #[test]
 fn particle_buffer_matches_particle_count() {
-    let mut app = create_minimal_app();
-    let handle = load_fixture(&mut app, "minimal_particle_system.ron");
-    spawn_3d_particle_system(&mut app, handle.clone());
-
-    assert!(
-        run_until_loaded(&mut app, &handle, 100),
-        "fixture should load"
-    );
-
-    advance_frames(&mut app, 5);
+    let (mut app, ..) = setup_loaded_system("minimal_particle_system.ron");
 
     let buffer = app
         .world_mut()
