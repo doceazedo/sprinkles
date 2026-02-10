@@ -64,7 +64,7 @@ pub fn plugin(app: &mut App) {
 pub fn sub_emitter_section(asset_server: &AssetServer) -> impl Bundle {
     (
         SubEmitterSection,
-        inspector_section(InspectorSection::new("Sub Emitter", vec![]), asset_server),
+        inspector_section(InspectorSection::new("Sub-emitter", vec![]), asset_server),
     )
 }
 

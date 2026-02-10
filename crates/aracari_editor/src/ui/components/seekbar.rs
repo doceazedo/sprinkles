@@ -168,10 +168,18 @@ fn update_seekbar(
         return;
     };
 
+    let sub_target_indices: Vec<usize> = asset
+        .emitters
+        .iter()
+        .filter_map(|e| e.sub_emitter.as_ref().map(|s| s.target_emitter))
+        .collect();
+
     let duration = asset
         .emitters
         .iter()
-        .map(|e| e.time.total_duration())
+        .enumerate()
+        .filter(|(idx, _)| !sub_target_indices.contains(idx))
+        .map(|(_, e)| e.time.total_duration())
         .fold(0.0_f32, |a, b| a.max(b));
 
     let elapsed = if drag.dragging {
@@ -179,7 +187,10 @@ fn update_seekbar(
     } else {
         emitter_query
             .iter()
-            .filter(|(e, _)| e.parent_system == system_entity)
+            .filter(|(e, r)| {
+                e.parent_system == system_entity
+                    && !sub_target_indices.contains(&r.emitter_index)
+            })
             .map(|(_, r)| r.system_time)
             .fold(0.0_f32, |a, b| a.max(b))
     };
@@ -274,10 +285,18 @@ fn on_seekbar_drag(
         return;
     };
 
+    let sub_target_indices: Vec<usize> = asset
+        .emitters
+        .iter()
+        .filter_map(|e| e.sub_emitter.as_ref().map(|s| s.target_emitter))
+        .collect();
+
     let duration = asset
         .emitters
         .iter()
-        .map(|e| e.time.total_duration())
+        .enumerate()
+        .filter(|(idx, _)| !sub_target_indices.contains(idx))
+        .map(|(_, e)| e.time.total_duration())
         .fold(0.0_f32, |a, b| a.max(b));
 
     let seek_time = event.value * duration;

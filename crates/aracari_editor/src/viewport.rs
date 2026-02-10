@@ -27,7 +27,7 @@ const INITIAL_ORBIT_DISTANCE: f32 = 8.0;
 const ORBIT_OFFSET: Vec3 = Vec3::new(1.0, 0.75, 1.0);
 const ORBIT_TARGET: Vec3 = Vec3::ZERO;
 
-const FLOOR_SIZE: f32 = 100.0;
+const FLOOR_SIZE: f32 = 192.0;
 const FLOOR_TILE_SIZE: f32 = 2.0;
 
 #[derive(Component)]
@@ -88,7 +88,7 @@ pub fn setup_camera(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
             color: ZINC_950.into(),
             falloff: FogFalloff::Linear {
                 start: 24.0,
-                end: 48.0,
+                end: 96.0,
             },
             ..default()
         },
@@ -392,12 +392,19 @@ pub fn handle_playback_play_event(
             continue;
         };
 
-        // check if all one-shot emitters have completed
+        let sub_target_indices: Vec<usize> = asset
+            .emitters
+            .iter()
+            .filter_map(|e| e.sub_emitter.as_ref().map(|s| s.target_emitter))
+            .collect();
+
+        // check if all one-shot emitters have completed (ignoring subemitter targets)
         let all_one_shots_completed =
             asset
                 .emitters
                 .iter()
                 .enumerate()
+                .filter(|(idx, _)| !sub_target_indices.contains(idx))
                 .all(|(idx, emitter_data)| {
                     if !emitter_data.time.one_shot {
                         return true;
@@ -409,7 +416,12 @@ pub fn handle_playback_play_event(
                     })
                 });
 
-        let has_one_shot = asset.emitters.iter().any(|e| e.time.one_shot);
+        let has_one_shot = asset
+            .emitters
+            .iter()
+            .enumerate()
+            .filter(|(idx, _)| !sub_target_indices.contains(idx))
+            .any(|(_, e)| e.time.one_shot);
 
         // restart completed one-shot emitters when play is requested
         if has_one_shot && all_one_shots_completed {
@@ -496,12 +508,20 @@ pub fn sync_playback_state(
             continue;
         }
 
+        // ignore subemitter targets for completion checks
+        let sub_target_indices: Vec<usize> = asset
+            .emitters
+            .iter()
+            .filter_map(|e| e.sub_emitter.as_ref().map(|s| s.target_emitter))
+            .collect();
+
         // check if all one-shot emitters have completed
         let all_one_shots_completed =
             asset
                 .emitters
                 .iter()
                 .enumerate()
+                .filter(|(idx, _)| !sub_target_indices.contains(idx))
                 .all(|(idx, emitter_data)| {
                     if !emitter_data.time.one_shot {
                         return true;
@@ -513,7 +533,12 @@ pub fn sync_playback_state(
                     })
                 });
 
-        let has_one_shot = asset.emitters.iter().any(|e| e.time.one_shot);
+        let has_one_shot = asset
+            .emitters
+            .iter()
+            .enumerate()
+            .filter(|(idx, _)| !sub_target_indices.contains(idx))
+            .any(|(_, e)| e.time.one_shot);
 
         // handle one-shot emitters completion
         if has_one_shot && all_one_shots_completed {
