@@ -10,6 +10,7 @@ use crate::state::{DirtyState, EditorState, Inspectable};
 use crate::ui::widgets::variant_edit::VariantDefinition;
 
 pub(super) use super::inspector::FieldKind;
+pub(super) use super::inspector::InspectedColliderTracker;
 pub(super) use super::inspector::InspectedEmitterTracker;
 
 pub(super) const MAX_ANCESTOR_DEPTH: usize = 10;

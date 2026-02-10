@@ -1416,6 +1416,8 @@ impl Default for ParticlesColliderShape3D {
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct ColliderData {
     pub name: String,
+    #[serde(default = "default_enabled", skip_serializing_if = "is_true")]
+    pub enabled: bool,
     pub shape: ParticlesColliderShape3D,
     #[serde(default)]
     pub position: Vec3,
@@ -1425,6 +1427,7 @@ impl Default for ColliderData {
     fn default() -> Self {
         Self {
             name: "Collider".to_string(),
+            enabled: true,
             shape: ParticlesColliderShape3D::default(),
             position: Vec3::ZERO,
         }

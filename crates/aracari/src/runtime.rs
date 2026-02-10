@@ -293,6 +293,7 @@ pub struct SubEmitterBufferHandle {
 /// collider component for particle collision detection
 #[derive(Component, Debug, Clone)]
 pub struct ParticlesCollider3D {
+    pub enabled: bool,
     pub shape: ParticlesColliderShape3D,
     pub position: Vec3,
 }
@@ -300,6 +301,7 @@ pub struct ParticlesCollider3D {
 impl Default for ParticlesCollider3D {
     fn default() -> Self {
         Self {
+            enabled: true,
             shape: ParticlesColliderShape3D::default(),
             position: Vec3::ZERO,
         }

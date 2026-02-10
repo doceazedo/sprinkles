@@ -22,7 +22,6 @@ use bevy::prelude::*;
 
 use crate::state::{EditorState, Inspectable};
 use crate::ui::tokens::{BORDER_COLOR, FONT_PATH, TEXT_BODY_COLOR, TEXT_SIZE_LG};
-use crate::ui::widgets::button::{ButtonVariant, IconButtonProps, icon_button};
 use crate::ui::widgets::checkbox::{CheckboxProps, checkbox};
 use crate::ui::widgets::inspector_field::{InspectorFieldProps, fields_row, spawn_inspector_field};
 use crate::ui::widgets::panel::{PanelDirection, PanelProps, panel, panel_scrollbar};
@@ -274,9 +273,15 @@ fn toggle_inspector_content(
         }
     }
 
+    let checkbox_display = if inspecting_kind.is_some() {
+        Display::Flex
+    } else {
+        Display::None
+    };
+
     for mut node in &mut enabled_checkbox {
-        if node.display != emitter_display {
-            node.display = emitter_display;
+        if node.display != checkbox_display {
+            node.display = checkbox_display;
         }
     }
 }
@@ -330,10 +335,6 @@ fn panel_title(asset_server: &AssetServer) -> impl Bundle {
                 EnabledCheckbox,
                 Field::new("enabled").with_kind(FieldKind::Bool),
                 checkbox(CheckboxProps::new("Enabled").checked(true), asset_server)
-            ),
-            icon_button(
-                IconButtonProps::new("icons/ri-more-fill.png").variant(ButtonVariant::Ghost),
-                asset_server,
             ),
         ],
     )

@@ -817,6 +817,7 @@ pub fn setup_particle_systems(
                         collider_index,
                     },
                     ParticlesCollider3D {
+                        enabled: collider_data.enabled,
                         shape: collider_data.shape.clone(),
                         position: Vec3::ZERO,
                     },
@@ -915,6 +916,7 @@ pub fn sync_collider_data(
             continue;
         };
 
+        collider3d.enabled = collider_data.enabled;
         collider3d.shape = collider_data.shape.clone();
         transform.translation = collider_data.position;
     }

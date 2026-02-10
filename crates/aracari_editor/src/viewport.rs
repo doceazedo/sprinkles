@@ -4,7 +4,7 @@ use std::ops::Range;
 use aracari::prelude::*;
 use bevy::asset::RenderAssetUsages;
 use bevy::camera::RenderTarget;
-use bevy::color::palettes::tailwind::ZINC_950;
+use bevy::color::palettes::tailwind::{ZINC_200, ZINC_950};
 use bevy::image::{ImageAddressMode, ImageSamplerDescriptor};
 use bevy::input::mouse::{AccumulatedMouseMotion, AccumulatedMouseScroll};
 use bevy::math::Affine2;
@@ -467,6 +467,12 @@ pub fn draw_collider_gizmos(
             continue;
         }
 
+        let color = if collider.enabled {
+            PRIMARY_COLOR
+        } else {
+            ZINC_200
+        };
+
         match &collider.shape {
             ParticlesColliderShape3D::Box { size } => {
                 let collider_transform = Transform {
@@ -474,11 +480,11 @@ pub fn draw_collider_gizmos(
                     rotation: transform.rotation,
                     scale: *size,
                 };
-                gizmos.cube(collider_transform, PRIMARY_COLOR);
+                gizmos.cube(collider_transform, color);
             }
             ParticlesColliderShape3D::Sphere { radius } => {
                 let isometry = Isometry3d::from_translation(transform.translation);
-                gizmos.sphere(isometry, *radius, PRIMARY_COLOR);
+                gizmos.sphere(isometry, *radius, color);
             }
         }
     }

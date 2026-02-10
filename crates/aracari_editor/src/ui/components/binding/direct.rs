@@ -15,12 +15,13 @@ use crate::ui::widgets::variant_edit::{
     EditorVariantEdit, VariantComboBox, VariantEditConfig, VariantFieldBinding,
 };
 use crate::ui::widgets::vector_edit::EditorVectorEdit;
-use crate::viewport::RespawnEmittersEvent;
+use crate::viewport::{RespawnCollidersEvent, RespawnEmittersEvent};
 
 use super::{
-    Bound, Field, FieldKind, FieldValue, InspectedEmitterTracker, MAX_ANCESTOR_DEPTH, ReflectPath,
-    find_ancestor, find_ancestor_entity, find_ancestor_field, find_field_for_entity, format_f32,
-    get_field_value_by_reflection, get_inspecting_emitter, get_inspecting_emitter_mut,
+    Bound, Field, FieldKind, FieldValue, InspectedColliderTracker, InspectedEmitterTracker,
+    MAX_ANCESTOR_DEPTH, ReflectPath, find_ancestor, find_ancestor_entity, find_ancestor_field,
+    find_field_for_entity, format_f32, get_inspecting_collider, get_inspecting_collider_mut,
+    get_inspecting_emitter, get_inspecting_emitter_mut, get_field_value_by_reflection,
     get_vec2_component, get_vec3_component, label_to_variant_name, mark_dirty_and_restart,
     parse_field_value, set_field_enum_by_name, set_field_value_by_reflection,
     set_variant_field_enum_by_name, set_vec2_component, set_vec3_component,
@@ -52,7 +53,8 @@ pub(super) fn bind_values_to_inputs(
     mut commands: Commands,
     editor_state: Res<EditorState>,
     assets: Res<Assets<ParticleSystemAsset>>,
-    tracker: Res<InspectedEmitterTracker>,
+    emitter_tracker: Res<InspectedEmitterTracker>,
+    collider_tracker: Res<InspectedColliderTracker>,
     new_fields: Query<Entity, Added<Field>>,
     new_text_edits: Query<Entity, Added<EditorTextEdit>>,
     fields: Query<&Field>,
@@ -68,74 +70,78 @@ pub(super) fn bind_values_to_inputs(
     let has_new_checkboxes = !checkbox_set.p0().is_empty();
     let has_new_widgets =
         !new_fields.is_empty() || !new_text_edits.is_empty() || has_new_checkboxes;
-    if !tracker.is_changed() && !has_new_widgets {
+    if !emitter_tracker.is_changed() && !collider_tracker.is_changed() && !has_new_widgets {
         return;
     }
 
-    let Some((_, emitter)) = get_inspecting_emitter(&editor_state, &assets) else {
-        return;
-    };
+    let inspecting_emitter = get_inspecting_emitter(&editor_state, &assets);
+    let inspecting_collider = get_inspecting_collider(&editor_state, &assets);
 
-    for (entity, child_of, mut queue) in &mut text_edits {
-        let Some((field_entity, field)) = find_ancestor_field(child_of.parent(), &fields, &parents)
-        else {
-            continue;
-        };
+    if let Some((_, emitter)) = &inspecting_emitter {
+        for (entity, child_of, mut queue) in &mut text_edits {
+            let Some((field_entity, field)) =
+                find_ancestor_field(child_of.parent(), &fields, &parents)
+            else {
+                continue;
+            };
 
-        if is_descendant_of_variant_edit(child_of.parent(), &variant_edit_query, &parents) {
-            continue;
-        }
+            if is_descendant_of_variant_edit(child_of.parent(), &variant_edit_query, &parents) {
+                continue;
+            }
 
-        // handle Vector fields by finding the component index
-        if let FieldKind::Vector(suffixes) = &field.kind {
-            let value = get_field_value_by_reflection(emitter, &field.path, &field.kind);
-            let component_count = suffixes.vector_size().count();
+            // handle Vector fields by finding the component index
+            if let FieldKind::Vector(suffixes) = &field.kind {
+                let value = get_field_value_by_reflection(emitter, &field.path, &field.kind);
+                let component_count = suffixes.vector_size().count();
 
-            // find the vector edit ancestor and determine component index
-            if let Some(vec_edit_entity) =
-                find_ancestor(child_of.parent(), &parents, MAX_ANCESTOR_DEPTH, |e| {
-                    vector_edit_children.get(e).is_ok()
-                })
-            {
-                if let Ok(vec_children) = vector_edit_children.get(vec_edit_entity) {
-                    for (idx, vec_child) in vec_children.iter().enumerate().take(component_count) {
-                        if find_ancestor_entity(child_of.parent(), vec_child, &parents) {
-                            let component_value = match &value {
-                                FieldValue::Vec2(vec) => Some(get_vec2_component(*vec, idx)),
-                                FieldValue::Vec3(vec) => Some(get_vec3_component(*vec, idx)),
-                                FieldValue::Range(min, max) => match idx {
-                                    0 => Some(*min),
-                                    1 => Some(*max),
+                // find the vector edit ancestor and determine component index
+                if let Some(vec_edit_entity) =
+                    find_ancestor(child_of.parent(), &parents, MAX_ANCESTOR_DEPTH, |e| {
+                        vector_edit_children.get(e).is_ok()
+                    })
+                {
+                    if let Ok(vec_children) = vector_edit_children.get(vec_edit_entity) {
+                        for (idx, vec_child) in
+                            vec_children.iter().enumerate().take(component_count)
+                        {
+                            if find_ancestor_entity(child_of.parent(), vec_child, &parents) {
+                                let component_value = match &value {
+                                    FieldValue::Vec2(vec) => Some(get_vec2_component(*vec, idx)),
+                                    FieldValue::Vec3(vec) => Some(get_vec3_component(*vec, idx)),
+                                    FieldValue::Range(min, max) => match idx {
+                                        0 => Some(*min),
+                                        1 => Some(*max),
+                                        _ => None,
+                                    },
                                     _ => None,
-                                },
-                                _ => None,
-                            };
-                            if let Some(v) = component_value {
-                                let text = if suffixes.is_integer() {
-                                    (v as i32).to_string()
-                                } else {
-                                    format_f32(v)
                                 };
-                                set_text_input_value(&mut queue, text);
-                                commands
-                                    .entity(entity)
-                                    .try_insert(Bound::direct(field_entity));
+                                if let Some(v) = component_value {
+                                    let text = if suffixes.is_integer() {
+                                        (v as i32).to_string()
+                                    } else {
+                                        format_f32(v)
+                                    };
+                                    set_text_input_value(&mut queue, text);
+                                    commands
+                                        .entity(entity)
+                                        .try_insert(Bound::direct(field_entity));
+                                }
+                                break;
                             }
-                            break;
                         }
                     }
                 }
+                continue;
             }
-            continue;
+
+            let value = get_field_value_by_reflection(emitter, &field.path, &field.kind);
+            let text = value.to_display_string(&field.kind).unwrap_or_default();
+
+            set_text_input_value(&mut queue, text);
+            commands
+                .entity(entity)
+                .try_insert(Bound::direct(field_entity));
         }
-
-        let value = get_field_value_by_reflection(emitter, &field.path, &field.kind);
-        let text = value.to_display_string(&field.kind).unwrap_or_default();
-
-        set_text_input_value(&mut queue, text);
-        commands
-            .entity(entity)
-            .try_insert(Bound::direct(field_entity));
     }
 
     for (entity, mut state) in &mut checkbox_set.p1() {
@@ -149,8 +155,20 @@ pub(super) fn bind_values_to_inputs(
             continue;
         };
 
-        let value = get_field_value_by_reflection(emitter, &field.path, &field.kind);
-        if let Some(checked) = value.to_bool() {
+        let checked = if let Some((_, emitter)) = &inspecting_emitter {
+            let value = get_field_value_by_reflection(emitter, &field.path, &field.kind);
+            value.to_bool()
+        } else if let Some((_, collider)) = &inspecting_collider {
+            if field.path == "enabled" {
+                Some(collider.enabled)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        if let Some(checked) = checked {
             state.checked = checked;
         }
         commands
@@ -581,48 +599,55 @@ pub(super) fn handle_checkbox_commit(
         return;
     };
 
-    let Some((_, emitter)) = get_inspecting_emitter_mut(&editor_state, &mut assets) else {
-        return;
-    };
+    if let Some((_, emitter)) = get_inspecting_emitter_mut(&editor_state, &mut assets) {
+        let value = FieldValue::Bool(trigger.checked);
 
-    let value = FieldValue::Bool(trigger.checked);
-
-    if bound.is_variant_field {
-        let Ok(binding) = variant_field_bindings.get(trigger.entity) else {
-            return;
-        };
-        let Ok(config) = variant_edit_configs.get(binding.variant_edit) else {
-            return;
-        };
-        if super::set_variant_field_value_by_reflection(
-            emitter,
-            &config.path,
-            &binding.field_name,
-            &value,
-        ) {
-            mark_dirty_and_restart(
-                &mut dirty_state,
-                &mut emitter_runtimes,
-                emitter.time.fixed_seed,
-            );
-            let full_path = format!("{}.{}", config.path, binding.field_name);
-            if requires_respawn(&full_path) {
-                commands.trigger(RespawnEmittersEvent);
+        if bound.is_variant_field {
+            let Ok(binding) = variant_field_bindings.get(trigger.entity) else {
+                return;
+            };
+            let Ok(config) = variant_edit_configs.get(binding.variant_edit) else {
+                return;
+            };
+            if super::set_variant_field_value_by_reflection(
+                emitter,
+                &config.path,
+                &binding.field_name,
+                &value,
+            ) {
+                mark_dirty_and_restart(
+                    &mut dirty_state,
+                    &mut emitter_runtimes,
+                    emitter.time.fixed_seed,
+                );
+                let full_path = format!("{}.{}", config.path, binding.field_name);
+                if requires_respawn(&full_path) {
+                    commands.trigger(RespawnEmittersEvent);
+                }
+            }
+        } else {
+            let Some((_, field)) = find_field_for_entity(trigger.entity, &fields, &parents) else {
+                return;
+            };
+            if super::set_field_value_by_reflection(emitter, &field.path, &value) {
+                mark_dirty_and_restart(
+                    &mut dirty_state,
+                    &mut emitter_runtimes,
+                    emitter.time.fixed_seed,
+                );
+                if requires_respawn(&field.path) {
+                    commands.trigger(RespawnEmittersEvent);
+                }
             }
         }
-    } else {
+    } else if let Some((_, collider)) = get_inspecting_collider_mut(&editor_state, &mut assets) {
         let Some((_, field)) = find_field_for_entity(trigger.entity, &fields, &parents) else {
             return;
         };
-        if super::set_field_value_by_reflection(emitter, &field.path, &value) {
-            mark_dirty_and_restart(
-                &mut dirty_state,
-                &mut emitter_runtimes,
-                emitter.time.fixed_seed,
-            );
-            if requires_respawn(&field.path) {
-                commands.trigger(RespawnEmittersEvent);
-            }
+        if field.path == "enabled" {
+            collider.enabled = trigger.checked;
+            dirty_state.has_unsaved_changes = true;
+            commands.trigger(RespawnCollidersEvent);
         }
     }
 }

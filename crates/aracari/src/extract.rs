@@ -635,6 +635,10 @@ pub fn extract_colliders(
     let mut colliders = Vec::new();
 
     for (global_transform, collider) in colliders_query.iter() {
+        if !collider.enabled {
+            continue;
+        }
+
         let transform = global_transform.to_matrix();
         let offset_transform = transform * Mat4::from_translation(collider.position);
         let inverse = offset_transform.inverse();
