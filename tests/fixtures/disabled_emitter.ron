@@ -1,0 +1,25 @@
+(
+    name: "Disabled Emitter",
+    dimension: D3,
+    emitters: [
+        (
+            name: "Active",
+            time: (
+                lifetime: 1.0,
+            ),
+            emission: (
+                particles_amount: 8,
+            ),
+        ),
+        (
+            name: "Disabled",
+            enabled: false,
+            time: (
+                lifetime: 1.0,
+            ),
+            emission: (
+                particles_amount: 8,
+            ),
+        ),
+    ],
+)

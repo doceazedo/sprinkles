@@ -2,6 +2,8 @@
 mod helpers;
 
 mod asset_loading;
-mod spawning;
 mod colliders;
 mod lifecycle;
+mod spawning;
+mod sync;
+mod update_time;

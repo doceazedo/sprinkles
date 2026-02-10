@@ -1,0 +1,16 @@
+(
+    name: "Fixed FPS",
+    dimension: D3,
+    emitters: [
+        (
+            name: "Fixed 30 FPS",
+            time: (
+                lifetime: 2.0,
+                fixed_fps: 30,
+            ),
+            emission: (
+                particles_amount: 8,
+            ),
+        ),
+    ],
+)

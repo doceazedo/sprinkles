@@ -126,6 +126,18 @@ pub fn advance_frames(app: &mut App, n: u32) {
     }
 }
 
+/// advances the app for approximately the given number of seconds of real time.
+/// useful for tests that depend on system_time exceeding a threshold.
+pub fn advance_time(app: &mut App, seconds: f32) {
+    let frame_count = (seconds / 0.016).ceil() as u32 + 2;
+    let sleep_per_frame =
+        std::time::Duration::from_secs_f64(seconds as f64 / frame_count as f64);
+    for _ in 0..frame_count {
+        std::thread::sleep(sleep_per_frame);
+        app.update();
+    }
+}
+
 pub struct ImageDiff {
     pub total_pixels: usize,
     pub different_pixels: usize,
