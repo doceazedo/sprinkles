@@ -512,7 +512,7 @@ fn slugify(name: &str) -> String {
     result.trim_end_matches('-').to_string()
 }
 
-fn resolve_location_path(raw: &str, slug: &str) -> PathBuf {
+fn resolve_location_path(raw: &str) -> PathBuf {
     let expanded = if raw.starts_with("~/") {
         #[cfg(unix)]
         {
@@ -532,8 +532,7 @@ fn resolve_location_path(raw: &str, slug: &str) -> PathBuf {
         working_dir().join(raw)
     };
 
-    let filename = format!("{slug}.ron");
-    expanded.join(filename)
+    expanded.with_extension("ron")
 }
 
 fn find_inner_text_edit(
@@ -791,7 +790,7 @@ fn handle_create_project(
     };
 
     let path = match location_raw {
-        Some(raw) => resolve_location_path(&raw, slug),
+        Some(raw) => resolve_location_path(&raw),
         None => project_path(&format!("projects/{slug}.ron")),
     };
     if let Some(parent) = path.parent() {
