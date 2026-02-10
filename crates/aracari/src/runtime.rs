@@ -282,6 +282,14 @@ pub type ParticleMaterial = ExtendedMaterial<StandardMaterial, ParticleMaterialE
 #[derive(Component)]
 pub struct ParticleMaterialHandle(pub Handle<ParticleMaterial>);
 
+/// stores the emission buffer handle for sub-emitter parent → target pairs
+#[derive(Component)]
+pub struct SubEmitterBufferHandle {
+    pub buffer: Handle<ShaderStorageBuffer>,
+    pub target_emitter: Entity,
+    pub max_particles: u32,
+}
+
 /// collider component for particle collision detection
 #[derive(Component, Debug, Clone)]
 pub struct ParticlesCollider3D {

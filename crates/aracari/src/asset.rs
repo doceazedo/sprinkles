@@ -197,6 +197,9 @@ pub struct EmitterData {
     #[serde(default)]
     pub collision: EmitterCollision,
 
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sub_emitter: Option<SubEmitterConfig>,
+
     #[serde(default)]
     #[reflect(ignore)]
     pub particle_flags: ParticleFlags,
@@ -222,6 +225,7 @@ impl Default for EmitterData {
             accelerations: EmitterAccelerations::default(),
             turbulence: EmitterTurbulence::default(),
             collision: EmitterCollision::default(),
+            sub_emitter: None,
             particle_flags: ParticleFlags::empty(),
         }
     }
@@ -937,6 +941,46 @@ impl Default for EmitterCollision {
             mode: None,
             base_size: default_collision_base_size(),
             use_scale: false,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub enum SubEmitterMode {
+    Constant,
+    AtEnd,
+    AtCollision,
+    AtStart,
+}
+
+fn default_sub_emitter_frequency() -> f32 {
+    4.0
+}
+
+fn default_sub_emitter_amount() -> u32 {
+    1
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
+pub struct SubEmitterConfig {
+    pub mode: SubEmitterMode,
+    pub target_emitter: usize,
+    #[serde(default = "default_sub_emitter_frequency")]
+    pub frequency: f32,
+    #[serde(default = "default_sub_emitter_amount")]
+    pub amount: u32,
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub keep_velocity: bool,
+}
+
+impl Default for SubEmitterConfig {
+    fn default() -> Self {
+        Self {
+            mode: SubEmitterMode::Constant,
+            target_emitter: 0,
+            frequency: default_sub_emitter_frequency(),
+            amount: default_sub_emitter_amount(),
+            keep_velocity: false,
         }
     }
 }

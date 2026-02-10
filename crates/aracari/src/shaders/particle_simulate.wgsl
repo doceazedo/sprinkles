@@ -2,8 +2,16 @@
 #import aracari::common::{
     Particle,
     CurveUniform,
+    SubEmissionEntry,
     PARTICLE_FLAG_ACTIVE,
     EMITTER_FLAG_DISABLE_Z,
+    EMISSION_FLAG_HAS_POSITION,
+    EMISSION_FLAG_HAS_VELOCITY,
+    SUB_EMITTER_MODE_DISABLED,
+    SUB_EMITTER_MODE_CONSTANT,
+    SUB_EMITTER_MODE_AT_END,
+    SUB_EMITTER_MODE_AT_COLLISION,
+    SUB_EMITTER_MODE_AT_START,
     hash,
     hash_to_float,
 }
@@ -113,6 +121,17 @@ struct EmitterParams {
     angle_over_lifetime: CurveUniform,
 
     angular_velocity: AnimatedVelocity,
+
+    // sub emitter
+    sub_emitter_mode: u32,
+    sub_emitter_frequency: f32,
+    sub_emitter_amount: u32,
+    sub_emitter_keep_velocity: u32,
+
+    is_sub_emitter_target: u32,
+    _sub_emitter_pad0: u32,
+    _sub_emitter_pad1: u32,
+    _sub_emitter_pad2: u32,
 }
 
 struct Collider {
@@ -164,6 +183,15 @@ const COLLISION_EPSILON: f32 = 0.001;
 @group(0) @binding(19) var color_over_lifetime_sampler: sampler;
 @group(0) @binding(20) var<storage, read> colliders: ColliderArray;
 
+struct SubEmissionBuffer {
+    particle_count: atomic<i32>,
+    particle_max: u32,
+    data: array<SubEmissionEntry>,
+}
+
+@group(0) @binding(21) var<storage, read_write> dst_emission_buffer: SubEmissionBuffer;
+@group(0) @binding(22) var<storage, read_write> src_emission_buffer: SubEmissionBuffer;
+
 @compute @workgroup_size(64)
 fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let idx = global_id.x;
@@ -197,24 +225,54 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let phase = base_phase + hash_to_float(idx) * params.spawn_time_randomness;
     let adjusted_phase = fract(phase * (1.0 - params.explosiveness));
 
-    // check if this particle should restart this frame
-    var should_restart = false;
-    if (params.emitting != 0u) {
-        if (params.system_phase < params.prev_system_phase) {
-            // wrapped around: check if phase is in [prev, 1) or [0, current)
-            should_restart = adjusted_phase >= params.prev_system_phase ||
-                           adjusted_phase < params.system_phase;
-        } else {
-            // normal case: check if phase is in [prev, current)
-            should_restart = adjusted_phase >= params.prev_system_phase &&
-                           adjusted_phase < params.system_phase;
-        }
-    }
+    if (params.is_sub_emitter_target != 0u) {
+        // sub-emitter target mode: inactive particles consume from source buffer
+        if (!is_active) {
+            let src_index = atomicAdd(&src_emission_buffer.particle_count, -1) - 1;
 
-    if (should_restart) {
-        p = spawn_particle(idx);
-    } else if (is_active) {
-        p = update_particle(p);
+            if (src_index >= 0) {
+                let entry = src_emission_buffer.data[src_index];
+
+                // spawn particle using target emitter's own properties
+                p = spawn_particle(idx);
+
+                // override position from parent particle
+                if ((entry.flags & EMISSION_FLAG_HAS_POSITION) != 0u) {
+                    p.position = vec4(entry.position.xyz, p.position.w);
+                }
+
+                // override velocity from parent particle
+                if ((entry.flags & EMISSION_FLAG_HAS_VELOCITY) != 0u) {
+                    p.velocity = vec4(entry.velocity.xyz, p.velocity.w);
+                    // update alignment direction
+                    if length(entry.velocity.xyz) > 0.0 {
+                        p.alignment_dir = vec4(normalize(entry.velocity.xyz), p.alignment_dir.w);
+                    }
+                }
+            }
+        } else {
+            p = update_particle(p);
+        }
+    } else {
+        // normal phase-based emission
+        var should_restart = false;
+        if (params.emitting != 0u) {
+            if (params.system_phase < params.prev_system_phase) {
+                // wrapped around: check if phase is in [prev, 1) or [0, current)
+                should_restart = adjusted_phase >= params.prev_system_phase ||
+                               adjusted_phase < params.system_phase;
+            } else {
+                // normal case: check if phase is in [prev, current)
+                should_restart = adjusted_phase >= params.prev_system_phase &&
+                               adjusted_phase < params.system_phase;
+            }
+        }
+
+        if (should_restart) {
+            p = spawn_particle(idx);
+        } else if (is_active) {
+            p = update_particle(p);
+        }
     }
 
     particles[idx] = p;
@@ -859,6 +917,34 @@ fn process_collisions(
     return final_result;
 }
 
+fn emit_subparticle(position: vec3<f32>, scale: f32, velocity: vec3<f32>, flags: u32) -> bool {
+    if (params.sub_emitter_mode == SUB_EMITTER_MODE_DISABLED) {
+        return false;
+    }
+
+    let dst_index = atomicAdd(&dst_emission_buffer.particle_count, 1);
+    if (dst_index >= i32(dst_emission_buffer.particle_max)) {
+        atomicAdd(&dst_emission_buffer.particle_count, -1);
+        return false;
+    }
+
+    dst_emission_buffer.data[dst_index].position = vec4(position, scale);
+    dst_emission_buffer.data[dst_index].velocity = vec4(velocity, 0.0);
+    dst_emission_buffer.data[dst_index].flags = flags;
+
+    return true;
+}
+
+fn emit_sub_particles(position: vec3<f32>, scale: f32, velocity: vec3<f32>) {
+    var flags = EMISSION_FLAG_HAS_POSITION;
+    if (params.sub_emitter_keep_velocity != 0u) {
+        flags |= EMISSION_FLAG_HAS_VELOCITY;
+    }
+    for (var i = 0u; i < params.sub_emitter_amount; i++) {
+        emit_subparticle(position, scale, velocity, flags);
+    }
+}
+
 fn spawn_particle(idx: u32) -> Particle {
     var p: Particle;
     // per-particle seed derivation:
@@ -927,6 +1013,11 @@ fn spawn_particle(idx: u32) -> Particle {
         p.alignment_dir = vec4(0.0, 1.0, 0.0, angle);
     }
 
+    // sub emitter: at start trigger
+    if (params.sub_emitter_mode == SUB_EMITTER_MODE_AT_START) {
+        emit_sub_particles(p.position.xyz, p.position.w, vel);
+    }
+
     return p;
 }
 
@@ -940,8 +1031,29 @@ fn update_particle(p_in: Particle) -> Particle {
 
     let lifetime = p.velocity.w;
 
+    // sub emitter: constant mode — emit one particle per frequency interval
+    if (params.sub_emitter_mode == SUB_EMITTER_MODE_CONSTANT) {
+        let prev_age = age - dt;
+        let interval = params.sub_emitter_frequency;
+        if (interval > 0.0) {
+            let interval_rem = interval - fract(prev_age / interval) * interval;
+            if (dt >= interval_rem) {
+                emit_subparticle(
+                    p.position.xyz,
+                    p.position.w,
+                    p.velocity.xyz,
+                    EMISSION_FLAG_HAS_POSITION | select(0u, EMISSION_FLAG_HAS_VELOCITY, params.sub_emitter_keep_velocity != 0u)
+                );
+            }
+        }
+    }
+
     // check if lifetime exceeded
     if (age >= lifetime) {
+        // sub emitter: at end trigger
+        if (params.sub_emitter_mode == SUB_EMITTER_MODE_AT_END) {
+            emit_sub_particles(p.position.xyz, p.position.w, p.velocity.xyz);
+        }
         p.custom.w = bitcast<f32>(0u); // deactivate
         return p;
     }
@@ -1051,6 +1163,11 @@ fn update_particle(p_in: Particle) -> Particle {
         let collision = process_collisions(p.position.xyz, particle_radius);
 
         if (collision.collided) {
+            // sub emitter: at collision trigger
+            if (params.sub_emitter_mode == SUB_EMITTER_MODE_AT_COLLISION) {
+                emit_sub_particles(p.position.xyz, p.position.w, p.velocity.xyz);
+            }
+
             if (params.collision_mode == COLLISION_MODE_HIDE_ON_CONTACT) {
                 p.custom.w = bitcast<f32>(0u);
                 return p;

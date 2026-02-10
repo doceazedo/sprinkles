@@ -30,6 +30,23 @@ const TRANSFORM_ALIGN_BILLBOARD: u32 = 1u;
 const TRANSFORM_ALIGN_Y_TO_VELOCITY: u32 = 2u;
 const TRANSFORM_ALIGN_BILLBOARD_Y_TO_VELOCITY: u32 = 3u;
 
+// sub emitter emission buffer
+struct SubEmissionEntry {
+    position: vec4<f32>,    // xyz + scale
+    velocity: vec4<f32>,    // xyz + w unused
+    flags: u32,
+}
+
+const EMISSION_FLAG_HAS_POSITION: u32 = 1u;
+const EMISSION_FLAG_HAS_VELOCITY: u32 = 2u;
+
+// sub emitter mode constants
+const SUB_EMITTER_MODE_DISABLED: u32 = 0u;
+const SUB_EMITTER_MODE_CONSTANT: u32 = 1u;
+const SUB_EMITTER_MODE_AT_END: u32 = 2u;
+const SUB_EMITTER_MODE_AT_COLLISION: u32 = 3u;
+const SUB_EMITTER_MODE_AT_START: u32 = 4u;
+
 fn hash(n: u32) -> u32 {
     var x = n;
     x = ((x >> 16u) ^ x) * 0x45d9f3bu;

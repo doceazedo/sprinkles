@@ -14,7 +14,7 @@ use crate::{
         ColliderEntity, CurrentMaterialConfig, CurrentMeshConfig, EmitterEntity, EmitterMeshEntity,
         EmitterRuntime, ParticleBufferHandle, ParticleData, ParticleMaterial,
         ParticleMaterialHandle, ParticleMeshHandle, ParticleSystem3D, ParticleSystemRuntime,
-        ParticlesCollider3D, SimulationStep,
+        ParticlesCollider3D, SimulationStep, SubEmitterBufferHandle,
     },
 };
 
@@ -712,6 +712,8 @@ pub fn setup_particle_systems(
             Visibility::default(),
         ));
 
+        let mut emitter_entities: Vec<Entity> = Vec::new();
+
         for (emitter_index, emitter) in asset.emitters.iter().enumerate() {
             let amount = emitter.emission.particles_amount;
 
@@ -760,6 +762,7 @@ pub fn setup_particle_systems(
                 ))
                 .id();
 
+            emitter_entities.push(emitter_entity);
             commands.entity(system_entity).add_child(emitter_entity);
 
             let mut mesh_entity = commands.spawn((
@@ -772,6 +775,36 @@ pub fn setup_particle_systems(
 
             if !shadow_caster {
                 mesh_entity.insert(NotShadowCaster);
+            }
+        }
+
+        // create emission buffers for sub-emitter parent → target pairs
+        for (emitter_index, emitter) in asset.emitters.iter().enumerate() {
+            if let Some(ref sub_config) = emitter.sub_emitter {
+                let target_index = sub_config.target_emitter;
+                if target_index == emitter_index || target_index >= asset.emitters.len() {
+                    continue;
+                }
+
+                let target_amount = asset.emitters[target_index].emission.particles_amount;
+                // header: atomic<i32> + u32 = 8 bytes, padded to 16 (4 u32s)
+                // entry stride: vec4 + vec4 + u32 = 36 bytes, padded to 48 (12 u32s)
+                let buffer_len = 4 + 12 * target_amount as usize;
+                let mut initial_data = vec![0u32; buffer_len];
+                initial_data[1] = target_amount;
+                let mut buffer = ShaderStorageBuffer::from(initial_data);
+                buffer.buffer_description.usage |=
+                    bevy::render::render_resource::BufferUsages::COPY_DST;
+
+                let buffer_handle = buffers.add(buffer);
+                let target_entity = emitter_entities[target_index];
+                let parent_entity = emitter_entities[emitter_index];
+
+                commands.entity(parent_entity).insert(SubEmitterBufferHandle {
+                    buffer: buffer_handle,
+                    target_emitter: target_entity,
+                    max_particles: target_amount,
+                });
             }
         }
 

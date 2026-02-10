@@ -4,11 +4,11 @@ use bevy::{
         render_asset::RenderAssets,
         render_graph::{self, RenderGraph, RenderLabel},
         render_resource::{
-            binding_types::{sampler, storage_buffer, storage_buffer_read_only, texture_2d, uniform_buffer},
+            binding_types::{sampler, storage_buffer, storage_buffer_read_only, storage_buffer_sized, texture_2d, uniform_buffer},
             BindGroup, BindGroupEntries, BindGroupLayoutDescriptor, BindGroupLayoutEntries,
-            BufferUsages, CachedComputePipelineId, CachedPipelineState, ComputePassDescriptor,
-            ComputePipelineDescriptor, PipelineCache, SamplerBindingType, SamplerDescriptor,
-            ShaderStages, TextureSampleType,
+            Buffer, BufferUsages, CachedComputePipelineId, CachedPipelineState,
+            ComputePassDescriptor, ComputePipelineDescriptor, PipelineCache, SamplerBindingType,
+            SamplerDescriptor, ShaderStages, TextureSampleType,
         },
         renderer::{RenderContext, RenderDevice, RenderQueue},
         storage::GpuShaderStorageBuffer,
@@ -20,7 +20,7 @@ use std::borrow::Cow;
 
 use bevy::render::render_resource::ShaderType;
 
-use crate::extract::{ColliderUniform, EmitterUniforms, ExtractedColliders, ExtractedParticleSystem, MAX_COLLIDERS};
+use crate::extract::{ColliderUniform, EmitterUniforms, ExtractedColliders, ExtractedEmitterData, ExtractedParticleSystem, MAX_COLLIDERS};
 use crate::runtime::ParticleData;
 use crate::textures::{FallbackCurveTexture, FallbackGradientTexture};
 
@@ -76,6 +76,10 @@ pub fn init_particle_compute_pipeline(
                 sampler(SamplerBindingType::Filtering),
                 // colliders storage buffer (read-only)
                 storage_buffer_read_only::<ColliderArray>(false),
+                // sub emitter destination emission buffer (parent writes)
+                storage_buffer_sized(false, None),
+                // sub emitter source emission buffer (target reads)
+                storage_buffer_sized(false, None),
             ),
         ),
     );
@@ -107,12 +111,23 @@ pub fn init_particle_compute_pipeline(
         ..default()
     });
 
+    // fallback emission buffer: 16-byte header + one 48-byte entry = 64 bytes minimum
+    // particle_count=0, particle_max=0 so the shader never reads/writes entries
+    let fallback_emission_buffer = render_device.create_buffer_with_data(
+        &bevy::render::render_resource::BufferInitDescriptor {
+            label: Some("fallback_emission_buffer"),
+            contents: &[0u8; 64],
+            usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
+        },
+    );
+
     commands.insert_resource(ParticleComputePipeline {
         bind_group_layout,
         simulate_pipeline,
     });
     commands.insert_resource(GradientSampler(gradient_sampler));
     commands.insert_resource(CurveSampler(curve_sampler));
+    commands.insert_resource(FallbackEmissionBuffer(fallback_emission_buffer));
 }
 
 #[derive(Resource)]
@@ -120,6 +135,14 @@ pub struct GradientSampler(pub bevy::render::render_resource::Sampler);
 
 #[derive(Resource)]
 pub struct CurveSampler(pub bevy::render::render_resource::Sampler);
+
+#[derive(Resource)]
+pub struct FallbackEmissionBuffer(pub Buffer);
+
+#[derive(Resource, Default)]
+pub struct EmissionBufferClearList {
+    pub buffers: Vec<Buffer>,
+}
 
 #[derive(Resource, Default)]
 pub struct ParticleComputeBindGroups {
@@ -138,6 +161,7 @@ pub fn prepare_particle_compute_bind_groups(
     gpu_images: Res<RenderAssets<GpuImage>>,
     fallback_gradient_texture: Option<Res<FallbackGradientTexture>>,
     fallback_curve_texture: Option<Res<FallbackCurveTexture>>,
+    fallback_emission_buffer: Res<FallbackEmissionBuffer>,
     gradient_sampler: Res<GradientSampler>,
     curve_sampler: Res<CurveSampler>,
 ) {
@@ -172,6 +196,8 @@ pub fn prepare_particle_compute_bind_groups(
             usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
         },
     );
+
+    let mut emission_clear_list = Vec::new();
 
     for (entity, emitter_data) in &extracted_systems.emitters {
         let Some(gpu_buffer) = gpu_storage_buffers.get(&emitter_data.particle_buffer_handle) else {
@@ -270,6 +296,27 @@ pub fn prepare_particle_compute_bind_groups(
 
         let bind_group_layout = pipeline_cache.get_bind_group_layout(&pipeline.bind_group_layout);
 
+        // resolve emission buffer GPU handles
+        let dst_buffer = emitter_data
+            .emission_buffer_handle
+            .as_ref()
+            .and_then(|h| gpu_storage_buffers.get(h))
+            .map(|b| &b.buffer);
+
+        let src_buffer = emitter_data
+            .source_buffer_handle
+            .as_ref()
+            .and_then(|h| gpu_storage_buffers.get(h))
+            .map(|b| &b.buffer);
+
+        let dst_binding = dst_buffer.unwrap_or(&fallback_emission_buffer.0);
+        let src_binding = src_buffer.unwrap_or(&fallback_emission_buffer.0);
+
+        // track emission buffers that need clearing before each step
+        if let Some(buf) = dst_buffer {
+            emission_clear_list.push(buf.clone());
+        }
+
         let step_bind_groups: Vec<BindGroup> = emitter_data
             .uniform_steps
             .iter()
@@ -310,6 +357,8 @@ pub fn prepare_particle_compute_bind_groups(
                         &color_over_lifetime_image.texture_view,
                         &gradient_sampler.0,
                         colliders_buffer.as_entire_binding(),
+                        dst_binding.as_entire_binding(),
+                        src_binding.as_entire_binding(),
                     )),
                 )
             })
@@ -318,7 +367,16 @@ pub fn prepare_particle_compute_bind_groups(
         bind_groups.push((*entity, step_bind_groups));
     }
 
+    // deduplicate emission buffers for clearing
+    let mut unique_buffers: Vec<Buffer> = Vec::new();
+    for buf in emission_clear_list {
+        if !unique_buffers.iter().any(|b| b.id() == buf.id()) {
+            unique_buffers.push(buf);
+        }
+    }
+
     commands.insert_resource(ParticleComputeBindGroups { bind_groups });
+    commands.insert_resource(EmissionBufferClearList { buffers: unique_buffers });
 }
 
 pub struct ParticleComputeNode {
@@ -361,6 +419,7 @@ impl render_graph::Node for ParticleComputeNode {
         let pipeline = world.resource::<ParticleComputePipeline>();
         let bind_groups = world.resource::<ParticleComputeBindGroups>();
         let extracted = world.resource::<ExtractedParticleSystem>();
+        let emission_clear_list = world.resource::<EmissionBufferClearList>();
 
         let Some(compute_pipeline) =
             pipeline_cache.get_compute_pipeline(pipeline.simulate_pipeline)
@@ -375,25 +434,53 @@ impl render_graph::Node for ParticleComputeNode {
             .max()
             .unwrap_or(0);
 
+        let emitter_map: std::collections::HashMap<Entity, &ExtractedEmitterData> = extracted
+            .emitters
+            .iter()
+            .map(|(e, data)| (*e, data))
+            .collect();
+
+        let has_sub_emitter_targets = emitter_map.values().any(|data| data.is_sub_emitter_target);
+        let pass_labels: &[&str] = if has_sub_emitter_targets {
+            &["particle_compute_pass", "particle_sub_emitter_pass"]
+        } else {
+            &["particle_compute_pass"]
+        };
+
         for step_index in 0..max_steps {
-            let mut pass = render_context
-                .command_encoder()
-                .begin_compute_pass(&ComputePassDescriptor {
-                    label: Some("particle_compute_pass"),
-                    ..default()
-                });
+            // clear emission buffer counters before parent pass
+            for buf in &emission_clear_list.buffers {
+                render_context
+                    .command_encoder()
+                    .clear_buffer(buf, 0, Some(4));
+            }
 
-            pass.set_pipeline(compute_pipeline);
+            for (pass_index, label) in pass_labels.iter().enumerate() {
+                let is_target_pass = pass_index == 1;
 
-            for (entity, step_bind_groups) in &bind_groups.bind_groups {
-                let Some(bind_group) = step_bind_groups.get(step_index) else {
-                    continue;
-                };
+                let mut pass = render_context
+                    .command_encoder()
+                    .begin_compute_pass(&ComputePassDescriptor {
+                        label: Some(label),
+                        ..default()
+                    });
 
-                if let Some(emitter_data) = extracted.emitters.iter().find(|(e, _)| e == entity) {
-                    let amount = emitter_data.1.amount;
-                    let workgroups = (amount + WORKGROUP_SIZE - 1) / WORKGROUP_SIZE;
+                pass.set_pipeline(compute_pipeline);
 
+                for (entity, step_bind_groups) in &bind_groups.bind_groups {
+                    let Some(bind_group) = step_bind_groups.get(step_index) else {
+                        continue;
+                    };
+
+                    let Some(emitter_data) = emitter_map.get(entity) else {
+                        continue;
+                    };
+
+                    if emitter_data.is_sub_emitter_target != is_target_pass {
+                        continue;
+                    }
+
+                    let workgroups = (emitter_data.amount + WORKGROUP_SIZE - 1) / WORKGROUP_SIZE;
                     pass.set_bind_group(0, bind_group, &[]);
                     pass.dispatch_workgroups(workgroups, 1, 1);
                 }
@@ -414,6 +501,7 @@ impl Plugin for ParticleComputePlugin {
 
         render_app
             .init_resource::<ParticleComputeBindGroups>()
+            .init_resource::<EmissionBufferClearList>()
             .add_systems(RenderStartup, init_particle_compute_pipeline)
             .add_systems(
                 Render,

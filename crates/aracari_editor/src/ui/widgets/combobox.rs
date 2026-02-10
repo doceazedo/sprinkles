@@ -96,6 +96,12 @@ pub(crate) struct ComboBoxConfig {
     initialized: bool,
 }
 
+impl ComboBoxConfig {
+    pub(crate) fn set_options(&mut self, options: Vec<ComboBoxOptionData>) {
+        self.options = options;
+    }
+}
+
 #[derive(EntityEvent)]
 pub struct ComboBoxChangeEvent {
     pub entity: Entity,
@@ -513,20 +519,23 @@ fn sync_combobox_selection(
     mut texts: Query<&mut Text>,
 ) {
     for (entity, config, mut state) in &mut combos {
-        if !config.initialized || state.last_synced_selected == Some(config.selected) {
+        if !config.initialized {
             continue;
         }
         let Some(option) = config.options.get(config.selected) else {
             continue;
         };
+        let index_changed = state.last_synced_selected != Some(config.selected);
         for (trigger, children) in &triggers {
             if trigger.0 != entity {
                 continue;
             }
             for child in children.iter() {
                 if let Ok(mut text) = texts.get_mut(child) {
-                    **text = option.label.clone();
-                    state.last_synced_selected = Some(config.selected);
+                    if index_changed || **text != option.label {
+                        **text = option.label.clone();
+                        state.last_synced_selected = Some(config.selected);
+                    }
                     break;
                 }
             }

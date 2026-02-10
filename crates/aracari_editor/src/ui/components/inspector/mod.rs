@@ -7,6 +7,7 @@ mod draw_pass;
 mod emission;
 mod particle_flags;
 mod scale;
+mod sub_emitter;
 mod time;
 mod turbulence;
 pub mod types;
@@ -45,6 +46,7 @@ pub fn plugin(app: &mut App) {
             accelerations::plugin,
             turbulence::plugin,
             collision::plugin,
+            sub_emitter::plugin,
             particle_flags::plugin,
             collider_properties::plugin,
         ))
@@ -185,6 +187,8 @@ fn setup_inspector_panel(
                                 emitter_content
                                     .spawn(turbulence::turbulence_section(&asset_server));
                                 emitter_content.spawn(collision::collision_section(&asset_server));
+                                emitter_content
+                                    .spawn(sub_emitter::sub_emitter_section(&asset_server));
                                 emitter_content
                                     .spawn(particle_flags::particle_flags_section(&asset_server));
                             });
