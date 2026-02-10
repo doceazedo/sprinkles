@@ -9,10 +9,11 @@ pub mod spawning;
 pub mod textures;
 
 use bevy::{
-    asset::{embedded_asset, load_internal_asset, uuid_handle},
+    asset::{load_internal_asset, uuid_handle},
     pbr::MaterialPlugin,
     prelude::*,
     render::{ExtractSchedule, RenderApp, extract_resource::ExtractResourcePlugin},
+    shader::load_shader_library,
 };
 
 const SHADER_COMMON: Handle<Shader> = uuid_handle!("10b6a301-2396-4ce0-906a-b3e38aaddddf");
@@ -36,9 +37,9 @@ pub struct SprinklesPlugin;
 impl Plugin for SprinklesPlugin {
     fn build(&self, app: &mut App) {
         load_internal_asset!(app, SHADER_COMMON, "shaders/common.wgsl", Shader::from_wgsl);
-        embedded_asset!(app, "shaders/particle_simulate.wgsl");
-        embedded_asset!(app, "shaders/particle_material.wgsl");
-        embedded_asset!(app, "shaders/particle_sort.wgsl");
+        load_shader_library!(app, "shaders/particle_simulate.wgsl");
+        load_shader_library!(app, "shaders/particle_material.wgsl");
+        load_shader_library!(app, "shaders/particle_sort.wgsl");
 
         #[cfg(feature = "preset-textures")]
         textures::preset::register_preset_textures(app);

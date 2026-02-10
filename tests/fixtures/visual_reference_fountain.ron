@@ -1,0 +1,39 @@
+(
+    name: "Visual Reference Fountain",
+    dimension: D3,
+    emitters: [
+        (
+            name: "Fountain",
+            time: (
+                lifetime: 2.0,
+                fixed_seed: Some(42),
+            ),
+            emission: (
+                particles_amount: 64,
+                shape: Point,
+            ),
+            velocities: (
+                initial_direction: (0.0, 1.0, 0.0),
+                spread: 15.0,
+                initial_velocity: (
+                    min: 8.0,
+                    max: 12.0,
+                ),
+            ),
+            accelerations: (
+                gravity: (0.0, -9.8, 0.0),
+            ),
+            scale: (
+                initial_scale: (
+                    min: 0.05,
+                    max: 0.1,
+                ),
+            ),
+            colors: (
+                initial_color: Solid(
+                    color: (0.2, 0.5, 1.0, 1.0),
+                ),
+            ),
+        ),
+    ],
+)

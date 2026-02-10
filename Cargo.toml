@@ -35,3 +35,10 @@ sprinkles = { path = "crates/sprinkles" }
 sprinkles_editor = { path = "crates/sprinkles_editor" }
 ron = { workspace = true }
 serde = { workspace = true }
+crossbeam-channel = "0.5"
+image = "0.25"
+
+[[test]]
+name = "visual"
+path = "tests/visual/main.rs"
+harness = false

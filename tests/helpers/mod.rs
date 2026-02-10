@@ -13,18 +13,17 @@ pub fn fixtures_path() -> String {
         .to_string()
 }
 
-pub fn screenshots_actual_path() -> std::path::PathBuf {
+pub fn screenshots_tmp_path() -> std::path::PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests")
         .join("screenshots")
-        .join("actual")
+        .join("tmp")
 }
 
-pub fn screenshots_expected_path() -> std::path::PathBuf {
+pub fn screenshots_baseline_path() -> std::path::PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests")
         .join("screenshots")
-        .join("expected")
 }
 
 pub fn create_minimal_app() -> App {

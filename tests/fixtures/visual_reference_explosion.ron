@@ -1,0 +1,49 @@
+(
+    name: "Visual Reference Explosion",
+    dimension: D3,
+    emitters: [
+        (
+            name: "Explosion",
+            time: (
+                lifetime: 1.0,
+                one_shot: true,
+                explosiveness: 1.0,
+                fixed_seed: Some(42),
+            ),
+            emission: (
+                particles_amount: 128,
+                shape: Point,
+            ),
+            velocities: (
+                initial_direction: (0.0, 1.0, 0.0),
+                spread: 180.0,
+                initial_velocity: (
+                    min: 5.0,
+                    max: 15.0,
+                ),
+            ),
+            accelerations: (
+                gravity: (0.0, -4.0, 0.0),
+            ),
+            scale: (
+                initial_scale: (
+                    min: 0.08,
+                    max: 0.15,
+                ),
+            ),
+            colors: (
+                initial_color: Solid(
+                    color: (1.0, 0.6, 0.1, 1.0),
+                ),
+                color_over_lifetime: (
+                    stops: [
+                        (color: (1.0, 0.8, 0.2, 1.0), position: 0.0),
+                        (color: (1.0, 0.2, 0.0, 1.0), position: 0.5),
+                        (color: (0.3, 0.1, 0.0, 0.0), position: 1.0),
+                    ],
+                    interpolation: Linear,
+                ),
+            ),
+        ),
+    ],
+)
