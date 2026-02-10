@@ -4,8 +4,8 @@ use bevy::asset::Assets;
 use bevy::prelude::*;
 use sprinkles::asset::*;
 use sprinkles::runtime::{
-    CurrentMaterialConfig, CurrentMeshConfig, EmitterRuntime, ParticleMaterial,
-    ParticleMaterialHandle, ParticleMeshHandle, ParticleSystem3D,
+    CurrentMaterialConfig, CurrentMeshConfig, ParticleMaterialHandle, ParticleMeshHandle,
+    ParticleSystem3D,
 };
 
 #[test]

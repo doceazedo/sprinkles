@@ -1,7 +1,6 @@
 use super::helpers::*;
 
 use bevy::asset::Assets;
-use bevy::prelude::*;
 use sprinkles::asset::ParticleSystemAsset;
 use sprinkles_editor::state::{DirtyState, EditorState, Inspectable, Inspecting};
 

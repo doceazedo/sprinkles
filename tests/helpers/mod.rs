@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use bevy::asset::{AssetPlugin, AssetServer, LoadState};
 use bevy::prelude::*;
 use bevy::render::storage::ShaderStorageBuffer;

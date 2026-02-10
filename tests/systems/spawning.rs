@@ -52,7 +52,7 @@ fn particle_system_3d_spawns_multiple_emitters() {
 
 #[test]
 fn particle_system_gets_runtime_component() {
-    let (mut app, _, system_entity) = setup_loaded_system("minimal_particle_system.ron");
+    let (app, _, system_entity) = setup_loaded_system("minimal_particle_system.ron");
 
     let runtime = app
         .world()

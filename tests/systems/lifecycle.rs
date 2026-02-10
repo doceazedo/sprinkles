@@ -1,6 +1,5 @@
 use super::helpers::*;
 
-use bevy::prelude::*;
 use sprinkles::runtime::{EmitterRuntime, ParticleSystem3D};
 
 #[test]
