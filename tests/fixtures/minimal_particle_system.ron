@@ -1,0 +1,15 @@
+(
+    name: "Minimal System",
+    dimension: D3,
+    emitters: [
+        (
+            name: "Emitter 1",
+            time: (
+                lifetime: 1.0,
+            ),
+            emission: (
+                particles_amount: 8,
+            ),
+        ),
+    ],
+)

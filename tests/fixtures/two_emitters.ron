@@ -1,0 +1,27 @@
+(
+    name: "Two Emitters",
+    dimension: D3,
+    emitters: [
+        (
+            name: "Emitter A",
+            time: (
+                lifetime: 2.0,
+            ),
+            emission: (
+                particles_amount: 16,
+            ),
+        ),
+        (
+            name: "Emitter B",
+            time: (
+                lifetime: 1.5,
+            ),
+            emission: (
+                shape: Sphere(
+                    radius: 2.0,
+                ),
+                particles_amount: 32,
+            ),
+        ),
+    ],
+)

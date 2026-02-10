@@ -1,0 +1,38 @@
+(
+    name: "Collision Test",
+    dimension: D3,
+    emitters: [
+        (
+            name: "Emitter",
+            time: (
+                lifetime: 2.0,
+            ),
+            emission: (
+                particles_amount: 16,
+            ),
+            collision: (
+                mode: Some(Rigid(
+                    friction: 0.5,
+                    bounce: 0.8,
+                )),
+                base_size: 0.1,
+            ),
+        ),
+    ],
+    colliders: [
+        (
+            name: "Floor",
+            shape: Box(
+                size: (10.0, 1.0, 10.0),
+            ),
+            position: (0.0, -2.0, 0.0),
+        ),
+        (
+            name: "Wall",
+            shape: Sphere(
+                radius: 3.0,
+            ),
+            position: (5.0, 0.0, 0.0),
+        ),
+    ],
+)

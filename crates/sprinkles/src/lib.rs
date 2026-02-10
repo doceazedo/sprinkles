@@ -5,7 +5,7 @@ pub mod material;
 pub mod prelude;
 pub mod runtime;
 mod sort;
-mod spawning;
+pub mod spawning;
 pub mod textures;
 
 use bevy::{

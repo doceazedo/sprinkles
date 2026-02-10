@@ -1,0 +1,27 @@
+(
+    name: "Fixed Seed",
+    dimension: D3,
+    emitters: [
+        (
+            name: "Deterministic",
+            time: (
+                lifetime: 2.0,
+                fixed_seed: Some(42),
+            ),
+            emission: (
+                particles_amount: 32,
+            ),
+            velocities: (
+                initial_direction: (0.0, 1.0, 0.0),
+                spread: 45.0,
+                initial_velocity: (
+                    min: 5.0,
+                    max: 10.0,
+                ),
+            ),
+            accelerations: (
+                gravity: (0.0, -9.8, 0.0),
+            ),
+        ),
+    ],
+)

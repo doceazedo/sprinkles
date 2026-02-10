@@ -1,3 +1,12 @@
+[package]
+name = "sprinkles_workspace"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[lints]
+workspace = true
+
 [workspace]
 members = ["crates/*"]
 resolver = "3"
@@ -19,3 +28,10 @@ ron = "0.10"
 thiserror = "2"
 bytemuck = { version = "1.14", features = ["derive"] }
 bitflags = { version = "2", features = ["serde"] }
+
+[dev-dependencies]
+bevy = { workspace = true }
+sprinkles = { path = "crates/sprinkles" }
+sprinkles_editor = { path = "crates/sprinkles_editor" }
+ron = { workspace = true }
+serde = { workspace = true }

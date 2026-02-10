@@ -1,0 +1,16 @@
+(
+    name: "One Shot",
+    dimension: D3,
+    emitters: [
+        (
+            name: "Burst",
+            time: (
+                lifetime: 0.5,
+                one_shot: true,
+            ),
+            emission: (
+                particles_amount: 8,
+            ),
+        ),
+    ],
+)

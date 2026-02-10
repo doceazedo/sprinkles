@@ -1,16 +1,9 @@
-mod io;
-mod plugin;
-mod project;
-mod state;
-mod ui;
-mod viewport;
-
 use bevy::asset::UnapprovedPathMode;
 use bevy::prelude::*;
 use bevy::window::WindowResolution;
 
-use plugin::SprinklesEditorPlugin;
-use ui::EditorUiPlugin;
+use sprinkles_editor::plugin::SprinklesEditorPlugin;
+use sprinkles_editor::ui::EditorUiPlugin;
 
 fn main() {
     App::new()

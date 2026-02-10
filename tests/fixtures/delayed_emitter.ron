@@ -1,0 +1,16 @@
+(
+    name: "Delayed Emitter",
+    dimension: D3,
+    emitters: [
+        (
+            name: "Delayed",
+            time: (
+                lifetime: 1.0,
+                delay: 0.5,
+            ),
+            emission: (
+                particles_amount: 8,
+            ),
+        ),
+    ],
+)
