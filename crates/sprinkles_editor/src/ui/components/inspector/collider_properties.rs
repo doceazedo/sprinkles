@@ -7,9 +7,9 @@ use crate::ui::components::inspector::utils::{VariantConfig, variants_from_refle
 use crate::ui::widgets::combobox::ComboBoxChangeEvent;
 use crate::ui::widgets::inspector_field::fields_row;
 use crate::ui::widgets::text_edit::{TextEditCommitEvent, set_text_input_value};
+use crate::ui::components::binding::FieldBinding;
 use crate::ui::widgets::variant_edit::{
-    VariantComboBox, VariantDefinition, VariantEditConfig, VariantEditProps, VariantFieldBinding,
-    variant_edit,
+    VariantComboBox, VariantDefinition, VariantEditConfig, VariantEditProps, variant_edit,
 };
 use crate::ui::widgets::vector_edit::{
     EditorVectorEdit, VectorEditProps, VectorSuffixes, vector_edit,
@@ -187,7 +187,7 @@ fn handle_collider_shape_variant_change(
 fn handle_collider_text_commit(
     trigger: On<TextEditCommitEvent>,
     parents: Query<&ChildOf>,
-    variant_field_bindings: Query<&VariantFieldBinding>,
+    field_bindings: Query<&FieldBinding>,
     shape_variant_edits: Query<(), With<ColliderShapeVariantEdit>>,
     position_edits: Query<(), With<ColliderPositionEdit>>,
     children_query: Query<&Children>,
@@ -196,13 +196,17 @@ fn handle_collider_text_commit(
     mut dirty_state: ResMut<DirtyState>,
 ) {
     if let Some(binding_entity) = find_ancestor(trigger.entity, &parents, 10, |e| {
-        variant_field_bindings.get(e).is_ok()
+        field_bindings.get(e).is_ok()
     }) {
-        let Ok(binding) = variant_field_bindings.get(binding_entity) else {
+        let Ok(binding) = field_bindings.get(binding_entity) else {
             return;
         };
 
-        if shape_variant_edits.get(binding.variant_edit).is_ok() {
+        let Some(variant_edit) = binding.variant_edit else {
+            return;
+        };
+
+        if shape_variant_edits.get(variant_edit).is_ok() {
             let Ok(value) = trigger.text.parse::<f32>() else {
                 return;
             };
@@ -212,7 +216,8 @@ fn handle_collider_text_commit(
                 return;
             };
 
-            let changed = match (binding.field_name.as_str(), &mut collider.shape) {
+            let field_name = binding.field_name().unwrap_or_default();
+            let changed = match (field_name, &mut collider.shape) {
                 ("radius", ParticlesColliderShape3D::Sphere { radius }) => {
                     *radius = value;
                     true
@@ -302,7 +307,7 @@ fn bind_collider_shape_fields(
     mut commands: Commands,
     editor_state: Res<EditorState>,
     assets: Res<Assets<ParticleSystemAsset>>,
-    variant_field_bindings: Query<(Entity, &VariantFieldBinding), Without<ColliderFieldBound>>,
+    field_bindings: Query<(Entity, &FieldBinding), Without<ColliderFieldBound>>,
     shape_variant_edits: Query<(), With<ColliderShapeVariantEdit>>,
     mut text_edits: Query<
         (Entity, &ChildOf, &mut TextInputQueue),
@@ -318,12 +323,15 @@ fn bind_collider_shape_fields(
         return;
     };
 
-    for (binding_entity, binding) in &variant_field_bindings {
-        if shape_variant_edits.get(binding.variant_edit).is_err() {
+    for (binding_entity, binding) in &field_bindings {
+        let Some(variant_edit) = binding.variant_edit else {
+            continue;
+        };
+        if shape_variant_edits.get(variant_edit).is_err() {
             continue;
         }
 
-        match binding.field_name.as_str() {
+        match binding.field_name().unwrap_or_default() {
             "radius" => {
                 if let ParticlesColliderShape3D::Sphere { radius } = &collider.shape {
                     let text = format_f32(*radius);

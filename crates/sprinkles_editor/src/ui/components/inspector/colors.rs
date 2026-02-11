@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use sprinkles::prelude::*;
 
 use crate::state::EditorState;
-use crate::ui::components::binding::{Field, get_inspecting_emitter};
+use crate::ui::components::binding::{FieldBinding, get_inspecting_emitter};
 use crate::ui::tokens::BACKGROUND_COLOR;
 use crate::ui::widgets::alert::{AlertSpan, AlertVariant, alert};
 use crate::ui::widgets::inspector_field::InspectorFieldProps;
@@ -117,7 +117,7 @@ fn sync_alpha_disabled(
     assets: Res<Assets<ParticleSystemAsset>>,
     mut alert_nodes: Query<&mut Node, With<AlphaOpaqueAlert>>,
     new_alerts: Query<Entity, Added<AlphaOpaqueAlert>>,
-    fields: Query<(Entity, &Field)>,
+    fields: Query<(Entity, &FieldBinding)>,
     overlays: Query<Entity, With<AlphaDisabledOverlay>>,
 ) {
     if !editor_state.is_changed() && !assets.is_changed() && new_alerts.is_empty() {
@@ -147,7 +147,7 @@ fn sync_alpha_disabled(
 
     let alpha_field = fields
         .iter()
-        .find(|(_, f)| f.path == "colors.alpha_over_lifetime")
+        .find(|(_, f)| f.path() == "colors.alpha_over_lifetime")
         .map(|(e, _)| e);
 
     let Some(field_entity) = alpha_field else {

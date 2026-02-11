@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use bevy::reflect::{TypeInfo, Typed, VariantInfo};
 
+use crate::ui::components::binding::FieldBinding;
 use crate::ui::components::inspector::utils::field_from_type_path;
 use crate::ui::components::inspector::{FieldKind, VariantField, name_to_label, path_to_label};
 
@@ -222,13 +223,6 @@ pub struct VariantFieldsContainer(pub Entity);
 
 #[derive(Component)]
 pub struct VariantComboBox(pub Entity);
-
-#[derive(Component)]
-pub struct VariantFieldBinding {
-    pub variant_edit: Entity,
-    pub field_name: String,
-    pub field_kind: FieldKind,
-}
 
 #[derive(Component, Default)]
 struct VariantEditState {
@@ -635,6 +629,7 @@ fn handle_variant_edit_click(
                             &mut cmds,
                             fields_container,
                             entity,
+                            &config.path,
                             &variant.rows,
                             &asset_server,
                         );
@@ -724,6 +719,7 @@ fn handle_variant_combobox_change(
                 &mut commands,
                 container_entity,
                 variant_edit_entity,
+                &config.path,
                 &selected_variant.rows,
                 &asset_server,
             );
@@ -737,6 +733,7 @@ fn spawn_variant_fields_for_entity(
     commands: &mut Commands,
     container: Entity,
     variant_edit: Entity,
+    path: &str,
     rows: &[Vec<VariantField>],
     asset_server: &AssetServer,
 ) {
@@ -746,11 +743,12 @@ fn spawn_variant_fields_for_entity(
 
         for field in row_fields {
             let label = path_to_label(&field.name);
-            let binding = VariantFieldBinding {
+            let binding = FieldBinding::emitter_variant(
+                path,
+                &field.name,
+                field.kind.clone(),
                 variant_edit,
-                field_name: field.name.clone(),
-                field_kind: field.kind.clone(),
-            };
+            );
 
             let field_entity =
                 spawn_field_widget(commands, asset_server, &field.kind, label, binding);
@@ -764,7 +762,7 @@ fn spawn_field_widget(
     asset_server: &AssetServer,
     kind: &FieldKind,
     label: String,
-    binding: VariantFieldBinding,
+    binding: FieldBinding,
 ) -> Entity {
     match kind {
         FieldKind::F32 | FieldKind::F32Percent => commands
@@ -826,7 +824,8 @@ fn spawn_field_widget(
         ),
 
         FieldKind::TextureRef => {
-            let props = VariantEditProps::new(&binding.field_name)
+            let field_name = binding.field_name().unwrap_or_default().to_string();
+            let props = VariantEditProps::new(&field_name)
                 .with_label(label)
                 .with_variants(texture_ref_variants())
                 .with_content_mode(VariantContentMode::CustomContent);
@@ -841,7 +840,7 @@ fn spawn_labeled_field(
     commands: &mut Commands,
     asset_server: &AssetServer,
     label: &str,
-    binding: VariantFieldBinding,
+    binding: FieldBinding,
     widget: impl Bundle,
 ) -> Entity {
     let font: Handle<Font> = asset_server.load(FONT_PATH);

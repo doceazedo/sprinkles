@@ -5,11 +5,12 @@ use crate::state::EditorState;
 use crate::ui::widgets::color_picker::{CheckerboardMaterial, ColorPickerChangeEvent};
 use crate::ui::widgets::gradient_edit::{EditorGradientEdit, GradientEditState, GradientMaterial};
 use crate::ui::widgets::variant_edit::{
-    EditorVariantEdit, VariantEditConfig, VariantEditSwatchSlot, VariantFieldBinding,
+    EditorVariantEdit, VariantEditConfig, VariantEditSwatchSlot,
 };
 
 use super::{
-    Field, FieldKind, MAX_ANCESTOR_DEPTH, ReflectPath, find_ancestor, get_inspecting_emitter,
+    FieldBinding, FieldKind, MAX_ANCESTOR_DEPTH, ReflectPath, find_ancestor,
+    get_inspecting_emitter,
 };
 
 #[derive(Component)]
@@ -64,7 +65,7 @@ pub(super) fn setup_variant_swatch(
     editor_state: Res<EditorState>,
     assets: Res<Assets<ParticleSystemAsset>>,
     swatch_slots: Query<(Entity, &VariantEditSwatchSlot), Added<VariantEditSwatchSlot>>,
-    variant_edit_configs: Query<(&VariantEditConfig, &Field), With<EditorVariantEdit>>,
+    variant_edit_configs: Query<(&VariantEditConfig, &FieldBinding), With<EditorVariantEdit>>,
     mut checkerboard_materials: ResMut<Assets<CheckerboardMaterial>>,
     mut gradient_materials: ResMut<Assets<GradientMaterial>>,
 ) {
@@ -76,7 +77,7 @@ pub(super) fn setup_variant_swatch(
 
     for (slot_entity, slot) in &swatch_slots {
         let variant_edit_entity = slot.0;
-        let Ok((_config, field)) = variant_edit_configs.get(variant_edit_entity) else {
+        let Ok((_config, binding)) = variant_edit_configs.get(variant_edit_entity) else {
             continue;
         };
 
@@ -84,7 +85,7 @@ pub(super) fn setup_variant_swatch(
             continue;
         };
 
-        let reflect_path = ReflectPath::new(&field.path);
+        let reflect_path = ReflectPath::new(binding.path());
         let Ok(value) = emitter.reflect_path(reflect_path.as_str()) else {
             continue;
         };
@@ -110,25 +111,27 @@ pub(super) fn setup_variant_swatch(
 
 pub(super) fn sync_variant_swatch_from_color(
     trigger: On<ColorPickerChangeEvent>,
-    variant_field_bindings: Query<&VariantFieldBinding>,
+    field_bindings: Query<&FieldBinding>,
     solid_swatches: Query<(&SolidSwatchMaterial, &MaterialNode<CheckerboardMaterial>)>,
     mut checkerboard_materials: ResMut<Assets<CheckerboardMaterial>>,
     parents: Query<&ChildOf>,
 ) {
     let binding = find_ancestor(trigger.entity, &parents, MAX_ANCESTOR_DEPTH, |e| {
-        variant_field_bindings.get(e).is_ok()
+        field_bindings.get(e).is_ok()
     })
-    .and_then(|e| variant_field_bindings.get(e).ok());
+    .and_then(|e| field_bindings.get(e).ok());
 
     let Some(binding) = binding else {
         return;
     };
 
-    if !matches!(binding.field_kind, FieldKind::Color) {
+    if !matches!(binding.kind, FieldKind::Color) {
         return;
     }
 
-    let variant_edit = binding.variant_edit;
+    let Some(variant_edit) = binding.variant_edit else {
+        return;
+    };
 
     for (solid, mat_node) in &solid_swatches {
         if solid.0 != variant_edit {
@@ -144,7 +147,7 @@ pub(super) fn sync_variant_swatch_from_color(
 pub(super) fn sync_variant_swatch_from_gradient(
     mut commands: Commands,
     gradient_edits: Query<
-        (Entity, &GradientEditState, &VariantFieldBinding),
+        (Entity, &GradientEditState, &FieldBinding),
         (With<EditorGradientEdit>, Changed<GradientEditState>),
     >,
     swatches: Query<(Entity, &VariantSwatchOwner, &Children)>,
@@ -152,11 +155,13 @@ pub(super) fn sync_variant_swatch_from_gradient(
     mut gradient_materials: ResMut<Assets<GradientMaterial>>,
 ) {
     for (_, state, binding) in &gradient_edits {
-        if !matches!(binding.field_kind, FieldKind::Gradient) {
+        if !matches!(binding.kind, FieldKind::Gradient) {
             continue;
         }
 
-        let variant_edit = binding.variant_edit;
+        let Some(variant_edit) = binding.variant_edit else {
+            continue;
+        };
 
         let Some((swatch_entity, _, swatch_children)) = swatches
             .iter()
@@ -186,7 +191,7 @@ pub(super) fn respawn_variant_swatch_on_switch(
     mut commands: Commands,
     editor_state: Res<EditorState>,
     assets: Res<Assets<ParticleSystemAsset>>,
-    changed_configs: Query<(Entity, &VariantEditConfig, &Field), Changed<VariantEditConfig>>,
+    changed_configs: Query<(Entity, &VariantEditConfig, &FieldBinding), Changed<VariantEditConfig>>,
     swatches: Query<(Entity, &VariantSwatchOwner, &Children)>,
     mut checkerboard_materials: ResMut<Assets<CheckerboardMaterial>>,
     mut gradient_materials: ResMut<Assets<GradientMaterial>>,
@@ -195,7 +200,7 @@ pub(super) fn respawn_variant_swatch_on_switch(
         return;
     };
 
-    for (variant_edit_entity, config, field) in &changed_configs {
+    for (variant_edit_entity, config, binding) in &changed_configs {
         if !config.show_swatch_slot {
             continue;
         }
@@ -211,7 +216,7 @@ pub(super) fn respawn_variant_swatch_on_switch(
             commands.entity(child).try_despawn();
         }
 
-        let reflect_path = ReflectPath::new(&field.path);
+        let reflect_path = ReflectPath::new(binding.path());
         let Ok(value) = emitter.reflect_path(reflect_path.as_str()) else {
             continue;
         };

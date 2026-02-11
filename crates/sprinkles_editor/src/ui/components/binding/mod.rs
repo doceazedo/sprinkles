@@ -1,6 +1,5 @@
-mod direct;
 mod swatch;
-mod variant;
+mod unified;
 
 use bevy::prelude::*;
 use bevy::reflect::{DynamicEnum, DynamicVariant, PartialReflect, ReflectMut, ReflectRef};
@@ -10,7 +9,6 @@ use crate::state::{DirtyState, EditorState, Inspectable};
 use crate::ui::widgets::variant_edit::VariantDefinition;
 
 pub(super) use super::inspector::FieldKind;
-pub(super) use super::inspector::InspectedColliderTracker;
 pub(super) use super::inspector::InspectedEmitterTracker;
 
 pub(super) const MAX_ANCESTOR_DEPTH: usize = 10;
@@ -90,27 +88,26 @@ where
 }
 
 pub fn plugin(app: &mut App) {
-    app.add_observer(direct::handle_text_edit_commit)
-        .add_observer(direct::handle_checkbox_commit)
-        .add_observer(variant::handle_variant_change)
-        .add_observer(direct::handle_combobox_change)
-        .add_observer(variant::handle_variant_color_commit)
-        .add_observer(direct::handle_curve_edit_commit)
-        .add_observer(direct::handle_gradient_edit_commit)
-        .add_observer(variant::handle_variant_gradient_commit)
-        .add_observer(variant::handle_variant_texture_commit)
+    app.add_observer(unified::handle_text_commit)
+        .add_observer(unified::handle_checkbox_commit)
+        .add_observer(unified::handle_combobox_change)
+        .add_observer(unified::handle_curve_commit)
+        .add_observer(unified::handle_gradient_commit)
+        .add_observer(unified::handle_color_commit)
+        .add_observer(unified::handle_texture_commit)
+        .add_observer(unified::handle_variant_change)
         .add_observer(swatch::sync_variant_swatch_from_color)
         .add_systems(
             Update,
             (
-                direct::bind_values_to_inputs,
-                direct::bind_curve_edit_values,
-                direct::bind_gradient_edit_values,
-                variant::bind_variant_edits,
-                variant::bind_variant_field_values,
-                variant::bind_variant_color_pickers,
-                variant::bind_variant_gradient_edits,
-                variant::bind_nested_variant_edits,
+                unified::bind_text_inputs,
+                unified::bind_checkboxes,
+                unified::bind_curve_edits,
+                unified::bind_gradient_edits,
+                unified::bind_color_pickers,
+                unified::bind_combobox_fields,
+                unified::bind_variant_edits,
+                unified::bind_nested_variant_edits,
                 swatch::setup_variant_swatch,
                 swatch::sync_variant_swatch_from_gradient,
                 swatch::respawn_variant_swatch_on_switch,
@@ -119,45 +116,130 @@ pub fn plugin(app: &mut App) {
         );
 }
 
+#[derive(Clone)]
+pub enum FieldAccessor {
+    Emitter(String),
+    EmitterVariant { path: String, field_name: String },
+}
+
 #[derive(Component, Clone)]
-pub struct Field {
-    pub path: String,
+pub struct FieldBinding {
+    pub accessor: FieldAccessor,
     pub kind: FieldKind,
+    pub variant_edit: Option<Entity>,
 }
 
-impl Field {
-    pub fn new(path: impl Into<String>) -> Self {
+impl FieldBinding {
+    pub fn emitter(path: impl Into<String>, kind: FieldKind) -> Self {
         Self {
-            path: path.into(),
-            kind: FieldKind::default(),
+            accessor: FieldAccessor::Emitter(path.into()),
+            kind,
+            variant_edit: None,
         }
     }
 
-    pub fn with_kind(mut self, kind: FieldKind) -> Self {
-        self.kind = kind;
-        self
-    }
-}
-
-#[derive(Component)]
-pub(super) struct Bound {
-    field_entity: Entity,
-    is_variant_field: bool,
-}
-
-impl Bound {
-    pub(super) fn direct(field_entity: Entity) -> Self {
+    pub fn emitter_variant(
+        path: impl Into<String>,
+        field_name: impl Into<String>,
+        kind: FieldKind,
+        variant_edit: Entity,
+    ) -> Self {
         Self {
-            field_entity,
-            is_variant_field: false,
+            accessor: FieldAccessor::EmitterVariant {
+                path: path.into(),
+                field_name: field_name.into(),
+            },
+            kind,
+            variant_edit: Some(variant_edit),
         }
     }
 
-    pub(super) fn variant(field_entity: Entity) -> Self {
-        Self {
-            field_entity,
-            is_variant_field: true,
+    pub(super) fn read_value(&self, emitter: &EmitterData) -> FieldValue {
+        match &self.accessor {
+            FieldAccessor::Emitter(path) => get_field_value_by_reflection(emitter, path, &self.kind),
+            FieldAccessor::EmitterVariant { path, field_name } => {
+                get_variant_field_value_by_reflection(emitter, path, field_name, &self.kind)
+                    .unwrap_or(FieldValue::None)
+            }
         }
+    }
+
+    pub(super) fn write_value(&self, emitter: &mut EmitterData, value: &FieldValue) -> bool {
+        match &self.accessor {
+            FieldAccessor::Emitter(path) => set_field_value_by_reflection(emitter, path, value),
+            FieldAccessor::EmitterVariant { path, field_name } => {
+                set_variant_field_value_by_reflection(emitter, path, field_name, value)
+            }
+        }
+    }
+
+    pub fn set_enum_by_name(&self, emitter: &mut EmitterData, variant_name: &str) -> bool {
+        match &self.accessor {
+            FieldAccessor::Emitter(path) => set_field_enum_by_name(emitter, path, variant_name),
+            FieldAccessor::EmitterVariant { path, field_name } => {
+                set_variant_field_enum_by_name(emitter, path, field_name, variant_name)
+            }
+        }
+    }
+
+    pub fn read_reflected<'a>(
+        &self,
+        emitter: &'a EmitterData,
+    ) -> Option<&'a dyn PartialReflect> {
+        match &self.accessor {
+            FieldAccessor::Emitter(path) => {
+                let reflect_path = ReflectPath::new(path);
+                emitter.reflect_path(reflect_path.as_str()).ok()
+            }
+            FieldAccessor::EmitterVariant { path, field_name } => {
+                let reflect_path = ReflectPath::new(path);
+                let value = emitter.reflect_path(reflect_path.as_str()).ok()?;
+                resolve_variant_field_ref(value, field_name)
+            }
+        }
+    }
+
+    pub fn write_reflected(
+        &self,
+        emitter: &mut EmitterData,
+        f: impl FnOnce(&mut dyn PartialReflect),
+    ) -> bool {
+        match &self.accessor {
+            FieldAccessor::Emitter(path) => {
+                let reflect_path = ReflectPath::new(path);
+                if let Ok(target) = emitter.reflect_path_mut(reflect_path.as_str()) {
+                    f(target);
+                    true
+                } else {
+                    false
+                }
+            }
+            FieldAccessor::EmitterVariant { path, field_name } => {
+                let reflect_path = ReflectPath::new(path);
+                let Ok(target) = emitter.reflect_path_mut(reflect_path.as_str()) else {
+                    return false;
+                };
+                with_variant_field_mut(target, field_name, f).is_some()
+            }
+        }
+    }
+
+    pub fn path(&self) -> &str {
+        match &self.accessor {
+            FieldAccessor::Emitter(path) => path,
+            FieldAccessor::EmitterVariant { path, .. } => path,
+        }
+    }
+
+    pub fn field_name(&self) -> Option<&str> {
+        match &self.accessor {
+            FieldAccessor::Emitter(_) => None,
+            FieldAccessor::EmitterVariant { field_name, .. } => Some(field_name),
+        }
+    }
+
+    pub fn is_variant(&self) -> bool {
+        matches!(self.accessor, FieldAccessor::EmitterVariant { .. })
     }
 }
 
@@ -193,20 +275,6 @@ impl FieldValue {
             FieldValue::F32(v) => f32::to_display_string(*v, kind),
             FieldValue::U32(v) => u32::to_display_string(*v, kind),
             FieldValue::OptionalU32(v) => Option::<u32>::to_display_string(*v, kind),
-            _ => None,
-        }
-    }
-
-    pub(super) fn to_vec2(&self) -> Option<Vec2> {
-        match self {
-            FieldValue::Vec2(v) => Some(*v),
-            _ => None,
-        }
-    }
-
-    pub(super) fn to_vec3(&self) -> Option<Vec3> {
-        match self {
-            FieldValue::Vec3(v) => Some(*v),
             _ => None,
         }
     }
@@ -734,31 +802,6 @@ pub(super) fn find_ancestor_entity(
     parents: &Query<&ChildOf>,
 ) -> bool {
     find_ancestor(entity, parents, MAX_ANCESTOR_DEPTH, |e| e == target).is_some()
-}
-
-pub(super) fn find_ancestor_field<'a>(
-    entity: Entity,
-    fields: &'a Query<&Field>,
-    parents: &Query<&ChildOf>,
-) -> Option<(Entity, &'a Field)> {
-    find_ancestor(entity, parents, MAX_ANCESTOR_DEPTH, |e| {
-        fields.get(e).is_ok()
-    })
-    .and_then(|e| fields.get(e).ok().map(|f| (e, f)))
-}
-
-pub(super) fn find_field_for_entity<'a>(
-    entity: Entity,
-    fields: &'a Query<&Field>,
-    parents: &Query<&ChildOf>,
-) -> Option<(Entity, &'a Field)> {
-    if let Ok(field) = fields.get(entity) {
-        return Some((entity, field));
-    }
-    if let Ok(child_of) = parents.get(entity) {
-        return find_ancestor_field(child_of.parent(), fields, parents);
-    }
-    None
 }
 
 pub(super) fn mark_dirty_and_restart(

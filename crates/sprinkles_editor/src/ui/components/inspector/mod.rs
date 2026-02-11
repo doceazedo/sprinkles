@@ -28,7 +28,7 @@ use crate::ui::widgets::panel::{PanelDirection, PanelProps, panel, panel_scrollb
 use crate::ui::widgets::panel_section::{PanelSectionProps, PanelSectionSize, panel_section};
 use crate::ui::widgets::variant_edit::{VariantEditProps, variant_edit};
 
-use super::binding::Field;
+use super::binding::FieldBinding;
 
 pub fn plugin(app: &mut App) {
     app.init_resource::<InspectedEmitterTracker>()
@@ -333,7 +333,7 @@ fn panel_title(asset_server: &AssetServer) -> impl Bundle {
             ),
             (
                 EnabledCheckbox,
-                Field::new("enabled").with_kind(FieldKind::Bool),
+                FieldBinding::emitter("enabled", FieldKind::Bool),
                 checkbox(CheckboxProps::new("Enabled").checked(true), asset_server)
             ),
         ],
@@ -419,7 +419,7 @@ fn setup_inspector_section_fields(
                                 spawn_inspector_field(row, props, &asset_server);
                             }
                             InspectorItem::Variant { path, props } => {
-                                row.spawn((Field::new(&path), variant_edit(props)));
+                                row.spawn((FieldBinding::emitter(&path, FieldKind::default()), variant_edit(props)));
                             }
                         }
                     }
