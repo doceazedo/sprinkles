@@ -67,29 +67,19 @@ pub fn init_particle_sort_pipeline(
 
     let shader = asset_server.load(SHADER_ASSET_PATH);
 
-    let init_pipeline = pipeline_cache.queue_compute_pipeline(ComputePipelineDescriptor {
-        label: Some("particle_sort_init_pipeline".into()),
-        layout: vec![bind_group_layout.clone()],
-        shader: shader.clone(),
-        entry_point: Some(Cow::from("init_indices")),
-        ..default()
-    });
+    let queue_pipeline = |label: &'static str, entry: &'static str| {
+        pipeline_cache.queue_compute_pipeline(ComputePipelineDescriptor {
+            label: Some(label.into()),
+            layout: vec![bind_group_layout.clone()],
+            shader: shader.clone(),
+            entry_point: Some(Cow::from(entry)),
+            ..default()
+        })
+    };
 
-    let sort_pipeline = pipeline_cache.queue_compute_pipeline(ComputePipelineDescriptor {
-        label: Some("particle_sort_pipeline".into()),
-        layout: vec![bind_group_layout.clone()],
-        shader: shader.clone(),
-        entry_point: Some(Cow::from("sort")),
-        ..default()
-    });
-
-    let copy_pipeline = pipeline_cache.queue_compute_pipeline(ComputePipelineDescriptor {
-        label: Some("particle_sort_copy_pipeline".into()),
-        layout: vec![bind_group_layout.clone()],
-        shader,
-        entry_point: Some(Cow::from("copy_sorted")),
-        ..default()
-    });
+    let init_pipeline = queue_pipeline("particle_sort_init_pipeline", "init_indices");
+    let sort_pipeline = queue_pipeline("particle_sort_pipeline", "sort");
+    let copy_pipeline = queue_pipeline("particle_sort_copy_pipeline", "copy_sorted");
 
     commands.insert_resource(ParticleSortPipeline {
         bind_group_layout,
@@ -171,20 +161,16 @@ impl render_graph::Node for ParticleSortNode {
         let pipeline = world.resource::<ParticleSortPipeline>();
         let pipeline_cache = world.resource::<PipelineCache>();
 
-        let init_ready = matches!(
-            pipeline_cache.get_compute_pipeline_state(pipeline.init_pipeline),
-            CachedPipelineState::Ok(_)
-        );
-        let sort_ready = matches!(
-            pipeline_cache.get_compute_pipeline_state(pipeline.sort_pipeline),
-            CachedPipelineState::Ok(_)
-        );
-        let copy_ready = matches!(
-            pipeline_cache.get_compute_pipeline_state(pipeline.copy_pipeline),
-            CachedPipelineState::Ok(_)
-        );
+        let is_ready = |id| {
+            matches!(
+                pipeline_cache.get_compute_pipeline_state(id),
+                CachedPipelineState::Ok(_)
+            )
+        };
 
-        self.ready = init_ready && sort_ready && copy_ready;
+        self.ready = is_ready(pipeline.init_pipeline)
+            && is_ready(pipeline.sort_pipeline)
+            && is_ready(pipeline.copy_pipeline);
     }
 
     fn run(
@@ -223,12 +209,16 @@ impl render_graph::Node for ParticleSortNode {
         for data in &sort_data.emitters {
             let workgroups = (data.amount + WORKGROUP_SIZE - 1) / WORKGROUP_SIZE;
 
-            {
+            let dispatch = |render_context: &mut RenderContext,
+                            pipeline: &bevy::render::render_resource::ComputePipeline,
+                            label: &str,
+                            stage: u32,
+                            step: u32| {
                 let sort_params = SortParams {
                     amount: data.amount,
                     draw_order: data.draw_order,
-                    stage: 0,
-                    step: 0,
+                    stage,
+                    step,
                     camera_position: data.camera_position,
                     _pad1: 0.0,
                     camera_forward: data.camera_forward,
@@ -240,7 +230,7 @@ impl render_graph::Node for ParticleSortNode {
                 uniform_buffer.write_buffer(render_device, render_queue);
 
                 let bind_group = render_device.create_bind_group(
-                    Some("particle_sort_init_bind_group"),
+                    Some(label),
                     &bind_group_layout,
                     &BindGroupEntries::sequential((
                         &uniform_buffer,
@@ -254,14 +244,16 @@ impl render_graph::Node for ParticleSortNode {
                     render_context
                         .command_encoder()
                         .begin_compute_pass(&ComputePassDescriptor {
-                            label: Some("particle_sort_init_pass"),
+                            label: Some(label),
                             ..default()
                         });
 
-                pass.set_pipeline(init_pipeline);
+                pass.set_pipeline(pipeline);
                 pass.set_bind_group(0, &bind_group, &[]);
                 pass.dispatch_workgroups(workgroups, 1, 1);
-            }
+            };
+
+            dispatch(render_context, init_pipeline, "particle_sort_init_pass", 0, 0);
 
             if data.draw_order != 0 {
                 let n = data.amount.next_power_of_two();
@@ -269,85 +261,12 @@ impl render_graph::Node for ParticleSortNode {
 
                 for stage in 0..num_stages {
                     for step in (0..=stage).rev() {
-                        let sort_params = SortParams {
-                            amount: data.amount,
-                            draw_order: data.draw_order,
-                            stage,
-                            step,
-                            camera_position: data.camera_position,
-                            _pad1: 0.0,
-                            camera_forward: data.camera_forward,
-                            _pad2: 0.0,
-                            emitter_transform: data.emitter_transform,
-                        };
-
-                        let mut uniform_buffer = UniformBuffer::from(sort_params);
-                        uniform_buffer.write_buffer(render_device, render_queue);
-
-                        let bind_group = render_device.create_bind_group(
-                            Some("particle_sort_bind_group"),
-                            &bind_group_layout,
-                            &BindGroupEntries::sequential((
-                                &uniform_buffer,
-                                data.particle_buffer.as_entire_binding(),
-                                data.indices_buffer.as_entire_binding(),
-                                data.sorted_particles_buffer.as_entire_binding(),
-                            )),
-                        );
-
-                        let mut pass = render_context.command_encoder().begin_compute_pass(
-                            &ComputePassDescriptor {
-                                label: Some("particle_sort_pass"),
-                                ..default()
-                            },
-                        );
-
-                        pass.set_pipeline(sort_pipeline);
-                        pass.set_bind_group(0, &bind_group, &[]);
-                        pass.dispatch_workgroups(workgroups, 1, 1);
+                        dispatch(render_context, sort_pipeline, "particle_sort_pass", stage, step);
                     }
                 }
             }
 
-            {
-                let sort_params = SortParams {
-                    amount: data.amount,
-                    draw_order: data.draw_order,
-                    stage: 0,
-                    step: 0,
-                    camera_position: data.camera_position,
-                    _pad1: 0.0,
-                    camera_forward: data.camera_forward,
-                    _pad2: 0.0,
-                    emitter_transform: data.emitter_transform,
-                };
-
-                let mut uniform_buffer = UniformBuffer::from(sort_params);
-                uniform_buffer.write_buffer(render_device, render_queue);
-
-                let bind_group = render_device.create_bind_group(
-                    Some("particle_sort_copy_bind_group"),
-                    &bind_group_layout,
-                    &BindGroupEntries::sequential((
-                        &uniform_buffer,
-                        data.particle_buffer.as_entire_binding(),
-                        data.indices_buffer.as_entire_binding(),
-                        data.sorted_particles_buffer.as_entire_binding(),
-                    )),
-                );
-
-                let mut pass =
-                    render_context
-                        .command_encoder()
-                        .begin_compute_pass(&ComputePassDescriptor {
-                            label: Some("particle_sort_copy_pass"),
-                            ..default()
-                        });
-
-                pass.set_pipeline(copy_pipeline);
-                pass.set_bind_group(0, &bind_group, &[]);
-                pass.dispatch_workgroups(workgroups, 1, 1);
-            }
+            dispatch(render_context, copy_pipeline, "particle_sort_copy_pass", 0, 0);
         }
 
         Ok(())
