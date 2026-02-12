@@ -6,8 +6,9 @@ use bytemuck::{Pod, Zeroable};
 
 use crate::{
     asset::{
-        DrawOrder, EmissionShape, EmitterCollisionMode, ParticleSystemAsset,
-        ParticlesColliderShape3D, SolidOrGradientColor, SubEmitterMode,
+        AnimatedVelocity, CurveTexture, DrawOrder, EmissionShape, EmitterCollisionMode,
+        EmitterData, ParticleSystemAsset, ParticlesColliderShape3D, SolidOrGradientColor,
+        SubEmitterMode,
     },
     runtime::{
         EmitterEntity, EmitterRuntime, ParticleBufferHandle, ParticleSystem3D,
@@ -227,6 +228,247 @@ pub struct ExtractedEmitterData {
     pub source_buffer_handle: Option<Handle<ShaderStorageBuffer>>,
 }
 
+fn curve_uniform_from(curve: &Option<CurveTexture>) -> CurveUniform {
+    match curve {
+        Some(c) if !c.is_constant() => CurveUniform::enabled(c.range.min, c.range.max),
+        _ => CurveUniform::disabled(),
+    }
+}
+
+fn animated_velocity_uniform_from(velocity: &AnimatedVelocity) -> AnimatedVelocityUniform {
+    AnimatedVelocityUniform {
+        min: velocity.velocity.min,
+        max: velocity.velocity.max,
+        _pad0: 0.0,
+        _pad1: 0.0,
+        curve: curve_uniform_from(&velocity.velocity_over_lifetime),
+    }
+}
+
+struct CollisionUniforms {
+    mode: u32,
+    friction: f32,
+    bounce: f32,
+}
+
+fn collision_uniforms_from(mode: &Option<EmitterCollisionMode>) -> CollisionUniforms {
+    match mode {
+        Some(EmitterCollisionMode::Rigid { friction, bounce }) => CollisionUniforms {
+            mode: COLLISION_MODE_RIGID,
+            friction: *friction,
+            bounce: *bounce,
+        },
+        Some(EmitterCollisionMode::HideOnContact) => CollisionUniforms {
+            mode: COLLISION_MODE_HIDE_ON_CONTACT,
+            friction: 0.0,
+            bounce: 0.0,
+        },
+        None => CollisionUniforms {
+            mode: COLLISION_MODE_DISABLED,
+            friction: 0.0,
+            bounce: 0.0,
+        },
+    }
+}
+
+struct EmissionShapeUniforms {
+    shape: u32,
+    sphere_radius: f32,
+    box_extents: Vec3,
+    ring_axis: Vec3,
+    ring_height: f32,
+    ring_radius: f32,
+    ring_inner_radius: f32,
+}
+
+fn emission_shape_uniforms_from(shape: &EmissionShape) -> EmissionShapeUniforms {
+    match *shape {
+        EmissionShape::Point => EmissionShapeUniforms {
+            shape: EMISSION_SHAPE_POINT,
+            sphere_radius: 0.0,
+            box_extents: Vec3::ZERO,
+            ring_axis: Vec3::Z,
+            ring_height: 0.0,
+            ring_radius: 0.0,
+            ring_inner_radius: 0.0,
+        },
+        EmissionShape::Sphere { radius } => EmissionShapeUniforms {
+            shape: EMISSION_SHAPE_SPHERE,
+            sphere_radius: radius,
+            box_extents: Vec3::ZERO,
+            ring_axis: Vec3::Z,
+            ring_height: 0.0,
+            ring_radius: 0.0,
+            ring_inner_radius: 0.0,
+        },
+        EmissionShape::SphereSurface { radius } => EmissionShapeUniforms {
+            shape: EMISSION_SHAPE_SPHERE_SURFACE,
+            sphere_radius: radius,
+            box_extents: Vec3::ZERO,
+            ring_axis: Vec3::Z,
+            ring_height: 0.0,
+            ring_radius: 0.0,
+            ring_inner_radius: 0.0,
+        },
+        EmissionShape::Box { extents } => EmissionShapeUniforms {
+            shape: EMISSION_SHAPE_BOX,
+            sphere_radius: 0.0,
+            box_extents: extents,
+            ring_axis: Vec3::Z,
+            ring_height: 0.0,
+            ring_radius: 0.0,
+            ring_inner_radius: 0.0,
+        },
+        EmissionShape::Ring {
+            axis,
+            height,
+            radius,
+            inner_radius,
+        } => EmissionShapeUniforms {
+            shape: EMISSION_SHAPE_RING,
+            sphere_radius: 0.0,
+            box_extents: Vec3::ZERO,
+            ring_axis: axis,
+            ring_height: height,
+            ring_radius: radius,
+            ring_inner_radius: inner_radius,
+        },
+    }
+}
+
+fn resolve_curve_texture(
+    curve: &Option<CurveTexture>,
+    cache: &CurveTextureCache,
+) -> Option<Handle<Image>> {
+    curve
+        .as_ref()
+        .filter(|c| !c.is_constant())
+        .and_then(|c| cache.get(c))
+}
+
+fn build_base_uniforms(
+    emitter: &EmitterData,
+    runtime: &EmitterRuntime,
+    draw_order: u32,
+    es: &EmissionShapeUniforms,
+    collision: &CollisionUniforms,
+    sub_emitter_uniforms: (u32, f32, u32, u32),
+) -> EmitterUniforms {
+    let turbulence = &emitter.turbulence;
+
+    EmitterUniforms {
+        delta_time: 0.0,
+        system_phase: 0.0,
+        prev_system_phase: 0.0,
+        cycle: 0,
+
+        amount: emitter.emission.particles_amount,
+        lifetime: emitter.time.lifetime,
+        lifetime_randomness: emitter.time.lifetime_randomness,
+        emitting: 0,
+
+        gravity: emitter.accelerations.gravity.into(),
+        random_seed: runtime.random_seed,
+
+        emission_shape: es.shape,
+        emission_sphere_radius: es.sphere_radius,
+        emission_ring_height: es.ring_height,
+        emission_ring_radius: es.ring_radius,
+
+        emission_ring_inner_radius: es.ring_inner_radius,
+        spread: emitter.velocities.spread,
+        flatness: emitter.velocities.flatness,
+        initial_velocity_min: emitter.velocities.initial_velocity.min,
+
+        initial_velocity_max: emitter.velocities.initial_velocity.max,
+        inherit_velocity_ratio: emitter.velocities.inherit_ratio,
+        explosiveness: emitter.time.explosiveness,
+        spawn_time_randomness: emitter.time.spawn_time_randomness,
+
+        emission_offset: emitter.emission.offset.into(),
+        _pad1: 0.0,
+
+        emission_scale: emitter.emission.scale.into(),
+        _pad2: 0.0,
+
+        emission_box_extents: es.box_extents.into(),
+        _pad3: 0.0,
+
+        emission_ring_axis: es.ring_axis.into(),
+        _pad4: 0.0,
+
+        direction: emitter.velocities.initial_direction.into(),
+        _pad5: 0.0,
+
+        velocity_pivot: emitter.velocities.pivot.into(),
+        _pad6: 0.0,
+
+        draw_order,
+        clear_particles: 0,
+        scale_min: emitter.scale.range.min,
+        scale_max: emitter.scale.range.max,
+
+        scale_over_lifetime: curve_uniform_from(&emitter.scale.scale_over_lifetime),
+
+        use_initial_color_gradient: match &emitter.colors.initial_color {
+            SolidOrGradientColor::Solid { .. } => 0,
+            SolidOrGradientColor::Gradient { .. } => 1,
+        },
+        turbulence_enabled: if turbulence.enabled { 1 } else { 0 },
+        particle_flags: emitter.particle_flags.bits(),
+        _pad7: 0,
+
+        initial_color: match &emitter.colors.initial_color {
+            SolidOrGradientColor::Solid { color } => *color,
+            SolidOrGradientColor::Gradient { .. } => [1.0, 1.0, 1.0, 1.0],
+        },
+
+        alpha_over_lifetime: curve_uniform_from(&emitter.colors.alpha_over_lifetime),
+        emission_over_lifetime: curve_uniform_from(&emitter.colors.emission_over_lifetime),
+
+        turbulence_noise_strength: turbulence.noise_strength,
+        turbulence_noise_scale: turbulence.noise_scale,
+        turbulence_noise_speed_random: turbulence.noise_speed_random,
+        turbulence_influence_min: turbulence.influence.min,
+
+        turbulence_noise_speed: turbulence.noise_speed.into(),
+        turbulence_influence_max: turbulence.influence.max,
+
+        turbulence_influence_over_lifetime: curve_uniform_from(
+            &turbulence.influence_over_lifetime,
+        ),
+
+        radial_velocity: animated_velocity_uniform_from(&emitter.velocities.radial_velocity),
+
+        collision_mode: collision.mode,
+        collision_base_size: emitter.collision.base_size,
+        collision_use_scale: emitter.collision.use_scale as u32,
+        collision_friction: collision.friction,
+        collision_bounce: collision.bounce,
+        collider_count: 0,
+        _collision_pad0: 0.0,
+        _collision_pad1: 0.0,
+
+        angle_min: emitter.angle.range.min,
+        angle_max: emitter.angle.range.max,
+        _angle_pad0: 0.0,
+        _angle_pad1: 0.0,
+
+        angle_over_lifetime: curve_uniform_from(&emitter.angle.angle_over_lifetime),
+
+        angular_velocity: animated_velocity_uniform_from(&emitter.velocities.angular_velocity),
+
+        sub_emitter_mode: sub_emitter_uniforms.0,
+        sub_emitter_frequency: sub_emitter_uniforms.1,
+        sub_emitter_amount: sub_emitter_uniforms.2,
+        sub_emitter_keep_velocity: sub_emitter_uniforms.3,
+        is_sub_emitter_target: 0,
+        _sub_emitter_pad0: 0,
+        _sub_emitter_pad1: 0,
+        _sub_emitter_pad2: 0,
+    }
+}
+
 pub fn extract_particle_systems(
     mut commands: Commands,
     emitter_query: Extract<
@@ -308,62 +550,8 @@ pub fn extract_particle_systems(
             DrawOrder::ViewDepth => 3,
         };
 
-        let (
-            emission_shape,
-            emission_sphere_radius,
-            emission_box_extents,
-            emission_ring_axis,
-            emission_ring_height,
-            emission_ring_radius,
-            emission_ring_inner_radius,
-        ) = match emitter.emission.shape {
-            EmissionShape::Point => (
-                EMISSION_SHAPE_POINT,
-                0.0,
-                Vec3::ZERO,
-                Vec3::Z,
-                0.0,
-                0.0,
-                0.0,
-            ),
-            EmissionShape::Sphere { radius } => (
-                EMISSION_SHAPE_SPHERE,
-                radius,
-                Vec3::ZERO,
-                Vec3::Z,
-                0.0,
-                0.0,
-                0.0,
-            ),
-            EmissionShape::SphereSurface { radius } => (
-                EMISSION_SHAPE_SPHERE_SURFACE,
-                radius,
-                Vec3::ZERO,
-                Vec3::Z,
-                0.0,
-                0.0,
-                0.0,
-            ),
-            EmissionShape::Box { extents } => {
-                (EMISSION_SHAPE_BOX, 0.0, extents, Vec3::Z, 0.0, 0.0, 0.0)
-            }
-            EmissionShape::Ring {
-                axis,
-                height,
-                radius,
-                inner_radius,
-            } => (
-                EMISSION_SHAPE_RING,
-                0.0,
-                Vec3::ZERO,
-                axis,
-                height,
-                radius,
-                inner_radius,
-            ),
-        };
-
-        let turbulence = &emitter.turbulence;
+        let es = emission_shape_uniforms_from(&emitter.emission.shape);
+        let collision = collision_uniforms_from(&emitter.collision.mode);
 
         let sub_emitter_uniforms = match &emitter.sub_emitter {
             Some(config) => {
@@ -383,161 +571,14 @@ pub fn extract_particle_systems(
             None => (SUB_EMITTER_MODE_DISABLED, 1.0, 1, 0),
         };
 
-        let base_uniforms = EmitterUniforms {
-            delta_time: 0.0,
-            system_phase: 0.0,
-            prev_system_phase: 0.0,
-            cycle: 0,
-
-            amount: emitter.emission.particles_amount,
-            lifetime: emitter.time.lifetime,
-            lifetime_randomness: emitter.time.lifetime_randomness,
-            emitting: 0,
-
-            gravity: emitter.accelerations.gravity.into(),
-            random_seed: runtime.random_seed,
-
-            emission_shape,
-            emission_sphere_radius,
-            emission_ring_height,
-            emission_ring_radius,
-
-            emission_ring_inner_radius,
-            spread: emitter.velocities.spread,
-            flatness: emitter.velocities.flatness,
-            initial_velocity_min: emitter.velocities.initial_velocity.min,
-
-            initial_velocity_max: emitter.velocities.initial_velocity.max,
-            inherit_velocity_ratio: emitter.velocities.inherit_ratio,
-            explosiveness: emitter.time.explosiveness,
-            spawn_time_randomness: emitter.time.spawn_time_randomness,
-
-            emission_offset: emitter.emission.offset.into(),
-            _pad1: 0.0,
-
-            emission_scale: emitter.emission.scale.into(),
-            _pad2: 0.0,
-
-            emission_box_extents: emission_box_extents.into(),
-            _pad3: 0.0,
-
-            emission_ring_axis: emission_ring_axis.into(),
-            _pad4: 0.0,
-
-            direction: emitter.velocities.initial_direction.into(),
-            _pad5: 0.0,
-
-            velocity_pivot: emitter.velocities.pivot.into(),
-            _pad6: 0.0,
-
+        let base_uniforms = build_base_uniforms(
+            emitter,
+            runtime,
             draw_order,
-            clear_particles: 0,
-            scale_min: emitter.scale.range.min,
-            scale_max: emitter.scale.range.max,
-
-            scale_over_lifetime: match &emitter.scale.scale_over_lifetime {
-                Some(c) if !c.is_constant() => CurveUniform::enabled(c.range.min, c.range.max),
-                _ => CurveUniform::disabled(),
-            },
-
-            use_initial_color_gradient: match &emitter.colors.initial_color {
-                SolidOrGradientColor::Solid { .. } => 0,
-                SolidOrGradientColor::Gradient { .. } => 1,
-            },
-            turbulence_enabled: if turbulence.enabled { 1 } else { 0 },
-            particle_flags: emitter.particle_flags.bits(),
-            _pad7: 0,
-
-            initial_color: match &emitter.colors.initial_color {
-                SolidOrGradientColor::Solid { color } => *color,
-                SolidOrGradientColor::Gradient { .. } => [1.0, 1.0, 1.0, 1.0],
-            },
-
-            alpha_over_lifetime: match &emitter.colors.alpha_over_lifetime {
-                Some(c) if !c.is_constant() => CurveUniform::enabled(c.range.min, c.range.max),
-                _ => CurveUniform::disabled(),
-            },
-            emission_over_lifetime: match &emitter.colors.emission_over_lifetime {
-                Some(c) if !c.is_constant() => CurveUniform::enabled(c.range.min, c.range.max),
-                _ => CurveUniform::disabled(),
-            },
-
-            turbulence_noise_strength: turbulence.noise_strength,
-            turbulence_noise_scale: turbulence.noise_scale,
-            turbulence_noise_speed_random: turbulence.noise_speed_random,
-            turbulence_influence_min: turbulence.influence.min,
-
-            turbulence_noise_speed: turbulence.noise_speed.into(),
-            turbulence_influence_max: turbulence.influence.max,
-
-            turbulence_influence_over_lifetime: turbulence
-                .influence_over_lifetime
-                .as_ref()
-                .filter(|c| !c.is_constant())
-                .map_or(CurveUniform::disabled(), |c| {
-                    CurveUniform::enabled(c.range.min, c.range.max)
-                }),
-
-            radial_velocity: AnimatedVelocityUniform {
-                min: emitter.velocities.radial_velocity.velocity.min,
-                max: emitter.velocities.radial_velocity.velocity.max,
-                _pad0: 0.0,
-                _pad1: 0.0,
-                curve: match &emitter.velocities.radial_velocity.velocity_over_lifetime {
-                    Some(c) if !c.is_constant() => CurveUniform::enabled(c.range.min, c.range.max),
-                    _ => CurveUniform::disabled(),
-                },
-            },
-
-            collision_mode: match &emitter.collision.mode {
-                Some(EmitterCollisionMode::Rigid { .. }) => COLLISION_MODE_RIGID,
-                Some(EmitterCollisionMode::HideOnContact) => COLLISION_MODE_HIDE_ON_CONTACT,
-                None => COLLISION_MODE_DISABLED,
-            },
-            collision_base_size: emitter.collision.base_size,
-            collision_use_scale: emitter.collision.use_scale as u32,
-            collision_friction: match &emitter.collision.mode {
-                Some(EmitterCollisionMode::Rigid { friction, .. }) => *friction,
-                _ => 0.0,
-            },
-            collision_bounce: match &emitter.collision.mode {
-                Some(EmitterCollisionMode::Rigid { bounce, .. }) => *bounce,
-                _ => 0.0,
-            },
-            collider_count: 0,
-            _collision_pad0: 0.0,
-            _collision_pad1: 0.0,
-
-            angle_min: emitter.angle.range.min,
-            angle_max: emitter.angle.range.max,
-            _angle_pad0: 0.0,
-            _angle_pad1: 0.0,
-
-            angle_over_lifetime: match &emitter.angle.angle_over_lifetime {
-                Some(c) if !c.is_constant() => CurveUniform::enabled(c.range.min, c.range.max),
-                _ => CurveUniform::disabled(),
-            },
-
-            angular_velocity: AnimatedVelocityUniform {
-                min: emitter.velocities.angular_velocity.velocity.min,
-                max: emitter.velocities.angular_velocity.velocity.max,
-                _pad0: 0.0,
-                _pad1: 0.0,
-                curve: match &emitter.velocities.angular_velocity.velocity_over_lifetime {
-                    Some(c) if !c.is_constant() => CurveUniform::enabled(c.range.min, c.range.max),
-                    _ => CurveUniform::disabled(),
-                },
-            },
-
-            sub_emitter_mode: sub_emitter_uniforms.0,
-            sub_emitter_frequency: sub_emitter_uniforms.1,
-            sub_emitter_amount: sub_emitter_uniforms.2,
-            sub_emitter_keep_velocity: sub_emitter_uniforms.3,
-            is_sub_emitter_target: 0, // set per-step below
-            _sub_emitter_pad0: 0,
-            _sub_emitter_pad1: 0,
-            _sub_emitter_pad2: 0,
-        };
+            &es,
+            &collision,
+            sub_emitter_uniforms,
+        );
 
         let is_sub_emitter_target = emission_buffer_map
             .contains_key(&(emitter_entity.parent_system, runtime.emitter_index));
@@ -572,55 +613,24 @@ pub fn extract_particle_systems(
         let color_over_lifetime_texture_handle =
             gradient_cache.get(&emitter.colors.color_over_lifetime);
 
-        let scale_over_lifetime_texture_handle = emitter
-            .scale
-            .scale_over_lifetime
-            .as_ref()
-            .filter(|c| !c.is_constant())
-            .and_then(|c| curve_cache.get(c));
-
-        let alpha_over_lifetime_texture_handle = emitter
-            .colors
-            .alpha_over_lifetime
-            .as_ref()
-            .filter(|c| !c.is_constant())
-            .and_then(|c| curve_cache.get(c));
-
-        let emission_over_lifetime_texture_handle = emitter
-            .colors
-            .emission_over_lifetime
-            .as_ref()
-            .filter(|c| !c.is_constant())
-            .and_then(|c| curve_cache.get(c));
-
-        let turbulence_influence_over_lifetime_texture_handle = turbulence
-            .influence_over_lifetime
-            .as_ref()
-            .filter(|c| !c.is_constant())
-            .and_then(|c| curve_cache.get(c));
-
-        let radial_velocity_curve_texture_handle = emitter
-            .velocities
-            .radial_velocity
-            .velocity_over_lifetime
-            .as_ref()
-            .filter(|c| !c.is_constant())
-            .and_then(|c| curve_cache.get(c));
-
-        let angle_over_lifetime_texture_handle = emitter
-            .angle
-            .angle_over_lifetime
-            .as_ref()
-            .filter(|c| !c.is_constant())
-            .and_then(|c| curve_cache.get(c));
-
-        let angular_velocity_curve_texture_handle = emitter
-            .velocities
-            .angular_velocity
-            .velocity_over_lifetime
-            .as_ref()
-            .filter(|c| !c.is_constant())
-            .and_then(|c| curve_cache.get(c));
+        let scale_over_lifetime_texture_handle =
+            resolve_curve_texture(&emitter.scale.scale_over_lifetime, &curve_cache);
+        let alpha_over_lifetime_texture_handle =
+            resolve_curve_texture(&emitter.colors.alpha_over_lifetime, &curve_cache);
+        let emission_over_lifetime_texture_handle =
+            resolve_curve_texture(&emitter.colors.emission_over_lifetime, &curve_cache);
+        let turbulence_influence_over_lifetime_texture_handle =
+            resolve_curve_texture(&emitter.turbulence.influence_over_lifetime, &curve_cache);
+        let radial_velocity_curve_texture_handle = resolve_curve_texture(
+            &emitter.velocities.radial_velocity.velocity_over_lifetime,
+            &curve_cache,
+        );
+        let angle_over_lifetime_texture_handle =
+            resolve_curve_texture(&emitter.angle.angle_over_lifetime, &curve_cache);
+        let angular_velocity_curve_texture_handle = resolve_curve_texture(
+            &emitter.velocities.angular_velocity.velocity_over_lifetime,
+            &curve_cache,
+        );
 
         let emission_buffer_handle = sub_emitter_buf.map(|b| b.buffer.clone());
         let source_buffer_handle = if is_sub_emitter_target {
