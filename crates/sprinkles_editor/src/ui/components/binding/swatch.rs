@@ -8,9 +8,7 @@ use crate::ui::widgets::variant_edit::{
     EditorVariantEdit, VariantEditConfig, VariantEditSwatchSlot,
 };
 
-use super::{
-    FieldBinding, FieldKind, MAX_ANCESTOR_DEPTH, ReflectPath, find_ancestor, get_inspecting_emitter,
-};
+use super::{FieldBinding, FieldKind, ReflectPath, get_inspecting_emitter};
 
 #[derive(Component)]
 pub(super) struct VariantSwatchOwner(Entity);
@@ -131,14 +129,8 @@ pub(super) fn sync_variant_swatch_from_color(
     field_bindings: Query<&FieldBinding>,
     solid_swatches: Query<(&SolidSwatchMaterial, &MaterialNode<CheckerboardMaterial>)>,
     mut checkerboard_materials: ResMut<Assets<CheckerboardMaterial>>,
-    parents: Query<&ChildOf>,
 ) {
-    let binding = find_ancestor(trigger.entity, &parents, MAX_ANCESTOR_DEPTH, |e| {
-        field_bindings.get(e).is_ok()
-    })
-    .and_then(|e| field_bindings.get(e).ok());
-
-    let Some(binding) = binding else {
+    let Ok(binding) = field_bindings.get(trigger.entity) else {
         return;
     };
 

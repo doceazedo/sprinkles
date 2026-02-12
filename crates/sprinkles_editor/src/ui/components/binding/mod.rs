@@ -9,7 +9,10 @@ use bevy::reflect::{
 use sprinkles::prelude::*;
 
 use crate::state::{DirtyState, EditorState, Inspectable};
+use crate::ui::widgets::combobox::ComboBoxConfig;
+use crate::ui::widgets::text_edit::EditorTextEdit;
 use crate::ui::widgets::variant_edit::VariantDefinition;
+use crate::ui::widgets::vector_edit::VectorComponentIndex;
 
 pub(super) use super::inspector::FieldKind;
 pub(super) use super::inspector::InspectedEmitterTracker;
@@ -103,14 +106,54 @@ pub fn plugin(app: &mut App) {
         .add_systems(
             Update,
             (
-                unified::bind_text_inputs,
-                unified::bind_widget_values,
-                unified::bind_color_pickers,
-                swatch::setup_variant_swatch,
-                swatch::sync_variant_swatch_from_gradient,
+                propagate_bindings,
+                (
+                    unified::bind_text_inputs,
+                    unified::bind_widget_values,
+                    unified::bind_color_pickers,
+                    swatch::setup_variant_swatch,
+                    swatch::sync_variant_swatch_from_gradient,
+                ),
             )
+                .chain()
                 .after(super::inspector::update_inspected_emitter_tracker),
         );
+}
+
+#[derive(Component)]
+pub(super) struct BoundTo {
+    pub binding: Entity,
+    pub component_index: Option<usize>,
+}
+
+fn propagate_bindings(
+    new_text_edits: Query<Entity, Added<EditorTextEdit>>,
+    new_comboboxes: Query<Entity, (Added<ComboBoxConfig>, Without<FieldBinding>)>,
+    parents: Query<&ChildOf>,
+    bindings: Query<Entity, With<FieldBinding>>,
+    vector_indices: Query<&VectorComponentIndex>,
+    mut commands: Commands,
+) {
+    for widget_entity in new_text_edits.iter().chain(new_comboboxes.iter()) {
+        let mut entity = widget_entity;
+        let mut component_index = None;
+        for _ in 0..MAX_ANCESTOR_DEPTH {
+            if let Ok(vi) = vector_indices.get(entity) {
+                component_index = Some(vi.0);
+            }
+            if bindings.get(entity).is_ok() {
+                commands.entity(widget_entity).try_insert(BoundTo {
+                    binding: entity,
+                    component_index,
+                });
+                break;
+            }
+            let Ok(child_of) = parents.get(entity) else {
+                break;
+            };
+            entity = child_of.parent();
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -166,53 +209,66 @@ impl FieldBinding {
         }
     }
 
-    pub(super) fn read_value(&self, emitter: &EmitterData) -> FieldValue {
-        let reflect_path = ReflectPath::new(self.path());
-        let Ok(value) = emitter.reflect_path(reflect_path.as_str()) else {
-            return FieldValue::None;
-        };
-        let value = match &self.accessor {
-            FieldAccessor::Emitter(_) => value,
-            FieldAccessor::EmitterVariant { field_name, .. } => {
-                let Some(field) = resolve_variant_field_ref(value, field_name) else {
-                    return FieldValue::None;
-                };
-                field
+    pub(super) fn resolve_ref<'a>(
+        &self,
+        emitter: &'a EmitterData,
+    ) -> Option<&'a dyn PartialReflect> {
+        let path = ReflectPath::new(self.path());
+        let value = match emitter.reflect_path(path.as_str()) {
+            Ok(v) => v,
+            Err(e) => {
+                warn!("binding: failed to resolve '{}': {}", self.path(), e);
+                return None;
             }
+        };
+        match &self.accessor {
+            FieldAccessor::Emitter(_) => Some(value),
+            FieldAccessor::EmitterVariant { field_name, .. } => {
+                resolve_variant_field_ref(value, field_name)
+            }
+        }
+    }
+
+    pub(super) fn with_resolved_mut<R>(
+        &self,
+        emitter: &mut EmitterData,
+        f: impl FnOnce(&mut dyn PartialReflect) -> R,
+    ) -> Option<R> {
+        let path = ReflectPath::new(self.path());
+        let target = match emitter.reflect_path_mut(path.as_str()) {
+            Ok(v) => v,
+            Err(e) => {
+                warn!("binding: failed to resolve_mut '{}': {}", self.path(), e);
+                return None;
+            }
+        };
+        match &self.accessor {
+            FieldAccessor::Emitter(_) => Some(f(target)),
+            FieldAccessor::EmitterVariant { field_name, .. } => {
+                with_variant_field_mut(target, field_name, f)
+            }
+        }
+    }
+
+    pub(super) fn read_value(&self, emitter: &EmitterData) -> FieldValue {
+        let Some(value) = self.resolve_ref(emitter) else {
+            return FieldValue::None;
         };
         reflect_to_field_value(value, &self.kind)
     }
 
     pub(super) fn write_value(&self, emitter: &mut EmitterData, value: &FieldValue) -> bool {
-        let reflect_path = ReflectPath::new(self.path());
-        let Ok(target) = emitter.reflect_path_mut(reflect_path.as_str()) else {
-            return false;
-        };
-        match &self.accessor {
-            FieldAccessor::Emitter(_) => apply_field_value_to_reflect(target, value),
-            FieldAccessor::EmitterVariant { field_name, .. } => {
-                with_variant_field_mut(target, field_name, |field| {
-                    apply_field_value_to_reflect(field, value)
-                })
-                .unwrap_or(false)
-            }
-        }
+        self.with_resolved_mut(emitter, |target| {
+            apply_field_value_to_reflect(target, value)
+        })
+        .unwrap_or(false)
     }
 
     pub fn set_enum_by_name(&self, emitter: &mut EmitterData, variant_name: &str) -> bool {
-        let reflect_path = ReflectPath::new(self.path());
-        let Ok(target) = emitter.reflect_path_mut(reflect_path.as_str()) else {
-            return false;
-        };
-        match &self.accessor {
-            FieldAccessor::Emitter(_) => set_enum_variant_by_name(target, variant_name),
-            FieldAccessor::EmitterVariant { field_name, .. } => {
-                with_variant_field_mut(target, field_name, |field| {
-                    set_enum_variant_by_name(field, variant_name)
-                })
-                .unwrap_or(false)
-            }
-        }
+        self.with_resolved_mut(emitter, |target| {
+            set_enum_variant_by_name(target, variant_name)
+        })
+        .unwrap_or(false)
     }
 
     pub fn set_optional_enum(
@@ -220,33 +276,14 @@ impl FieldBinding {
         emitter: &mut EmitterData,
         inner_variant_name: Option<&str>,
     ) -> bool {
-        let reflect_path = ReflectPath::new(self.path());
-        let Ok(target) = emitter.reflect_path_mut(reflect_path.as_str()) else {
-            return false;
-        };
-        match &self.accessor {
-            FieldAccessor::Emitter(_) => set_optional_enum_by_name(target, inner_variant_name),
-            FieldAccessor::EmitterVariant { field_name, .. } => {
-                with_variant_field_mut(target, field_name, |field| {
-                    set_optional_enum_by_name(field, inner_variant_name)
-                })
-                .unwrap_or(false)
-            }
-        }
+        self.with_resolved_mut(emitter, |target| {
+            set_optional_enum_by_name(target, inner_variant_name)
+        })
+        .unwrap_or(false)
     }
 
     pub fn read_reflected<'a>(&self, emitter: &'a EmitterData) -> Option<&'a dyn PartialReflect> {
-        match &self.accessor {
-            FieldAccessor::Emitter(path) => {
-                let reflect_path = ReflectPath::new(path);
-                emitter.reflect_path(reflect_path.as_str()).ok()
-            }
-            FieldAccessor::EmitterVariant { path, field_name } => {
-                let reflect_path = ReflectPath::new(path);
-                let value = emitter.reflect_path(reflect_path.as_str()).ok()?;
-                resolve_variant_field_ref(value, field_name)
-            }
-        }
+        self.resolve_ref(emitter)
     }
 
     pub fn write_reflected(
@@ -254,24 +291,10 @@ impl FieldBinding {
         emitter: &mut EmitterData,
         f: impl FnOnce(&mut dyn PartialReflect),
     ) -> bool {
-        match &self.accessor {
-            FieldAccessor::Emitter(path) => {
-                let reflect_path = ReflectPath::new(path);
-                if let Ok(target) = emitter.reflect_path_mut(reflect_path.as_str()) {
-                    f(target);
-                    true
-                } else {
-                    false
-                }
-            }
-            FieldAccessor::EmitterVariant { path, field_name } => {
-                let reflect_path = ReflectPath::new(path);
-                let Ok(target) = emitter.reflect_path_mut(reflect_path.as_str()) else {
-                    return false;
-                };
-                with_variant_field_mut(target, field_name, f).is_some()
-            }
-        }
+        self.with_resolved_mut(emitter, |target| {
+            f(target);
+        })
+        .is_some()
     }
 
     pub fn path(&self) -> &str {
@@ -357,140 +380,12 @@ impl FieldValue {
     }
 }
 
-trait Bindable: Sized {
-    fn try_from_reflected(value: &dyn PartialReflect) -> Option<Self>;
-    fn apply_to_reflect(&self, target: &mut dyn PartialReflect) -> bool;
-}
-
-impl Bindable for f32 {
-    fn try_from_reflected(value: &dyn PartialReflect) -> Option<Self> {
-        value.try_downcast_ref::<f32>().copied()
+fn apply_with_change_check(target: &mut dyn PartialReflect, value: &dyn PartialReflect) -> bool {
+    if let Some(true) = target.reflect_partial_eq(value) {
+        return false;
     }
-
-    fn apply_to_reflect(&self, target: &mut dyn PartialReflect) -> bool {
-        if let Some(field) = target.try_downcast_mut::<f32>() {
-            if (*field - self).abs() > f32::EPSILON {
-                *field = *self;
-                return true;
-            }
-        }
-        false
-    }
-}
-
-impl Bindable for u32 {
-    fn try_from_reflected(value: &dyn PartialReflect) -> Option<Self> {
-        value.try_downcast_ref::<u32>().copied()
-    }
-
-    fn apply_to_reflect(&self, target: &mut dyn PartialReflect) -> bool {
-        if let Some(field) = target.try_downcast_mut::<u32>() {
-            if *field != *self {
-                *field = *self;
-                return true;
-            }
-        }
-        false
-    }
-}
-
-impl Bindable for Option<u32> {
-    fn try_from_reflected(value: &dyn PartialReflect) -> Option<Self> {
-        value.try_downcast_ref::<Option<u32>>().copied()
-    }
-
-    fn apply_to_reflect(&self, target: &mut dyn PartialReflect) -> bool {
-        if let Some(field) = target.try_downcast_mut::<Option<u32>>() {
-            if *field != *self {
-                *field = *self;
-                return true;
-            }
-        }
-        false
-    }
-}
-
-impl Bindable for bool {
-    fn try_from_reflected(value: &dyn PartialReflect) -> Option<Self> {
-        value.try_downcast_ref::<bool>().copied()
-    }
-
-    fn apply_to_reflect(&self, target: &mut dyn PartialReflect) -> bool {
-        if let Some(field) = target.try_downcast_mut::<bool>() {
-            if *field != *self {
-                *field = *self;
-                return true;
-            }
-        }
-        false
-    }
-}
-
-impl Bindable for Vec2 {
-    fn try_from_reflected(value: &dyn PartialReflect) -> Option<Self> {
-        value.try_downcast_ref::<Vec2>().copied()
-    }
-
-    fn apply_to_reflect(&self, target: &mut dyn PartialReflect) -> bool {
-        if let Some(field) = target.try_downcast_mut::<Vec2>() {
-            if (*field - *self).length() > f32::EPSILON {
-                *field = *self;
-                return true;
-            }
-        }
-        false
-    }
-}
-
-impl Bindable for Vec3 {
-    fn try_from_reflected(value: &dyn PartialReflect) -> Option<Self> {
-        value.try_downcast_ref::<Vec3>().copied()
-    }
-
-    fn apply_to_reflect(&self, target: &mut dyn PartialReflect) -> bool {
-        if let Some(field) = target.try_downcast_mut::<Vec3>() {
-            if (*field - *self).length() > f32::EPSILON {
-                *field = *self;
-                return true;
-            }
-        }
-        false
-    }
-}
-
-impl Bindable for [f32; 4] {
-    fn try_from_reflected(value: &dyn PartialReflect) -> Option<Self> {
-        value.try_downcast_ref::<[f32; 4]>().copied()
-    }
-
-    fn apply_to_reflect(&self, target: &mut dyn PartialReflect) -> bool {
-        if let Some(field) = target.try_downcast_mut::<[f32; 4]>() {
-            if *field != *self {
-                *field = *self;
-                return true;
-            }
-        }
-        false
-    }
-}
-
-impl Bindable for ParticleRange {
-    fn try_from_reflected(value: &dyn PartialReflect) -> Option<Self> {
-        value.try_downcast_ref::<ParticleRange>().copied()
-    }
-
-    fn apply_to_reflect(&self, target: &mut dyn PartialReflect) -> bool {
-        if let Some(field) = target.try_downcast_mut::<ParticleRange>() {
-            if (field.min - self.min).abs() > f32::EPSILON
-                || (field.max - self.max).abs() > f32::EPSILON
-            {
-                field.min = self.min;
-                field.max = self.max;
-                return true;
-            }
-        }
-        false
-    }
+    target.apply(value);
+    true
 }
 
 pub(super) fn format_f32(v: f32) -> String {
@@ -499,40 +394,6 @@ pub(super) fn format_f32(v: f32) -> String {
         text.push_str(".0");
     }
     text
-}
-
-pub(super) fn set_vec2_component(vec: &mut Vec2, index: usize, value: f32) {
-    match index {
-        0 => vec.x = value,
-        1 => vec.y = value,
-        _ => {}
-    }
-}
-
-pub(super) fn get_vec2_component(vec: Vec2, index: usize) -> f32 {
-    match index {
-        0 => vec.x,
-        1 => vec.y,
-        _ => 0.0,
-    }
-}
-
-pub(super) fn set_vec3_component(vec: &mut Vec3, index: usize, value: f32) {
-    match index {
-        0 => vec.x = value,
-        1 => vec.y = value,
-        2 => vec.z = value,
-        _ => {}
-    }
-}
-
-pub(super) fn get_vec3_component(vec: Vec3, index: usize) -> f32 {
-    match index {
-        0 => vec.x,
-        1 => vec.y,
-        2 => vec.z,
-        _ => 0.0,
-    }
 }
 
 pub(super) fn parse_field_value(text: &str, kind: &FieldKind) -> FieldValue {
@@ -581,28 +442,28 @@ fn reflect_to_field_value(value: &dyn PartialReflect, kind: &FieldKind) -> Field
         }
         return FieldValue::None;
     }
-    if let Some(v) = f32::try_from_reflected(value) {
-        return FieldValue::F32(v);
+    if let Some(v) = value.try_downcast_ref::<f32>() {
+        return FieldValue::F32(*v);
     }
-    if let Some(v) = u32::try_from_reflected(value) {
-        return FieldValue::U32(v);
+    if let Some(v) = value.try_downcast_ref::<u32>() {
+        return FieldValue::U32(*v);
     }
-    if let Some(v) = bool::try_from_reflected(value) {
-        return FieldValue::Bool(v);
+    if let Some(v) = value.try_downcast_ref::<bool>() {
+        return FieldValue::Bool(*v);
     }
-    if let Some(v) = Vec2::try_from_reflected(value) {
-        return FieldValue::Vec2(v);
+    if let Some(v) = value.try_downcast_ref::<Vec2>() {
+        return FieldValue::Vec2(*v);
     }
-    if let Some(v) = Vec3::try_from_reflected(value) {
-        return FieldValue::Vec3(v);
+    if let Some(v) = value.try_downcast_ref::<Vec3>() {
+        return FieldValue::Vec3(*v);
     }
-    if let Some(v) = Option::<u32>::try_from_reflected(value) {
-        return FieldValue::OptionalU32(v);
+    if let Some(v) = value.try_downcast_ref::<Option<u32>>() {
+        return FieldValue::OptionalU32(*v);
     }
-    if let Some(v) = <[f32; 4]>::try_from_reflected(value) {
-        return FieldValue::Color(v);
+    if let Some(v) = value.try_downcast_ref::<[f32; 4]>() {
+        return FieldValue::Color(*v);
     }
-    if let Some(v) = ParticleRange::try_from_reflected(value) {
+    if let Some(v) = value.try_downcast_ref::<ParticleRange>() {
         return FieldValue::Range(v.min, v.max);
     }
     if let ReflectRef::Enum(enum_ref) = value.reflect_ref() {
@@ -628,18 +489,16 @@ fn read_optional_enum_index(value: &dyn PartialReflect) -> Option<usize> {
 
 fn apply_field_value_to_reflect(target: &mut dyn PartialReflect, value: &FieldValue) -> bool {
     match value {
-        FieldValue::F32(v) => v.apply_to_reflect(target),
-        FieldValue::U32(v) => v.apply_to_reflect(target),
-        FieldValue::OptionalU32(v) => v.apply_to_reflect(target),
-        FieldValue::Bool(v) => v.apply_to_reflect(target),
-        FieldValue::Vec2(v) => v.apply_to_reflect(target),
-        FieldValue::Vec3(v) => v.apply_to_reflect(target),
-        FieldValue::Range(min, max) => ParticleRange {
-            min: *min,
-            max: *max,
+        FieldValue::F32(v) => apply_with_change_check(target, v),
+        FieldValue::U32(v) => apply_with_change_check(target, v),
+        FieldValue::OptionalU32(v) => apply_with_change_check(target, v),
+        FieldValue::Bool(v) => apply_with_change_check(target, v),
+        FieldValue::Vec2(v) => apply_with_change_check(target, v),
+        FieldValue::Vec3(v) => apply_with_change_check(target, v),
+        FieldValue::Range(min, max) => {
+            apply_with_change_check(target, &ParticleRange { min: *min, max: *max })
         }
-        .apply_to_reflect(target),
-        FieldValue::Color(c) => c.apply_to_reflect(target),
+        FieldValue::Color(c) => apply_with_change_check(target, c),
         FieldValue::None => false,
     }
 }

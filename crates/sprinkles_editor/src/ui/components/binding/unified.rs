@@ -16,14 +16,12 @@ use crate::ui::widgets::gradient_edit::{
 use crate::ui::widgets::text_edit::{EditorTextEdit, TextEditCommitEvent, set_text_input_value};
 use crate::ui::widgets::texture_edit::TextureEditCommitEvent;
 use crate::ui::widgets::variant_edit::{EditorVariantEdit, VariantComboBox, VariantEditConfig};
-use crate::ui::widgets::vector_edit::VectorComponentIndex;
 use crate::viewport::RespawnEmittersEvent;
 
 use super::{
-    FieldBinding, FieldValue, InspectedEmitterTracker, MAX_ANCESTOR_DEPTH, find_ancestor,
-    format_f32, get_inspecting_emitter, get_inspecting_emitter_mut,
-    get_variant_index_by_reflection, get_vec2_component, get_vec3_component,
-    mark_dirty_and_restart, parse_field_value, set_vec2_component, set_vec3_component,
+    BoundTo, FieldBinding, FieldValue, InspectedEmitterTracker, format_f32,
+    get_inspecting_emitter, get_inspecting_emitter_mut, get_variant_index_by_reflection,
+    mark_dirty_and_restart, parse_field_value,
 };
 
 use crate::ui::components::inspector::FieldKind;
@@ -36,14 +34,21 @@ pub(super) struct CommitContext<'w, 's> {
     assets: ResMut<'w, Assets<ParticleSystemAsset>>,
     dirty_state: ResMut<'w, DirtyState>,
     bindings: Query<'w, 's, &'static FieldBinding>,
-    parents: Query<'w, 's, &'static ChildOf>,
+    bound_query: Query<'w, 's, &'static BoundTo>,
     emitter_runtimes: Query<'w, 's, &'static mut EmitterRuntime>,
 }
 
 impl CommitContext<'_, '_> {
+    fn resolve_binding(&self, entity: Entity) -> Option<FieldBinding> {
+        if let Ok(binding) = self.bindings.get(entity) {
+            return Some(binding.clone());
+        }
+        let bound = self.bound_query.get(entity).ok()?;
+        self.bindings.get(bound.binding).ok().cloned()
+    }
+
     fn commit_reflected(&mut self, entity: Entity, apply_fn: impl FnOnce(&mut dyn PartialReflect)) {
-        let Some((_, binding)) = find_binding_for_entity(entity, &self.bindings, &self.parents)
-        else {
+        let Some(binding) = self.resolve_binding(entity) else {
             return;
         };
         let Some((_, emitter)) = get_inspecting_emitter_mut(&self.editor_state, &mut self.assets)
@@ -60,11 +65,10 @@ impl CommitContext<'_, '_> {
     }
 
     fn commit_field_value(&mut self, entity: Entity, value: FieldValue) -> bool {
-        let Some((_, binding)) = find_binding_for_entity(entity, &self.bindings, &self.parents)
-        else {
+        let Some(binding) = self.resolve_binding(entity) else {
             return false;
         };
-        let should_respawn = requires_respawn_binding(binding);
+        let should_respawn = requires_respawn_binding(&binding);
         let Some((_, emitter)) = get_inspecting_emitter_mut(&self.editor_state, &mut self.assets)
         else {
             return false;
@@ -111,13 +115,11 @@ pub(super) fn bind_text_inputs(
     assets: Res<Assets<ParticleSystemAsset>>,
     tracker: Res<InspectedEmitterTracker>,
     new_bindings: Query<Entity, Added<FieldBinding>>,
-    new_text_edits: Query<Entity, Added<EditorTextEdit>>,
-    bindings: Query<(Entity, &FieldBinding)>,
-    mut text_edits: Query<(Entity, &ChildOf, &mut TextInputQueue), With<EditorTextEdit>>,
-    parents: Query<&ChildOf>,
-    vector_indices: Query<&VectorComponentIndex>,
+    new_bound: Query<Entity, Added<BoundTo>>,
+    bindings: Query<&FieldBinding>,
+    mut text_edits: Query<(&BoundTo, &mut TextInputQueue), With<EditorTextEdit>>,
 ) {
-    if !tracker.is_changed() && new_bindings.is_empty() && new_text_edits.is_empty() {
+    if !tracker.is_changed() && new_bindings.is_empty() && new_bound.is_empty() {
         return;
     }
 
@@ -125,45 +127,25 @@ pub(super) fn bind_text_inputs(
         return;
     };
 
-    for (_text_entity, child_of, mut queue) in &mut text_edits {
-        let Some((_binding_entity, binding)) =
-            find_binding_ancestor(child_of.parent(), &bindings, &parents)
-        else {
+    for (bound, mut queue) in &mut text_edits {
+        let Ok(binding) = bindings.get(bound.binding) else {
             continue;
         };
 
         let value = binding.read_value(emitter);
 
-        if let FieldKind::Vector(suffixes) = &binding.kind {
-            let idx = find_ancestor(child_of.parent(), &parents, MAX_ANCESTOR_DEPTH, |e| {
-                vector_indices.get(e).is_ok()
-            })
-            .and_then(|e| vector_indices.get(e).ok())
-            .map(|v| v.0);
-
-            let Some(idx) = idx else {
+        if let Some(idx) = bound.component_index {
+            if let FieldKind::Vector(suffixes) = &binding.kind {
+                if let Some(v) = get_field_value_component(&value, idx) {
+                    let text = if suffixes.is_integer() {
+                        (v as i32).to_string()
+                    } else {
+                        format_f32(v)
+                    };
+                    set_text_input_value(&mut queue, text);
+                }
                 continue;
-            };
-
-            let component_value = match &value {
-                FieldValue::Vec2(vec) => Some(get_vec2_component(*vec, idx)),
-                FieldValue::Vec3(vec) => Some(get_vec3_component(*vec, idx)),
-                FieldValue::Range(min, max) => match idx {
-                    0 => Some(*min),
-                    1 => Some(*max),
-                    _ => None,
-                },
-                _ => None,
-            };
-            if let Some(v) = component_value {
-                let text = if suffixes.is_integer() {
-                    (v as i32).to_string()
-                } else {
-                    format_f32(v)
-                };
-                set_text_input_value(&mut queue, text);
             }
-            continue;
         }
 
         let text = value.to_display_string(&binding.kind).unwrap_or_default();
@@ -179,11 +161,11 @@ pub(super) fn bind_widget_values(
     new_bindings: Query<Entity, Added<FieldBinding>>,
     new_variant_edits: Query<Entity, Added<EditorVariantEdit>>,
     bindings: Query<&FieldBinding>,
-    parents: Query<&ChildOf>,
-    mut checkbox_states: Query<(Entity, &mut CheckboxState)>,
-    mut curve_edits: Query<(Entity, &mut CurveEditState), With<EditorCurveEdit>>,
-    mut gradient_edits: Query<(Entity, &mut GradientEditState), With<EditorGradientEdit>>,
-    mut combobox_bindings: Query<(&FieldBinding, &mut ComboBoxConfig)>,
+    mut checkbox_states: Query<(&FieldBinding, &mut CheckboxState)>,
+    mut curve_edits: Query<(&FieldBinding, &mut CurveEditState), With<EditorCurveEdit>>,
+    mut gradient_edits: Query<(&FieldBinding, &mut GradientEditState), With<EditorGradientEdit>>,
+    mut colocated_comboboxes: Query<(&FieldBinding, &mut ComboBoxConfig)>,
+    mut bound_comboboxes: Query<(&BoundTo, &mut ComboBoxConfig), Without<FieldBinding>>,
     mut variant_edits: Query<(&FieldBinding, &mut VariantEditConfig), With<EditorVariantEdit>>,
 ) {
     if !tracker.is_changed() && new_bindings.is_empty() && new_variant_edits.is_empty() {
@@ -194,20 +176,14 @@ pub(super) fn bind_widget_values(
         return;
     };
 
-    for (entity, mut state) in &mut checkbox_states {
-        let Some((_, binding)) = find_binding_for_entity(entity, &bindings, &parents) else {
-            continue;
-        };
+    for (binding, mut state) in &mut checkbox_states {
         let value = binding.read_value(emitter);
         if let Some(checked) = value.to_bool() {
             state.checked = checked;
         }
     }
 
-    for (entity, mut state) in &mut curve_edits {
-        let Some((_, binding)) = find_binding_for_entity(entity, &bindings, &parents) else {
-            continue;
-        };
+    for (binding, mut state) in &mut curve_edits {
         if binding.kind != FieldKind::Curve {
             continue;
         }
@@ -223,10 +199,7 @@ pub(super) fn bind_widget_values(
         }
     }
 
-    for (entity, mut state) in &mut gradient_edits {
-        let Some((_, binding)) = find_binding_for_entity(entity, &bindings, &parents) else {
-            continue;
-        };
+    for (binding, mut state) in &mut gradient_edits {
         if binding.kind != FieldKind::Gradient {
             continue;
         }
@@ -238,7 +211,20 @@ pub(super) fn bind_widget_values(
         }
     }
 
-    for (binding, mut config) in &mut combobox_bindings {
+    for (binding, mut config) in &mut colocated_comboboxes {
+        if !matches!(binding.kind, FieldKind::ComboBox { .. }) {
+            continue;
+        }
+        let value = binding.read_value(emitter);
+        if let FieldValue::U32(index) = value {
+            config.selected = index as usize;
+        }
+    }
+
+    for (bound, mut config) in &mut bound_comboboxes {
+        let Ok(binding) = bindings.get(bound.binding) else {
+            continue;
+        };
         if !matches!(binding.kind, FieldKind::ComboBox { .. }) {
             continue;
         }
@@ -306,10 +292,14 @@ pub(super) fn handle_text_commit(
     trigger: On<TextEditCommitEvent>,
     mut commands: Commands,
     mut ctx: CommitContext,
-    vector_indices: Query<&VectorComponentIndex>,
+    bound_query: Query<&BoundTo>,
 ) {
-    let Some((_, binding)) = find_binding_for_entity(trigger.entity, &ctx.bindings, &ctx.parents)
-    else {
+    let bound = bound_query.get(trigger.entity).ok();
+    let binding = bound
+        .and_then(|b| ctx.bindings.get(b.binding).ok())
+        .or_else(|| ctx.bindings.get(trigger.entity).ok());
+
+    let Some(binding) = binding else {
         return;
     };
 
@@ -317,50 +307,29 @@ pub(super) fn handle_text_commit(
         return;
     };
 
-    if let FieldKind::Vector(_suffixes) = &binding.kind {
-        let idx = find_ancestor(trigger.entity, &ctx.parents, MAX_ANCESTOR_DEPTH, |e| {
-            vector_indices.get(e).is_ok()
-        })
-        .and_then(|e| vector_indices.get(e).ok())
-        .map(|v| v.0);
+    let component_index = bound.and_then(|b| b.component_index);
 
-        let Some(idx) = idx else {
+    if let Some(idx) = component_index {
+        if let FieldKind::Vector(_) = &binding.kind {
+            let Ok(v) = trigger.text.trim().parse::<f32>() else {
+                return;
+            };
+
+            let current_value = binding.read_value(emitter);
+            let new_value = set_field_value_component(&current_value, idx, v);
+
+            if binding.write_value(emitter, &new_value) {
+                mark_dirty_and_restart(
+                    &mut ctx.dirty_state,
+                    &mut ctx.emitter_runtimes,
+                    emitter.time.fixed_seed,
+                );
+                if requires_respawn_binding(binding) {
+                    commands.trigger(RespawnEmittersEvent);
+                }
+            }
             return;
-        };
-
-        let Ok(v) = trigger.text.trim().parse::<f32>() else {
-            return;
-        };
-
-        let current_value = binding.read_value(emitter);
-        let new_value = match current_value {
-            FieldValue::Vec2(mut vec) => {
-                set_vec2_component(&mut vec, idx, v);
-                FieldValue::Vec2(vec)
-            }
-            FieldValue::Vec3(mut vec) => {
-                set_vec3_component(&mut vec, idx, v);
-                FieldValue::Vec3(vec)
-            }
-            FieldValue::Range(min, max) => match idx {
-                0 => FieldValue::Range(v, max),
-                1 => FieldValue::Range(min, v),
-                _ => return,
-            },
-            _ => return,
-        };
-
-        if binding.write_value(emitter, &new_value) {
-            mark_dirty_and_restart(
-                &mut ctx.dirty_state,
-                &mut ctx.emitter_runtimes,
-                emitter.time.fixed_seed,
-            );
-            if requires_respawn_binding(binding) {
-                commands.trigger(RespawnEmittersEvent);
-            }
         }
-        return;
     }
 
     let value = parse_field_value(&trigger.text, &binding.kind);
@@ -399,16 +368,15 @@ pub(super) fn handle_combobox_change(
         return;
     }
 
-    let Some((_, binding)) = find_binding_for_entity(trigger.entity, &ctx.bindings, &ctx.parents)
-    else {
-        return;
-    };
-
-    let Some((_, emitter)) = get_inspecting_emitter_mut(&ctx.editor_state, &mut ctx.assets) else {
+    let Some(binding) = ctx.resolve_binding(trigger.entity) else {
         return;
     };
 
     let is_optional = matches!(binding.kind, FieldKind::ComboBox { optional: true, .. });
+
+    let Some((_, emitter)) = get_inspecting_emitter_mut(&ctx.editor_state, &mut ctx.assets) else {
+        return;
+    };
 
     let changed = if is_optional {
         let inner_variant = if trigger.selected == 0 {
@@ -524,31 +492,6 @@ pub(super) fn handle_variant_change(
 #[derive(Component)]
 pub(super) struct BindingInitialized;
 
-fn find_binding_ancestor<'a>(
-    entity: Entity,
-    bindings: &'a Query<(Entity, &FieldBinding)>,
-    parents: &Query<&ChildOf>,
-) -> Option<(Entity, &'a FieldBinding)> {
-    find_ancestor(entity, parents, MAX_ANCESTOR_DEPTH, |e| {
-        bindings.get(e).is_ok()
-    })
-    .and_then(|e| bindings.get(e).ok())
-}
-
-fn find_binding_for_entity<'a>(
-    entity: Entity,
-    bindings: &'a Query<&FieldBinding>,
-    parents: &Query<&ChildOf>,
-) -> Option<(Entity, &'a FieldBinding)> {
-    if let Ok(binding) = bindings.get(entity) {
-        return Some((entity, binding));
-    }
-    find_ancestor(entity, parents, MAX_ANCESTOR_DEPTH, |e| {
-        bindings.get(e).is_ok()
-    })
-    .and_then(|e| bindings.get(e).ok().map(|b| (e, b)))
-}
-
 fn get_nested_variant_index(value: &dyn PartialReflect, variants: &[VariantDefinition]) -> usize {
     let ReflectRef::Enum(enum_ref) = value.reflect_ref() else {
         return 0;
@@ -578,4 +521,56 @@ fn find_variant_index_by_name(name: &str, variants: &[VariantDefinition]) -> Opt
     variants
         .iter()
         .position(|v| v.name == name || v.aliases.iter().any(|a| a == name))
+}
+
+fn get_field_value_component(value: &FieldValue, index: usize) -> Option<f32> {
+    match value {
+        FieldValue::Vec2(vec) => match index {
+            0 => Some(vec.x),
+            1 => Some(vec.y),
+            _ => None,
+        },
+        FieldValue::Vec3(vec) => match index {
+            0 => Some(vec.x),
+            1 => Some(vec.y),
+            2 => Some(vec.z),
+            _ => None,
+        },
+        FieldValue::Range(min, max) => match index {
+            0 => Some(*min),
+            1 => Some(*max),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+fn set_field_value_component(value: &FieldValue, index: usize, v: f32) -> FieldValue {
+    match value {
+        FieldValue::Vec2(vec) => {
+            let mut vec = *vec;
+            match index {
+                0 => vec.x = v,
+                1 => vec.y = v,
+                _ => {}
+            }
+            FieldValue::Vec2(vec)
+        }
+        FieldValue::Vec3(vec) => {
+            let mut vec = *vec;
+            match index {
+                0 => vec.x = v,
+                1 => vec.y = v,
+                2 => vec.z = v,
+                _ => {}
+            }
+            FieldValue::Vec3(vec)
+        }
+        FieldValue::Range(min, max) => match index {
+            0 => FieldValue::Range(v, *max),
+            1 => FieldValue::Range(*min, v),
+            _ => value.clone(),
+        },
+        _ => value.clone(),
+    }
 }
