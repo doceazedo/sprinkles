@@ -6,7 +6,7 @@ use super::curve_edit::{CurveEditProps, curve_edit};
 use super::gradient_edit::{GradientEditProps, gradient_edit};
 use super::text_edit::{TextEditPrefix, TextEditProps, text_edit};
 use super::vector_edit::{VectorEditProps, VectorSuffixes, vector_edit};
-use crate::ui::components::binding::Field;
+use crate::ui::components::binding::FieldBinding;
 use crate::ui::components::inspector::{FieldKind, path_to_label};
 
 pub fn plugin(app: &mut App) {
@@ -84,6 +84,17 @@ impl InspectorFieldProps {
         let option_labels: Vec<String> = options.iter().map(|o| o.label.clone()).collect();
         self.kind = FieldKind::ComboBox {
             options: option_labels,
+            optional: false,
+        };
+        self.combobox_options = Some(options);
+        self
+    }
+
+    pub fn optional_combobox(mut self, options: Vec<ComboBoxOptionData>) -> Self {
+        let option_labels: Vec<String> = options.iter().map(|o| o.label.clone()).collect();
+        self.kind = FieldKind::ComboBox {
+            options: option_labels,
+            optional: true,
         };
         self.combobox_options = Some(options);
         self
@@ -175,7 +186,7 @@ pub fn spawn_inspector_field(
     props: InspectorFieldProps,
     asset_server: &AssetServer,
 ) {
-    let field = Field::new(&props.path).with_kind(props.kind.clone());
+    let field = FieldBinding::emitter(&props.path, props.kind.clone());
     let label = props.inferred_label();
 
     if props.kind == FieldKind::Bool {

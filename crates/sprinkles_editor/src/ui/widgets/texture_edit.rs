@@ -11,7 +11,9 @@ use sprinkles::prelude::*;
 use sprinkles::textures::preset::{PresetTexture, TextureRef};
 
 use crate::state::EditorState;
-use crate::ui::components::binding::{get_inspecting_emitter, resolve_variant_field_ref};
+use crate::ui::components::binding::{
+    FieldBinding, get_inspecting_emitter, resolve_variant_field_ref,
+};
 use crate::ui::tokens::{
     BORDER_COLOR, CORNER_RADIUS, FONT_PATH, TEXT_BODY_COLOR, TEXT_MUTED_COLOR, TEXT_SIZE_SM,
 };
@@ -20,7 +22,7 @@ use crate::ui::widgets::button::{
     set_button_variant,
 };
 use crate::ui::widgets::variant_edit::{
-    EditorVariantEdit, VariantEditConfig, VariantFieldBinding, VariantFieldsContainer,
+    EditorVariantEdit, VariantEditConfig, VariantFieldsContainer,
 };
 
 use crate::ui::components::inspector::FieldKind;
@@ -119,10 +121,10 @@ pub fn plugin(app: &mut App) {
         );
 }
 
-fn is_texture_ref_variant_edit(entity: Entity, bindings: &Query<&VariantFieldBinding>) -> bool {
+fn is_texture_ref_variant_edit(entity: Entity, bindings: &Query<&FieldBinding>) -> bool {
     bindings
         .get(entity)
-        .map(|b| b.field_kind == FieldKind::TextureRef)
+        .map(|b| b.kind == FieldKind::TextureRef)
         .unwrap_or(false)
 }
 
@@ -133,7 +135,7 @@ fn setup_texture_content(
     p_assets: Res<Assets<ParticleSystemAsset>>,
     containers: Query<(Entity, &VariantFieldsContainer), Added<VariantFieldsContainer>>,
     configs: Query<&VariantEditConfig, With<EditorVariantEdit>>,
-    bindings: Query<&VariantFieldBinding>,
+    bindings: Query<&FieldBinding>,
 ) {
     for (container_entity, container) in &containers {
         let variant_edit = container.0;
@@ -181,7 +183,7 @@ fn respawn_texture_content_on_switch(
         &mut TextureEditContent,
         Option<&Children>,
     )>,
-    bindings: Query<&VariantFieldBinding>,
+    bindings: Query<&FieldBinding>,
     configs: Query<&VariantEditConfig, With<EditorVariantEdit>>,
 ) {
     for (variant_edit, config) in &changed_configs {
@@ -788,15 +790,15 @@ fn read_current_texture_ref(
     variant_edit: Entity,
     editor_state: &EditorState,
     assets: &Assets<ParticleSystemAsset>,
-    bindings: &Query<&VariantFieldBinding>,
+    bindings: &Query<&FieldBinding>,
     configs: &Query<&VariantEditConfig, With<EditorVariantEdit>>,
 ) -> Option<TextureRef> {
     let binding = bindings.get(variant_edit).ok()?;
-    let parent_config = configs.get(binding.variant_edit).ok()?;
+    let parent_config = configs.get(binding.variant_edit?).ok()?;
     let (_, emitter) = get_inspecting_emitter(editor_state, assets)?;
     let path = format!(".{}", parent_config.path);
     let target = emitter.reflect_path(path.as_str()).ok()?;
-    let field = resolve_variant_field_ref(target, &binding.field_name)?;
+    let field = resolve_variant_field_ref(target, binding.field_name()?)?;
     extract_texture_ref_from_reflect(field)
 }
 

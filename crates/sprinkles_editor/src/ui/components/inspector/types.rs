@@ -12,6 +12,7 @@ pub enum FieldKind {
     Vector(VectorSuffixes),
     ComboBox {
         options: Vec<String>,
+        optional: bool,
     },
     Color,
     Gradient,
@@ -53,6 +54,7 @@ impl VariantField {
     pub fn combobox(name: impl Into<String>, options: Vec<impl Into<String>>) -> Self {
         Self::new(name).with_kind(FieldKind::ComboBox {
             options: options.into_iter().map(Into::into).collect(),
+            optional: false,
         })
     }
 

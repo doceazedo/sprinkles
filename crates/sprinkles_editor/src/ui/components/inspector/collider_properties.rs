@@ -1,21 +1,17 @@
 use bevy::prelude::*;
-use bevy_ui_text_input::TextInputQueue;
 use sprinkles::prelude::*;
 
 use crate::state::{DirtyState, EditorState};
-use crate::ui::components::inspector::utils::{VariantConfig, variants_from_reflect};
-use crate::ui::widgets::combobox::ComboBoxChangeEvent;
+use crate::ui::tokens::FONT_PATH;
+use crate::ui::widgets::combobox::{ComboBoxChangeEvent, ComboBoxOptionData};
 use crate::ui::widgets::inspector_field::fields_row;
-use crate::ui::widgets::text_edit::{TextEditCommitEvent, set_text_input_value};
-use crate::ui::widgets::variant_edit::{
-    VariantComboBox, VariantDefinition, VariantEditConfig, VariantEditProps, VariantFieldBinding,
-    variant_edit,
-};
-use crate::ui::widgets::vector_edit::{
-    EditorVectorEdit, VectorEditProps, VectorSuffixes, vector_edit,
-};
+use crate::ui::widgets::text_edit::{TextEditCommitEvent, TextEditProps, text_edit};
+use crate::ui::widgets::vector_edit::{VectorEditProps, VectorSuffixes, vector_edit};
 
-use super::{InspectorSection, inspector_section, section_needs_setup};
+use super::{
+    DynamicSectionContent, InspectorSection, inspector_section, section_needs_setup,
+    spawn_labeled_combobox,
+};
 use crate::ui::components::binding::{
     find_ancestor, find_ancestor_entity, format_f32, get_inspecting_collider,
     get_inspecting_collider_mut,
@@ -28,26 +24,20 @@ struct ColliderPropertiesSection;
 struct ColliderPropertiesContent;
 
 #[derive(Component)]
-struct ColliderShapeVariantEdit;
+struct ColliderShapeComboBox;
+
+#[derive(Component)]
+struct ColliderShapeField(&'static str);
 
 #[derive(Component)]
 struct ColliderPositionEdit;
 
-#[derive(Component)]
-struct ColliderFieldBound;
-
 pub fn plugin(app: &mut App) {
-    app.add_observer(handle_collider_shape_variant_change)
+    app.add_observer(handle_collider_shape_change)
         .add_observer(handle_collider_text_commit)
         .add_systems(
             Update,
-            (
-                setup_collider_content,
-                cleanup_collider_on_switch,
-                sync_collider_shape_variant,
-                bind_collider_shape_fields,
-            )
-                .after(super::update_inspected_collider_tracker),
+            setup_collider_content.after(super::update_inspected_collider_tracker),
         );
 }
 
@@ -65,23 +55,16 @@ fn shape_index(shape: &ParticlesColliderShape3D) -> usize {
     }
 }
 
-fn shape_variants() -> Vec<VariantDefinition> {
-    variants_from_reflect::<ParticlesColliderShape3D>(&[
-        (
-            "Box",
-            VariantConfig::default()
-                .default_value(ParticlesColliderShape3D::Box { size: Vec3::ONE }),
-        ),
-        (
-            "Sphere",
-            VariantConfig::default()
-                .default_value(ParticlesColliderShape3D::Sphere { radius: 1.0 }),
-        ),
-    ])
+fn shape_options() -> Vec<ComboBoxOptionData> {
+    vec![
+        ComboBoxOptionData::new("Box").with_value("Box"),
+        ComboBoxOptionData::new("Sphere").with_value("Sphere"),
+    ]
 }
 
 fn setup_collider_content(
     mut commands: Commands,
+    asset_server: Res<AssetServer>,
     editor_state: Res<EditorState>,
     assets: Res<Assets<ParticleSystemAsset>>,
     sections: Query<(Entity, &InspectorSection), With<ColliderPropertiesSection>>,
@@ -91,14 +74,19 @@ fn setup_collider_content(
         return;
     };
 
-    let collider = get_inspecting_collider(&editor_state, &assets).map(|(_, c)| c);
-    let shape = collider.map(|c| &c.shape).cloned().unwrap_or_default();
-    let position = collider.map(|c| c.position).unwrap_or(Vec3::ZERO);
+    let Some((_, collider)) = get_inspecting_collider(&editor_state, &assets) else {
+        return;
+    };
+
+    let shape = collider.shape.clone();
+    let position = collider.position;
     let selected = shape_index(&shape);
+    let font: Handle<Font> = asset_server.load(FONT_PATH);
 
     let content = commands
         .spawn((
             ColliderPropertiesContent,
+            DynamicSectionContent,
             Node {
                 width: percent(100),
                 flex_direction: FlexDirection::Column,
@@ -107,17 +95,44 @@ fn setup_collider_content(
             },
         ))
         .with_children(|parent| {
-            parent.spawn(fields_row()).with_children(|row| {
-                row.spawn((
-                    ColliderShapeVariantEdit,
-                    variant_edit(
-                        VariantEditProps::new("shape")
-                            .with_label("Shape")
-                            .with_variants(shape_variants())
-                            .with_selected(selected),
-                    ),
-                ));
-            });
+            spawn_labeled_combobox(
+                parent,
+                &font,
+                "Shape",
+                shape_options(),
+                selected,
+                ColliderShapeComboBox,
+            );
+
+            match &shape {
+                ParticlesColliderShape3D::Box { size } => {
+                    parent.spawn(fields_row()).with_children(|row| {
+                        row.spawn((
+                            ColliderShapeField("size"),
+                            vector_edit(
+                                VectorEditProps::default()
+                                    .with_label("Size")
+                                    .with_suffixes(VectorSuffixes::XYZ)
+                                    .with_default_values(vec![size.x, size.y, size.z]),
+                            ),
+                        ));
+                    });
+                }
+                ParticlesColliderShape3D::Sphere { radius } => {
+                    parent.spawn(fields_row()).with_children(|row| {
+                        row.spawn((
+                            ColliderShapeField("radius"),
+                            text_edit(
+                                TextEditProps::default()
+                                    .with_label("Radius")
+                                    .with_default_value(format_f32(*radius))
+                                    .numeric_f32(),
+                            ),
+                        ));
+                    });
+                }
+            }
+
             parent.spawn(fields_row()).with_children(|row| {
                 row.spawn((
                     ColliderPositionEdit,
@@ -135,33 +150,16 @@ fn setup_collider_content(
     commands.entity(entity).add_child(content);
 }
 
-fn cleanup_collider_on_switch(
-    mut commands: Commands,
-    tracker: Res<super::InspectedColliderTracker>,
-    existing: Query<Entity, With<ColliderPropertiesContent>>,
-) {
-    if !tracker.is_changed() {
-        return;
-    }
-
-    for entity in &existing {
-        commands.entity(entity).try_despawn();
-    }
-}
-
-fn handle_collider_shape_variant_change(
+fn handle_collider_shape_change(
     trigger: On<ComboBoxChangeEvent>,
-    variant_comboboxes: Query<&VariantComboBox>,
-    shape_variant_edits: Query<(), With<ColliderShapeVariantEdit>>,
+    mut commands: Commands,
+    shape_comboboxes: Query<(), With<ColliderShapeComboBox>>,
     editor_state: Res<EditorState>,
     mut assets: ResMut<Assets<ParticleSystemAsset>>,
     mut dirty_state: ResMut<DirtyState>,
+    existing: Query<Entity, With<ColliderPropertiesContent>>,
 ) {
-    let Ok(variant_combobox) = variant_comboboxes.get(trigger.entity) else {
-        return;
-    };
-
-    if shape_variant_edits.get(variant_combobox.0).is_err() {
+    if shape_comboboxes.get(trigger.entity).is_err() {
         return;
     }
 
@@ -181,80 +179,29 @@ fn handle_collider_shape_variant_change(
 
     collider.shape = new_shape;
     dirty_state.has_unsaved_changes = true;
+
+    for entity in &existing {
+        commands.entity(entity).try_despawn();
+    }
 }
 
-#[allow(clippy::too_many_arguments)]
 fn handle_collider_text_commit(
     trigger: On<TextEditCommitEvent>,
     parents: Query<&ChildOf>,
-    variant_field_bindings: Query<&VariantFieldBinding>,
-    shape_variant_edits: Query<(), With<ColliderShapeVariantEdit>>,
-    position_edits: Query<(), With<ColliderPositionEdit>>,
-    children_query: Query<&Children>,
+    shape_fields: Query<(&ColliderShapeField, &Children)>,
+    position_edits: Query<&Children, With<ColliderPositionEdit>>,
     editor_state: Res<EditorState>,
     mut assets: ResMut<Assets<ParticleSystemAsset>>,
     mut dirty_state: ResMut<DirtyState>,
 ) {
-    if let Some(binding_entity) = find_ancestor(trigger.entity, &parents, 10, |e| {
-        variant_field_bindings.get(e).is_ok()
+    let Ok(value) = trigger.text.parse::<f32>() else {
+        return;
+    };
+
+    if let Some(shape_entity) = find_ancestor(trigger.entity, &parents, 10, |e| {
+        shape_fields.get(e).is_ok()
     }) {
-        let Ok(binding) = variant_field_bindings.get(binding_entity) else {
-            return;
-        };
-
-        if shape_variant_edits.get(binding.variant_edit).is_ok() {
-            let Ok(value) = trigger.text.parse::<f32>() else {
-                return;
-            };
-
-            let Some((_, collider)) = get_inspecting_collider_mut(&editor_state, &mut assets)
-            else {
-                return;
-            };
-
-            let changed = match (binding.field_name.as_str(), &mut collider.shape) {
-                ("radius", ParticlesColliderShape3D::Sphere { radius }) => {
-                    *radius = value;
-                    true
-                }
-                ("size", ParticlesColliderShape3D::Box { size }) => {
-                    if let Ok(vec_children) = children_query.get(binding_entity) {
-                        let mut applied = false;
-                        for (idx, child) in vec_children.iter().enumerate().take(3) {
-                            if find_ancestor_entity(trigger.entity, child, &parents) {
-                                match idx {
-                                    0 => size.x = value,
-                                    1 => size.y = value,
-                                    2 => size.z = value,
-                                    _ => {}
-                                }
-                                applied = true;
-                                break;
-                            }
-                        }
-                        applied
-                    } else {
-                        false
-                    }
-                }
-                _ => false,
-            };
-
-            if changed {
-                dirty_state.has_unsaved_changes = true;
-            }
-            return;
-        }
-    }
-
-    if let Some(position_entity) = find_ancestor(trigger.entity, &parents, 10, |e| {
-        position_edits.get(e).is_ok()
-    }) {
-        let Ok(value) = trigger.text.parse::<f32>() else {
-            return;
-        };
-
-        let Ok(vec_children) = children_query.get(position_entity) else {
+        let Ok((field, children)) = shape_fields.get(shape_entity) else {
             return;
         };
 
@@ -262,126 +209,59 @@ fn handle_collider_text_commit(
             return;
         };
 
-        for (idx, child) in vec_children.iter().enumerate().take(3) {
-            if find_ancestor_entity(trigger.entity, child, &parents) {
-                match idx {
-                    0 => collider.position.x = value,
-                    1 => collider.position.y = value,
-                    2 => collider.position.z = value,
-                    _ => {}
-                }
-                dirty_state.has_unsaved_changes = true;
-                break;
+        let changed = match (field.0, &mut collider.shape) {
+            ("radius", ParticlesColliderShape3D::Sphere { radius }) => {
+                *radius = value;
+                true
             }
+            ("size", ParticlesColliderShape3D::Box { size }) => {
+                match find_vector_component(trigger.entity, children, &parents) {
+                    Some(0) => size.x = value,
+                    Some(1) => size.y = value,
+                    Some(2) => size.z = value,
+                    _ => return,
+                }
+                true
+            }
+            _ => false,
+        };
+
+        if changed {
+            dirty_state.has_unsaved_changes = true;
         }
+        return;
+    }
+
+    if let Some(position_entity) = find_ancestor(trigger.entity, &parents, 10, |e| {
+        position_edits.get(e).is_ok()
+    }) {
+        let Ok(children) = position_edits.get(position_entity) else {
+            return;
+        };
+
+        let Some((_, collider)) = get_inspecting_collider_mut(&editor_state, &mut assets) else {
+            return;
+        };
+
+        match find_vector_component(trigger.entity, children, &parents) {
+            Some(0) => collider.position.x = value,
+            Some(1) => collider.position.y = value,
+            Some(2) => collider.position.z = value,
+            _ => return,
+        }
+        dirty_state.has_unsaved_changes = true;
     }
 }
 
-fn sync_collider_shape_variant(
-    editor_state: Res<EditorState>,
-    assets: Res<Assets<ParticleSystemAsset>>,
-    mut variant_edits: Query<&mut VariantEditConfig, With<ColliderShapeVariantEdit>>,
-) {
-    if !editor_state.is_changed() && !assets.is_changed() {
-        return;
-    }
-
-    let Some((_, collider)) = get_inspecting_collider(&editor_state, &assets) else {
-        return;
-    };
-
-    let new_index = shape_index(&collider.shape);
-    for mut config in &mut variant_edits {
-        if config.selected_index != new_index {
-            config.selected_index = new_index;
+fn find_vector_component(
+    entity: Entity,
+    children: &Children,
+    parents: &Query<&ChildOf>,
+) -> Option<usize> {
+    for (idx, child) in children.iter().enumerate().take(3) {
+        if find_ancestor_entity(entity, child, parents) {
+            return Some(idx);
         }
     }
-}
-
-fn bind_collider_shape_fields(
-    mut commands: Commands,
-    editor_state: Res<EditorState>,
-    assets: Res<Assets<ParticleSystemAsset>>,
-    variant_field_bindings: Query<(Entity, &VariantFieldBinding), Without<ColliderFieldBound>>,
-    shape_variant_edits: Query<(), With<ColliderShapeVariantEdit>>,
-    mut text_edits: Query<
-        (Entity, &ChildOf, &mut TextInputQueue),
-        (
-            With<crate::ui::widgets::text_edit::EditorTextEdit>,
-            Without<ColliderFieldBound>,
-        ),
-    >,
-    parents: Query<&ChildOf>,
-    vector_edit_children: Query<&Children, With<EditorVectorEdit>>,
-) {
-    let Some((_, collider)) = get_inspecting_collider(&editor_state, &assets) else {
-        return;
-    };
-
-    for (binding_entity, binding) in &variant_field_bindings {
-        if shape_variant_edits.get(binding.variant_edit).is_err() {
-            continue;
-        }
-
-        match binding.field_name.as_str() {
-            "radius" => {
-                if let ParticlesColliderShape3D::Sphere { radius } = &collider.shape {
-                    let text = format_f32(*radius);
-                    let mut found = false;
-                    for (text_edit_entity, text_edit_parent, mut queue) in &mut text_edits {
-                        if find_ancestor_entity(text_edit_parent.parent(), binding_entity, &parents)
-                        {
-                            set_text_input_value(&mut queue, text.clone());
-                            commands
-                                .entity(text_edit_entity)
-                                .try_insert(ColliderFieldBound);
-                            found = true;
-                            break;
-                        }
-                    }
-                    if found {
-                        commands
-                            .entity(binding_entity)
-                            .try_insert(ColliderFieldBound);
-                    }
-                }
-            }
-            "size" => {
-                if let ParticlesColliderShape3D::Box { size } = &collider.shape {
-                    if let Ok(vec_children) = vector_edit_children.get(binding_entity) {
-                        let mut bound_count = 0;
-                        for (idx, vec_child) in vec_children.iter().enumerate().take(3) {
-                            let val = match idx {
-                                0 => size.x,
-                                1 => size.y,
-                                2 => size.z,
-                                _ => continue,
-                            };
-                            let text = format_f32(val);
-                            for (text_edit_entity, text_edit_parent, mut queue) in &mut text_edits {
-                                if find_ancestor_entity(
-                                    text_edit_parent.parent(),
-                                    vec_child,
-                                    &parents,
-                                ) {
-                                    set_text_input_value(&mut queue, text.clone());
-                                    commands
-                                        .entity(text_edit_entity)
-                                        .try_insert(ColliderFieldBound);
-                                    bound_count += 1;
-                                    break;
-                                }
-                            }
-                        }
-                        if bound_count == 3 {
-                            commands
-                                .entity(binding_entity)
-                                .try_insert(ColliderFieldBound);
-                        }
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
+    None
 }
