@@ -225,9 +225,7 @@ impl FieldBinding {
             return false;
         };
         match &self.accessor {
-            FieldAccessor::Emitter(_) => {
-                set_optional_enum_by_name(target, inner_variant_name)
-            }
+            FieldAccessor::Emitter(_) => set_optional_enum_by_name(target, inner_variant_name),
             FieldAccessor::EmitterVariant { field_name, .. } => {
                 with_variant_field_mut(target, field_name, |field| {
                     set_optional_enum_by_name(field, inner_variant_name)
@@ -746,12 +744,8 @@ pub(crate) struct EmitterWriter<'w, 's> {
 }
 
 impl EmitterWriter<'_, '_> {
-    pub(crate) fn modify_emitter(
-        &mut self,
-        f: impl FnOnce(&mut EmitterData) -> bool,
-    ) {
-        let Some((_, emitter)) =
-            get_inspecting_emitter_mut(&self.editor_state, &mut self.assets)
+    pub(crate) fn modify_emitter(&mut self, f: impl FnOnce(&mut EmitterData) -> bool) {
+        let Some((_, emitter)) = get_inspecting_emitter_mut(&self.editor_state, &mut self.assets)
         else {
             return;
         };

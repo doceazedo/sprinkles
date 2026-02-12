@@ -259,7 +259,11 @@ fn handle_sub_emitter_mode_change(
         return;
     }
 
-    let label = trigger.value.as_deref().unwrap_or(&trigger.label).to_string();
+    let label = trigger
+        .value
+        .as_deref()
+        .unwrap_or(&trigger.label)
+        .to_string();
     ew.modify_emitter(|emitter| {
         let new_config = match label.as_str() {
             "None" => None,

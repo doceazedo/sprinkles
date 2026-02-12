@@ -41,18 +41,12 @@ pub(super) struct CommitContext<'w, 's> {
 }
 
 impl CommitContext<'_, '_> {
-    fn commit_reflected(
-        &mut self,
-        entity: Entity,
-        apply_fn: impl FnOnce(&mut dyn PartialReflect),
-    ) {
-        let Some((_, binding)) =
-            find_binding_for_entity(entity, &self.bindings, &self.parents)
+    fn commit_reflected(&mut self, entity: Entity, apply_fn: impl FnOnce(&mut dyn PartialReflect)) {
+        let Some((_, binding)) = find_binding_for_entity(entity, &self.bindings, &self.parents)
         else {
             return;
         };
-        let Some((_, emitter)) =
-            get_inspecting_emitter_mut(&self.editor_state, &mut self.assets)
+        let Some((_, emitter)) = get_inspecting_emitter_mut(&self.editor_state, &mut self.assets)
         else {
             return;
         };
@@ -66,14 +60,12 @@ impl CommitContext<'_, '_> {
     }
 
     fn commit_field_value(&mut self, entity: Entity, value: FieldValue) -> bool {
-        let Some((_, binding)) =
-            find_binding_for_entity(entity, &self.bindings, &self.parents)
+        let Some((_, binding)) = find_binding_for_entity(entity, &self.bindings, &self.parents)
         else {
             return false;
         };
         let should_respawn = requires_respawn_binding(binding);
-        let Some((_, emitter)) =
-            get_inspecting_emitter_mut(&self.editor_state, &mut self.assets)
+        let Some((_, emitter)) = get_inspecting_emitter_mut(&self.editor_state, &mut self.assets)
         else {
             return false;
         };
@@ -316,15 +308,12 @@ pub(super) fn handle_text_commit(
     mut ctx: CommitContext,
     vector_indices: Query<&VectorComponentIndex>,
 ) {
-    let Some((_, binding)) =
-        find_binding_for_entity(trigger.entity, &ctx.bindings, &ctx.parents)
+    let Some((_, binding)) = find_binding_for_entity(trigger.entity, &ctx.bindings, &ctx.parents)
     else {
         return;
     };
 
-    let Some((_, emitter)) =
-        get_inspecting_emitter_mut(&ctx.editor_state, &mut ctx.assets)
-    else {
+    let Some((_, emitter)) = get_inspecting_emitter_mut(&ctx.editor_state, &mut ctx.assets) else {
         return;
     };
 
@@ -410,15 +399,12 @@ pub(super) fn handle_combobox_change(
         return;
     }
 
-    let Some((_, binding)) =
-        find_binding_for_entity(trigger.entity, &ctx.bindings, &ctx.parents)
+    let Some((_, binding)) = find_binding_for_entity(trigger.entity, &ctx.bindings, &ctx.parents)
     else {
         return;
     };
 
-    let Some((_, emitter)) =
-        get_inspecting_emitter_mut(&ctx.editor_state, &mut ctx.assets)
-    else {
+    let Some((_, emitter)) = get_inspecting_emitter_mut(&ctx.editor_state, &mut ctx.assets) else {
         return;
     };
 
@@ -455,10 +441,7 @@ pub(super) fn handle_combobox_change(
     }
 }
 
-pub(super) fn handle_curve_commit(
-    trigger: On<CurveEditCommitEvent>,
-    mut ctx: CommitContext,
-) {
+pub(super) fn handle_curve_commit(trigger: On<CurveEditCommitEvent>, mut ctx: CommitContext) {
     let curve = trigger.curve.clone();
     ctx.commit_reflected(trigger.entity, |target| {
         if let Some(ct) = target.try_downcast_mut::<CurveTexture>() {
@@ -469,27 +452,18 @@ pub(super) fn handle_curve_commit(
     });
 }
 
-pub(super) fn handle_gradient_commit(
-    trigger: On<GradientEditCommitEvent>,
-    mut ctx: CommitContext,
-) {
+pub(super) fn handle_gradient_commit(trigger: On<GradientEditCommitEvent>, mut ctx: CommitContext) {
     let gradient = trigger.gradient.clone();
     ctx.commit_reflected(trigger.entity, |target| {
         target.apply(&gradient);
     });
 }
 
-pub(super) fn handle_color_commit(
-    trigger: On<ColorPickerCommitEvent>,
-    mut ctx: CommitContext,
-) {
+pub(super) fn handle_color_commit(trigger: On<ColorPickerCommitEvent>, mut ctx: CommitContext) {
     ctx.commit_field_value(trigger.entity, FieldValue::Color(trigger.color));
 }
 
-pub(super) fn handle_texture_commit(
-    trigger: On<TextureEditCommitEvent>,
-    mut ctx: CommitContext,
-) {
+pub(super) fn handle_texture_commit(trigger: On<TextureEditCommitEvent>, mut ctx: CommitContext) {
     ctx.commit_reflected(trigger.entity, |target| {
         target.apply(&trigger.value);
     });
@@ -516,9 +490,7 @@ pub(super) fn handle_variant_change(
         return;
     };
 
-    let Some((_, emitter)) =
-        get_inspecting_emitter_mut(&ctx.editor_state, &mut ctx.assets)
-    else {
+    let Some((_, emitter)) = get_inspecting_emitter_mut(&ctx.editor_state, &mut ctx.assets) else {
         return;
     };
 
