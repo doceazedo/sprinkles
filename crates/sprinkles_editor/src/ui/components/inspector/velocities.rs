@@ -16,7 +16,7 @@ use crate::ui::widgets::popover::{
 };
 use crate::ui::widgets::vector_edit::VectorSuffixes;
 
-use super::InspectorSection;
+use super::{DynamicSectionContent, InspectorSection};
 use super::utils::name_to_label;
 use crate::ui::components::binding::{
     get_inspecting_emitter, get_inspecting_emitter_mut, mark_dirty_and_restart,
@@ -28,11 +28,7 @@ const ANIMATED_VELOCITY_FIELDS: &[&str] = &["radial_velocity", "angular_velocity
 pub fn plugin(app: &mut App) {
     app.add_systems(
         Update,
-        (
-            setup_velocity_list,
-            sync_velocity_list_on_emitter_change,
-            update_add_button_state,
-        )
+        (setup_velocity_list, update_add_button_state)
             .after(super::update_inspected_emitter_tracker),
     )
     .add_observer(handle_add_button_click)
@@ -157,8 +153,13 @@ fn setup_velocity_list(
     editor_state: Res<EditorState>,
     assets: Res<Assets<ParticleSystemAsset>>,
     mut lists: Query<(Entity, &mut VelocityList, &InspectorSection)>,
+    existing_containers: Query<Entity, With<VelocityListContainer>>,
 ) {
     for (entity, mut list, section) in &mut lists {
+        if list.initialized && existing_containers.is_empty() {
+            list.initialized = false;
+        }
+
         if list.initialized || !section.initialized {
             continue;
         }
@@ -172,6 +173,7 @@ fn setup_velocity_list(
         let separator = commands
             .spawn((
                 VelocitySeparator,
+                DynamicSectionContent,
                 Node {
                     width: percent(100),
                     height: px(1.0),
@@ -191,6 +193,7 @@ fn setup_velocity_list(
         let container = commands
             .spawn((
                 VelocityListContainer,
+                DynamicSectionContent,
                 Node {
                     flex_direction: FlexDirection::Column,
                     width: percent(100),
@@ -557,39 +560,3 @@ fn handle_velocity_edit(
         });
 }
 
-fn sync_velocity_list_on_emitter_change(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    editor_state: Res<EditorState>,
-    assets: Res<Assets<ParticleSystemAsset>>,
-    tracker: Res<super::InspectedEmitterTracker>,
-    mut lists: Query<&mut VelocityList>,
-    list_containers: Query<(Entity, &Children), With<VelocityListContainer>>,
-    mut separators: Query<&mut Node, With<VelocitySeparator>>,
-) {
-    if !tracker.is_changed() {
-        return;
-    }
-
-    let active = get_active_animated_velocities(&editor_state, &assets);
-
-    for mut list in &mut lists {
-        if !list.initialized {
-            continue;
-        }
-
-        list.added = active.clone();
-
-        for (container_entity, children) in &list_containers {
-            for child in children.iter() {
-                commands.entity(child).try_despawn();
-            }
-            for field_name in &active {
-                let item = spawn_velocity_item(&mut commands, field_name, &asset_server);
-                commands.entity(container_entity).add_child(item);
-            }
-        }
-
-        update_separator(!list.added.is_empty(), &mut separators);
-    }
-}

@@ -101,16 +101,12 @@ pub fn plugin(app: &mut App) {
             Update,
             (
                 unified::bind_text_inputs,
-                unified::bind_checkboxes,
-                unified::bind_curve_edits,
-                unified::bind_gradient_edits,
+                unified::bind_widget_values,
                 unified::bind_color_pickers,
                 unified::bind_combobox_fields,
                 unified::bind_variant_edits,
-                unified::bind_nested_variant_edits,
                 swatch::setup_variant_swatch,
                 swatch::sync_variant_swatch_from_gradient,
-                swatch::respawn_variant_swatch_on_switch,
             )
                 .after(super::inspector::update_inspected_emitter_tracker),
         );
@@ -170,29 +166,50 @@ impl FieldBinding {
     }
 
     pub(super) fn read_value(&self, emitter: &EmitterData) -> FieldValue {
-        match &self.accessor {
-            FieldAccessor::Emitter(path) => get_field_value_by_reflection(emitter, path, &self.kind),
-            FieldAccessor::EmitterVariant { path, field_name } => {
-                get_variant_field_value_by_reflection(emitter, path, field_name, &self.kind)
-                    .unwrap_or(FieldValue::None)
+        let reflect_path = ReflectPath::new(self.path());
+        let Ok(value) = emitter.reflect_path(reflect_path.as_str()) else {
+            return FieldValue::None;
+        };
+        let value = match &self.accessor {
+            FieldAccessor::Emitter(_) => value,
+            FieldAccessor::EmitterVariant { field_name, .. } => {
+                let Some(field) = resolve_variant_field_ref(value, field_name) else {
+                    return FieldValue::None;
+                };
+                field
             }
-        }
+        };
+        reflect_to_field_value(value, &self.kind)
     }
 
     pub(super) fn write_value(&self, emitter: &mut EmitterData, value: &FieldValue) -> bool {
+        let reflect_path = ReflectPath::new(self.path());
+        let Ok(target) = emitter.reflect_path_mut(reflect_path.as_str()) else {
+            return false;
+        };
         match &self.accessor {
-            FieldAccessor::Emitter(path) => set_field_value_by_reflection(emitter, path, value),
-            FieldAccessor::EmitterVariant { path, field_name } => {
-                set_variant_field_value_by_reflection(emitter, path, field_name, value)
+            FieldAccessor::Emitter(_) => apply_field_value_to_reflect(target, value),
+            FieldAccessor::EmitterVariant { field_name, .. } => {
+                with_variant_field_mut(target, field_name, |field| {
+                    apply_field_value_to_reflect(field, value)
+                })
+                .unwrap_or(false)
             }
         }
     }
 
     pub fn set_enum_by_name(&self, emitter: &mut EmitterData, variant_name: &str) -> bool {
+        let reflect_path = ReflectPath::new(self.path());
+        let Ok(target) = emitter.reflect_path_mut(reflect_path.as_str()) else {
+            return false;
+        };
         match &self.accessor {
-            FieldAccessor::Emitter(path) => set_field_enum_by_name(emitter, path, variant_name),
-            FieldAccessor::EmitterVariant { path, field_name } => {
-                set_variant_field_enum_by_name(emitter, path, field_name, variant_name)
+            FieldAccessor::Emitter(_) => set_enum_variant_by_name(target, variant_name),
+            FieldAccessor::EmitterVariant { field_name, .. } => {
+                with_variant_field_mut(target, field_name, |field| {
+                    set_enum_variant_by_name(field, variant_name)
+                })
+                .unwrap_or(false)
             }
         }
     }
@@ -588,30 +605,6 @@ pub(super) fn get_vec3_component(vec: Vec3, index: usize) -> f32 {
     }
 }
 
-pub(super) fn get_field_value_by_reflection(
-    emitter: &EmitterData,
-    path: &str,
-    kind: &FieldKind,
-) -> FieldValue {
-    let reflect_path = ReflectPath::new(path);
-    let Ok(value) = emitter.reflect_path(reflect_path.as_str()) else {
-        return FieldValue::None;
-    };
-    reflect_to_field_value(value, kind)
-}
-
-pub(super) fn set_field_value_by_reflection(
-    emitter: &mut EmitterData,
-    path: &str,
-    value: &FieldValue,
-) -> bool {
-    let reflect_path = ReflectPath::new(path);
-    let Ok(target) = emitter.reflect_path_mut(reflect_path.as_str()) else {
-        return false;
-    };
-    apply_field_value_to_reflect(target, value)
-}
-
 pub(super) fn parse_field_value(text: &str, kind: &FieldKind) -> FieldValue {
     match kind {
         FieldKind::F32 | FieldKind::F32Percent => f32::parse(text, kind)
@@ -755,62 +748,6 @@ where
     None
 }
 
-pub(super) fn get_variant_field_value_by_reflection(
-    emitter: &EmitterData,
-    path: &str,
-    field_name: &str,
-    kind: &FieldKind,
-) -> Option<FieldValue> {
-    let reflect_path = ReflectPath::new(path);
-    let value = emitter.reflect_path(reflect_path.as_str()).ok()?;
-    let field = resolve_variant_field_ref(value, field_name)?;
-    Some(reflect_to_field_value(field, kind))
-}
-
-pub(super) fn set_variant_field_value_by_reflection(
-    emitter: &mut EmitterData,
-    path: &str,
-    field_name: &str,
-    value: &FieldValue,
-) -> bool {
-    let reflect_path = ReflectPath::new(path);
-    let Ok(target) = emitter.reflect_path_mut(reflect_path.as_str()) else {
-        return false;
-    };
-    with_variant_field_mut(target, field_name, |field| {
-        apply_field_value_to_reflect(field, value)
-    })
-    .unwrap_or(false)
-}
-
-pub(super) fn create_variant_from_definition(
-    emitter: &mut EmitterData,
-    path: &str,
-    variant_def: &VariantDefinition,
-) -> bool {
-    let Some(default_value) = variant_def.create_default() else {
-        warn!(
-            "create_variant_from_definition: create_default() returned None for variant '{}' at path '{}'",
-            variant_def.name, path
-        );
-        return false;
-    };
-
-    let reflect_path = ReflectPath::new(path);
-    let Ok(target) = emitter.reflect_path_mut(reflect_path.as_str()) else {
-        return false;
-    };
-
-    if let ReflectRef::Enum(current) = target.reflect_ref() {
-        if current.variant_name() == variant_def.name {
-            return false;
-        }
-    }
-
-    target.apply(default_value.as_ref());
-    true
-}
-
 pub(super) fn find_ancestor_entity(
     entity: Entity,
     target: Entity,
@@ -828,38 +765,6 @@ pub(super) fn mark_dirty_and_restart(
     for mut runtime in emitter_runtimes.iter_mut() {
         runtime.restart(fixed_seed);
     }
-}
-
-pub(super) fn label_to_variant_name(label: &str) -> String {
-    label.split_whitespace().collect()
-}
-
-pub(super) fn set_variant_field_enum_by_name(
-    emitter: &mut EmitterData,
-    path: &str,
-    field_name: &str,
-    variant_name: &str,
-) -> bool {
-    let reflect_path = ReflectPath::new(path);
-    let Ok(target) = emitter.reflect_path_mut(reflect_path.as_str()) else {
-        return false;
-    };
-    with_variant_field_mut(target, field_name, |field| {
-        set_enum_variant_by_name(field, variant_name)
-    })
-    .unwrap_or(false)
-}
-
-pub(super) fn set_field_enum_by_name(
-    emitter: &mut EmitterData,
-    path: &str,
-    variant_name: &str,
-) -> bool {
-    let reflect_path = ReflectPath::new(path);
-    let Ok(target) = emitter.reflect_path_mut(reflect_path.as_str()) else {
-        return false;
-    };
-    set_enum_variant_by_name(target, variant_name)
 }
 
 fn set_enum_variant_by_name(target: &mut dyn PartialReflect, variant_name: &str) -> bool {

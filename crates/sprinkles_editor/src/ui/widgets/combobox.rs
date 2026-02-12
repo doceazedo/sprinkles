@@ -96,11 +96,6 @@ pub(crate) struct ComboBoxConfig {
     initialized: bool,
 }
 
-impl ComboBoxConfig {
-    pub(crate) fn set_options(&mut self, options: Vec<ComboBoxOptionData>) {
-        self.options = options;
-    }
-}
 
 #[derive(EntityEvent)]
 pub struct ComboBoxChangeEvent {

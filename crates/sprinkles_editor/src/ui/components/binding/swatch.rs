@@ -64,48 +64,66 @@ pub(super) fn setup_variant_swatch(
     mut commands: Commands,
     editor_state: Res<EditorState>,
     assets: Res<Assets<ParticleSystemAsset>>,
-    swatch_slots: Query<(Entity, &VariantEditSwatchSlot), Added<VariantEditSwatchSlot>>,
+    new_swatch_slots: Query<(Entity, &VariantEditSwatchSlot), Added<VariantEditSwatchSlot>>,
+    changed_configs: Query<(Entity, &VariantEditConfig, &FieldBinding), Changed<VariantEditConfig>>,
     variant_edit_configs: Query<(&VariantEditConfig, &FieldBinding), With<EditorVariantEdit>>,
+    existing_swatches: Query<(Entity, &VariantSwatchOwner, &Children)>,
     mut checkerboard_materials: ResMut<Assets<CheckerboardMaterial>>,
     mut gradient_materials: ResMut<Assets<GradientMaterial>>,
 ) {
-    if swatch_slots.is_empty() {
+    if new_swatch_slots.is_empty() && changed_configs.is_empty() {
         return;
     }
 
     let emitter = get_inspecting_emitter(&editor_state, &assets).map(|(_, e)| e);
 
-    for (slot_entity, slot) in &swatch_slots {
+    for (slot_entity, slot) in &new_swatch_slots {
         let variant_edit_entity = slot.0;
         let Ok((_config, binding)) = variant_edit_configs.get(variant_edit_entity) else {
             continue;
         };
+        let Some(emitter) = emitter else { continue };
 
-        let Some(emitter) = emitter else {
+        if let Some(color_value) = read_color_value(emitter, binding) {
+            commands
+                .entity(slot_entity)
+                .insert(VariantSwatchOwner(variant_edit_entity));
+            let material_entity = spawn_swatch_material(
+                &mut commands,
+                variant_edit_entity,
+                color_value,
+                &mut checkerboard_materials,
+                &mut gradient_materials,
+            );
+            commands.entity(slot_entity).add_child(material_entity);
+        }
+    }
+
+    for (variant_edit_entity, config, binding) in &changed_configs {
+        if !config.show_swatch_slot {
+            continue;
+        }
+        let Some(emitter) = emitter else { continue };
+
+        let Some((swatch_entity, _, swatch_children)) = existing_swatches
+            .iter()
+            .find(|(_, owner, _)| owner.0 == variant_edit_entity)
+        else {
             continue;
         };
 
-        let reflect_path = ReflectPath::new(binding.path());
-        let Ok(value) = emitter.reflect_path(reflect_path.as_str()) else {
-            continue;
-        };
+        despawn_swatch_children(&mut commands, swatch_children);
 
-        let Some(color_value) = value.try_downcast_ref::<SolidOrGradientColor>() else {
-            continue;
-        };
-
-        commands
-            .entity(slot_entity)
-            .insert(VariantSwatchOwner(variant_edit_entity));
-
-        let material_entity = spawn_swatch_material(
-            &mut commands,
-            variant_edit_entity,
-            color_value,
-            &mut checkerboard_materials,
-            &mut gradient_materials,
-        );
-        commands.entity(slot_entity).add_child(material_entity);
+        if let Some(color_value) = read_color_value(emitter, binding) {
+            let material_entity = spawn_swatch_material(
+                &mut commands,
+                variant_edit_entity,
+                color_value,
+                &mut checkerboard_materials,
+                &mut gradient_materials,
+            );
+            commands.entity(swatch_entity).add_child(material_entity);
+        }
     }
 }
 
@@ -187,51 +205,17 @@ pub(super) fn sync_variant_swatch_from_gradient(
     }
 }
 
-pub(super) fn respawn_variant_swatch_on_switch(
-    mut commands: Commands,
-    editor_state: Res<EditorState>,
-    assets: Res<Assets<ParticleSystemAsset>>,
-    changed_configs: Query<(Entity, &VariantEditConfig, &FieldBinding), Changed<VariantEditConfig>>,
-    swatches: Query<(Entity, &VariantSwatchOwner, &Children)>,
-    mut checkerboard_materials: ResMut<Assets<CheckerboardMaterial>>,
-    mut gradient_materials: ResMut<Assets<GradientMaterial>>,
-) {
-    let Some((_, emitter)) = get_inspecting_emitter(&editor_state, &assets) else {
-        return;
-    };
-
-    for (variant_edit_entity, config, binding) in &changed_configs {
-        if !config.show_swatch_slot {
-            continue;
-        }
-
-        let Some((swatch_entity, _, swatch_children)) = swatches
-            .iter()
-            .find(|(_, owner, _)| owner.0 == variant_edit_entity)
-        else {
-            continue;
-        };
-
-        for child in swatch_children.iter() {
-            commands.entity(child).try_despawn();
-        }
-
-        let reflect_path = ReflectPath::new(binding.path());
-        let Ok(value) = emitter.reflect_path(reflect_path.as_str()) else {
-            continue;
-        };
-
-        let Some(color_value) = value.try_downcast_ref::<SolidOrGradientColor>() else {
-            continue;
-        };
-
-        let material_entity = spawn_swatch_material(
-            &mut commands,
-            variant_edit_entity,
-            color_value,
-            &mut checkerboard_materials,
-            &mut gradient_materials,
-        );
-        commands.entity(swatch_entity).add_child(material_entity);
+fn despawn_swatch_children(commands: &mut Commands, children: &Children) {
+    for child in children.iter() {
+        commands.entity(child).try_despawn();
     }
+}
+
+fn read_color_value<'a>(
+    emitter: &'a EmitterData,
+    binding: &FieldBinding,
+) -> Option<&'a SolidOrGradientColor> {
+    let reflect_path = ReflectPath::new(binding.path());
+    let value = emitter.reflect_path(reflect_path.as_str()).ok()?;
+    value.try_downcast_ref::<SolidOrGradientColor>()
 }

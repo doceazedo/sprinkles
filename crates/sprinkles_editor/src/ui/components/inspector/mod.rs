@@ -483,10 +483,11 @@ fn update_panel_title(
 
 fn cleanup_dynamic_sections(
     mut commands: Commands,
-    tracker: Res<InspectedEmitterTracker>,
+    emitter_tracker: Res<InspectedEmitterTracker>,
+    collider_tracker: Res<InspectedColliderTracker>,
     existing: Query<Entity, With<DynamicSectionContent>>,
 ) {
-    if !tracker.is_changed() {
+    if !emitter_tracker.is_changed() && !collider_tracker.is_changed() {
         return;
     }
 

@@ -5,6 +5,9 @@ use bevy::prelude::*;
 #[derive(Component)]
 pub struct EditorVectorEdit;
 
+#[derive(Component)]
+pub struct VectorComponentIndex(pub usize);
+
 #[derive(Default, Debug, Clone, Copy, PartialEq)]
 pub enum VectorSuffixes {
     #[default]
@@ -179,7 +182,7 @@ pub fn vector_edit(props: VectorEditProps) -> impl Bundle {
                 text_edit_props = text_edit_props.with_max(max);
             }
 
-            text_edit(text_edit_props)
+            (VectorComponentIndex(i), text_edit(text_edit_props))
         })
         .collect();
 
