@@ -20,8 +20,8 @@ use crate::viewport::RespawnEmittersEvent;
 
 use super::{
     BoundTo, FieldBinding, FieldValue, InspectedEmitterTracker, format_f32,
-    get_inspected_data, get_inspected_data_mut, get_inspecting_emitter, get_inspecting_emitter_mut,
-    get_variant_index_by_reflection, mark_dirty_and_restart, parse_field_value,
+    get_inspected_data, get_inspected_data_mut, get_variant_index_by_reflection,
+    mark_dirty_and_restart, parse_field_value, read_fixed_seed,
 };
 
 use crate::ui::components::inspector::FieldKind;
@@ -51,15 +51,15 @@ impl CommitContext<'_, '_> {
         let Some(binding) = self.resolve_binding(entity) else {
             return;
         };
-        let Some((_, emitter)) = get_inspecting_emitter_mut(&self.editor_state, &mut self.assets)
-        else {
+        let Some(data) = get_inspected_data_mut(&self.editor_state, &mut self.assets) else {
             return;
         };
-        if binding.write_reflected(emitter, apply_fn) {
+        let fixed_seed = read_fixed_seed(&*data);
+        if binding.write_reflected(data, apply_fn) {
             mark_dirty_and_restart(
                 &mut self.dirty_state,
                 &mut self.emitter_runtimes,
-                emitter.time.fixed_seed,
+                fixed_seed,
             );
         }
     }
@@ -69,34 +69,19 @@ impl CommitContext<'_, '_> {
             return false;
         };
         let should_respawn = requires_respawn_binding(&binding);
-        let Some((_, emitter)) = get_inspecting_emitter_mut(&self.editor_state, &mut self.assets)
-        else {
+        let Some(data) = get_inspected_data_mut(&self.editor_state, &mut self.assets) else {
             return false;
         };
-        if binding.write_value(emitter, &value) {
+        let fixed_seed = read_fixed_seed(&*data);
+        if binding.write_value(data, &value) {
             mark_dirty_and_restart(
                 &mut self.dirty_state,
                 &mut self.emitter_runtimes,
-                emitter.time.fixed_seed,
+                fixed_seed,
             );
             return should_respawn;
         }
         false
-    }
-
-    fn commit_to_inspected(&mut self, entity: Entity, value: FieldValue) {
-        let Some(binding) = self.resolve_binding(entity) else {
-            return;
-        };
-        let Some(data) = get_inspected_data_mut(&self.editor_state, &mut self.assets) else {
-            return;
-        };
-        if binding.write_value(data, &value) {
-            self.dirty_state.has_unsaved_changes = true;
-            for mut runtime in self.emitter_runtimes.iter_mut() {
-                runtime.restart(None);
-            }
-        }
     }
 }
 
@@ -138,7 +123,7 @@ pub(super) fn bind_text_inputs(
         return;
     }
 
-    let Some((_, emitter)) = get_inspecting_emitter(&editor_state, &assets) else {
+    let Some(data) = get_inspected_data(&editor_state, &assets) else {
         return;
     };
 
@@ -147,7 +132,7 @@ pub(super) fn bind_text_inputs(
             continue;
         };
 
-        let value = binding.read_value(emitter);
+        let value = binding.read_value(data);
 
         if let Some(idx) = bound.component_index {
             if let FieldKind::Vector(suffixes) = &binding.kind {
@@ -187,24 +172,22 @@ pub(super) fn bind_widget_values(
         return;
     }
 
-    if let Some(data) = get_inspected_data(&editor_state, &assets) {
-        for (binding, mut state) in &mut checkbox_states {
-            let value = binding.read_value(data);
-            if let Some(checked) = value.to_bool() {
-                state.checked = checked;
-            }
-        }
-    }
-
-    let Some((_, emitter)) = get_inspecting_emitter(&editor_state, &assets) else {
+    let Some(data) = get_inspected_data(&editor_state, &assets) else {
         return;
     };
+
+    for (binding, mut state) in &mut checkbox_states {
+        let value = binding.read_value(data);
+        if let Some(checked) = value.to_bool() {
+            state.checked = checked;
+        }
+    }
 
     for (binding, mut state) in &mut curve_edits {
         if binding.kind != FieldKind::Curve {
             continue;
         }
-        let Some(reflected) = binding.read_reflected(emitter) else {
+        let Some(reflected) = binding.read_reflected(data) else {
             continue;
         };
         if let Some(ct) = reflected.try_downcast_ref::<CurveTexture>() {
@@ -220,7 +203,7 @@ pub(super) fn bind_widget_values(
         if binding.kind != FieldKind::Gradient {
             continue;
         }
-        let Some(reflected) = binding.read_reflected(emitter) else {
+        let Some(reflected) = binding.read_reflected(data) else {
             continue;
         };
         if let Some(gradient) = reflected.try_downcast_ref::<ParticleGradient>() {
@@ -232,7 +215,7 @@ pub(super) fn bind_widget_values(
         if !matches!(binding.kind, FieldKind::ComboBox { .. }) {
             continue;
         }
-        let value = binding.read_value(emitter);
+        let value = binding.read_value(data);
         if let FieldValue::U32(index) = value {
             config.selected = index as usize;
         }
@@ -245,7 +228,7 @@ pub(super) fn bind_widget_values(
         if !matches!(binding.kind, FieldKind::ComboBox { .. }) {
             continue;
         }
-        let value = binding.read_value(emitter);
+        let value = binding.read_value(data);
         if let FieldValue::U32(index) = value {
             config.selected = index as usize;
         }
@@ -253,13 +236,13 @@ pub(super) fn bind_widget_values(
 
     for (binding, mut config) in &mut variant_edits {
         let new_index = if binding.is_variant() {
-            let Some(reflected) = binding.read_reflected(emitter) else {
+            let Some(reflected) = binding.read_reflected(data) else {
                 continue;
             };
             get_nested_variant_index(reflected, &config.variants)
         } else {
             let Some(idx) =
-                get_variant_index_by_reflection(emitter, binding.path(), &config.variants)
+                get_variant_index_by_reflection(data, binding.path(), &config.variants)
             else {
                 continue;
             };
@@ -279,7 +262,7 @@ pub(super) fn bind_color_pickers(
     >,
     trigger_swatches: Query<&TriggerSwatchMaterial>,
 ) {
-    let Some((_, emitter)) = get_inspecting_emitter(&editor_state, &assets) else {
+    let Some(data) = get_inspected_data(&editor_state, &assets) else {
         return;
     };
 
@@ -293,7 +276,7 @@ pub(super) fn bind_color_pickers(
             continue;
         }
 
-        let value = binding.read_value(emitter);
+        let value = binding.read_value(data);
         let Some(color) = value.to_color() else {
             continue;
         };
@@ -316,11 +299,11 @@ pub(super) fn handle_text_commit(
         .and_then(|b| ctx.bindings.get(b.binding).ok())
         .or_else(|| ctx.bindings.get(trigger.entity).ok());
 
-    let Some(binding) = binding else {
+    let Some(binding) = binding.cloned() else {
         return;
     };
 
-    let Some((_, emitter)) = get_inspecting_emitter_mut(&ctx.editor_state, &mut ctx.assets) else {
+    let Some(data) = get_inspected_data_mut(&ctx.editor_state, &mut ctx.assets) else {
         return;
     };
 
@@ -332,16 +315,17 @@ pub(super) fn handle_text_commit(
                 return;
             };
 
-            let current_value = binding.read_value(emitter);
+            let current_value = binding.read_value(&*data);
             let new_value = set_field_value_component(&current_value, idx, v);
+            let fixed_seed = read_fixed_seed(&*data);
 
-            if binding.write_value(emitter, &new_value) {
+            if binding.write_value(data, &new_value) {
                 mark_dirty_and_restart(
                     &mut ctx.dirty_state,
                     &mut ctx.emitter_runtimes,
-                    emitter.time.fixed_seed,
+                    fixed_seed,
                 );
-                if requires_respawn_binding(binding) {
+                if requires_respawn_binding(&binding) {
                     commands.trigger(RespawnEmittersEvent);
                 }
             }
@@ -354,13 +338,14 @@ pub(super) fn handle_text_commit(
         return;
     }
 
-    if binding.write_value(emitter, &value) {
+    let fixed_seed = read_fixed_seed(&*data);
+    if binding.write_value(data, &value) {
         mark_dirty_and_restart(
             &mut ctx.dirty_state,
             &mut ctx.emitter_runtimes,
-            emitter.time.fixed_seed,
+            fixed_seed,
         );
-        if requires_respawn_binding(binding) {
+        if requires_respawn_binding(&binding) {
             commands.trigger(RespawnEmittersEvent);
         }
     }
@@ -372,11 +357,9 @@ pub(super) fn handle_checkbox_commit(
     mut ctx: CommitContext,
 ) {
     let value = FieldValue::Bool(trigger.checked);
-    if ctx.commit_field_value(trigger.entity, value.clone()) {
+    if ctx.commit_field_value(trigger.entity, value) {
         commands.trigger(RespawnEmittersEvent);
-        return;
     }
-    ctx.commit_to_inspected(trigger.entity, value);
 }
 
 pub(super) fn handle_combobox_change(
@@ -394,10 +377,11 @@ pub(super) fn handle_combobox_change(
 
     let is_optional = matches!(binding.kind, FieldKind::ComboBox { optional: true, .. });
 
-    let Some((_, emitter)) = get_inspecting_emitter_mut(&ctx.editor_state, &mut ctx.assets) else {
+    let Some(data) = get_inspected_data_mut(&ctx.editor_state, &mut ctx.assets) else {
         return;
     };
 
+    let fixed_seed = read_fixed_seed(&*data);
     let changed = if is_optional {
         let inner_variant = if trigger.selected == 0 {
             None
@@ -411,20 +395,20 @@ pub(super) fn handle_combobox_change(
                     .collect::<String>(),
             )
         };
-        binding.set_optional_enum(emitter, inner_variant.as_deref())
+        binding.set_optional_enum(data, inner_variant.as_deref())
     } else {
         let variant_name = trigger
             .value
             .clone()
             .unwrap_or_else(|| trigger.label.split_whitespace().collect());
-        binding.set_enum_by_name(emitter, &variant_name)
+        binding.set_enum_by_name(data, &variant_name)
     };
 
     if changed {
         mark_dirty_and_restart(
             &mut ctx.dirty_state,
             &mut ctx.emitter_runtimes,
-            emitter.time.fixed_seed,
+            fixed_seed,
         );
     }
 }
@@ -478,7 +462,7 @@ pub(super) fn handle_variant_change(
         return;
     };
 
-    let Some((_, emitter)) = get_inspecting_emitter_mut(&ctx.editor_state, &mut ctx.assets) else {
+    let Some(data) = get_inspected_data_mut(&ctx.editor_state, &mut ctx.assets) else {
         return;
     };
 
@@ -487,7 +471,7 @@ pub(super) fn handle_variant_change(
     };
 
     if !binding.is_variant() {
-        if let Some(current) = binding.read_reflected(emitter) {
+        if let Some(current) = binding.read_reflected(&*data) {
             if let ReflectRef::Enum(current) = current.reflect_ref() {
                 if current.variant_name() == variant_def.name {
                     return;
@@ -496,13 +480,14 @@ pub(super) fn handle_variant_change(
         }
     }
 
-    if binding.write_reflected(emitter, |field| {
+    let fixed_seed = read_fixed_seed(&*data);
+    if binding.write_reflected(data, |field| {
         field.apply(default_value.as_ref());
     }) {
         mark_dirty_and_restart(
             &mut ctx.dirty_state,
             &mut ctx.emitter_runtimes,
-            emitter.time.fixed_seed,
+            fixed_seed,
         );
     }
 }

@@ -539,12 +539,12 @@ fn apply_field_value_to_reflect(target: &mut dyn PartialReflect, value: &FieldVa
 }
 
 pub(super) fn get_variant_index_by_reflection(
-    emitter: &EmitterData,
+    data: &dyn Reflect,
     path: &str,
     variants: &[VariantDefinition],
 ) -> Option<usize> {
     let reflect_path = ReflectPath::new(path);
-    let value = emitter.reflect_path(reflect_path.as_str()).ok()?;
+    let value = data.reflect_path(reflect_path.as_str()).ok()?;
 
     let ReflectRef::Enum(enum_ref) = value.reflect_ref() else {
         return None;
@@ -616,6 +616,14 @@ pub(super) fn find_ancestor_entity(
     parents: &Query<&ChildOf>,
 ) -> bool {
     find_ancestor(entity, parents, MAX_ANCESTOR_DEPTH, |e| e == target).is_some()
+}
+
+pub(super) fn read_fixed_seed(data: &dyn Reflect) -> Option<u32> {
+    let path = ReflectPath::new("time.fixed_seed");
+    data.reflect_path(path.as_str())
+        .ok()
+        .and_then(|v| v.try_downcast_ref::<Option<u32>>().copied())
+        .flatten()
 }
 
 pub(super) fn mark_dirty_and_restart(
