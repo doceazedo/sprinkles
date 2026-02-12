@@ -2,6 +2,7 @@ pub mod asset;
 mod compute;
 mod extract;
 pub mod material;
+mod mesh;
 pub mod prelude;
 pub mod runtime;
 mod sort;
