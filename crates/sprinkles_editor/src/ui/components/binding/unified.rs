@@ -20,8 +20,8 @@ use crate::viewport::RespawnEmittersEvent;
 
 use super::{
     BoundTo, FieldBinding, FieldValue, InspectedEmitterTracker, format_f32,
-    get_inspecting_emitter, get_inspecting_emitter_mut, get_variant_index_by_reflection,
-    mark_dirty_and_restart, parse_field_value,
+    get_inspected_data, get_inspected_data_mut, get_inspecting_emitter, get_inspecting_emitter_mut,
+    get_variant_index_by_reflection, mark_dirty_and_restart, parse_field_value,
 };
 
 use crate::ui::components::inspector::FieldKind;
@@ -82,6 +82,21 @@ impl CommitContext<'_, '_> {
             return should_respawn;
         }
         false
+    }
+
+    fn commit_to_inspected(&mut self, entity: Entity, value: FieldValue) {
+        let Some(binding) = self.resolve_binding(entity) else {
+            return;
+        };
+        let Some(data) = get_inspected_data_mut(&self.editor_state, &mut self.assets) else {
+            return;
+        };
+        if binding.write_value(data, &value) {
+            self.dirty_state.has_unsaved_changes = true;
+            for mut runtime in self.emitter_runtimes.iter_mut() {
+                runtime.restart(None);
+            }
+        }
     }
 }
 
@@ -172,16 +187,18 @@ pub(super) fn bind_widget_values(
         return;
     }
 
+    if let Some(data) = get_inspected_data(&editor_state, &assets) {
+        for (binding, mut state) in &mut checkbox_states {
+            let value = binding.read_value(data);
+            if let Some(checked) = value.to_bool() {
+                state.checked = checked;
+            }
+        }
+    }
+
     let Some((_, emitter)) = get_inspecting_emitter(&editor_state, &assets) else {
         return;
     };
-
-    for (binding, mut state) in &mut checkbox_states {
-        let value = binding.read_value(emitter);
-        if let Some(checked) = value.to_bool() {
-            state.checked = checked;
-        }
-    }
 
     for (binding, mut state) in &mut curve_edits {
         if binding.kind != FieldKind::Curve {
@@ -354,9 +371,12 @@ pub(super) fn handle_checkbox_commit(
     mut commands: Commands,
     mut ctx: CommitContext,
 ) {
-    if ctx.commit_field_value(trigger.entity, FieldValue::Bool(trigger.checked)) {
+    let value = FieldValue::Bool(trigger.checked);
+    if ctx.commit_field_value(trigger.entity, value.clone()) {
         commands.trigger(RespawnEmittersEvent);
+        return;
     }
+    ctx.commit_to_inspected(trigger.entity, value);
 }
 
 pub(super) fn handle_combobox_change(

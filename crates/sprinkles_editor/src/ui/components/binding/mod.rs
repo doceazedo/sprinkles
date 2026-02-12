@@ -75,6 +75,38 @@ pub(super) fn get_inspecting_collider_mut<'a>(
     Some((inspecting.index, collider))
 }
 
+pub(super) fn get_inspected_data<'a>(
+    editor_state: &EditorState,
+    assets: &'a Assets<ParticleSystemAsset>,
+) -> Option<&'a dyn Reflect> {
+    if let Some((_, emitter)) = get_inspecting_emitter(editor_state, assets) {
+        return Some(emitter);
+    }
+    if let Some((_, collider)) = get_inspecting_collider(editor_state, assets) {
+        return Some(collider);
+    }
+    None
+}
+
+pub(super) fn get_inspected_data_mut<'a>(
+    editor_state: &EditorState,
+    assets: &'a mut Assets<ParticleSystemAsset>,
+) -> Option<&'a mut dyn Reflect> {
+    let inspecting = editor_state.inspecting.as_ref()?;
+    let handle = editor_state.current_project.as_ref()?;
+    let asset = assets.get_mut(handle)?;
+    match inspecting.kind {
+        Inspectable::Emitter => {
+            let emitter = asset.emitters.get_mut(inspecting.index as usize)?;
+            Some(emitter)
+        }
+        Inspectable::Collider => {
+            let collider = asset.colliders.get_mut(inspecting.index as usize)?;
+            Some(collider)
+        }
+    }
+}
+
 pub(super) fn find_ancestor<F>(
     mut entity: Entity,
     parents: &Query<&ChildOf>,
@@ -211,10 +243,10 @@ impl FieldBinding {
 
     pub(super) fn resolve_ref<'a>(
         &self,
-        emitter: &'a EmitterData,
+        data: &'a dyn Reflect,
     ) -> Option<&'a dyn PartialReflect> {
         let path = ReflectPath::new(self.path());
-        let value = match emitter.reflect_path(path.as_str()) {
+        let value = match data.reflect_path(path.as_str()) {
             Ok(v) => v,
             Err(e) => {
                 warn!("binding: failed to resolve '{}': {}", self.path(), e);
@@ -231,11 +263,11 @@ impl FieldBinding {
 
     pub(super) fn with_resolved_mut<R>(
         &self,
-        emitter: &mut EmitterData,
+        data: &mut dyn Reflect,
         f: impl FnOnce(&mut dyn PartialReflect) -> R,
     ) -> Option<R> {
         let path = ReflectPath::new(self.path());
-        let target = match emitter.reflect_path_mut(path.as_str()) {
+        let target = match data.reflect_path_mut(path.as_str()) {
             Ok(v) => v,
             Err(e) => {
                 warn!("binding: failed to resolve_mut '{}': {}", self.path(), e);
@@ -250,22 +282,22 @@ impl FieldBinding {
         }
     }
 
-    pub(super) fn read_value(&self, emitter: &EmitterData) -> FieldValue {
-        let Some(value) = self.resolve_ref(emitter) else {
+    pub(super) fn read_value(&self, data: &dyn Reflect) -> FieldValue {
+        let Some(value) = self.resolve_ref(data) else {
             return FieldValue::None;
         };
         reflect_to_field_value(value, &self.kind)
     }
 
-    pub(super) fn write_value(&self, emitter: &mut EmitterData, value: &FieldValue) -> bool {
-        self.with_resolved_mut(emitter, |target| {
+    pub(super) fn write_value(&self, data: &mut dyn Reflect, value: &FieldValue) -> bool {
+        self.with_resolved_mut(data, |target| {
             apply_field_value_to_reflect(target, value)
         })
         .unwrap_or(false)
     }
 
-    pub fn set_enum_by_name(&self, emitter: &mut EmitterData, variant_name: &str) -> bool {
-        self.with_resolved_mut(emitter, |target| {
+    pub fn set_enum_by_name(&self, data: &mut dyn Reflect, variant_name: &str) -> bool {
+        self.with_resolved_mut(data, |target| {
             set_enum_variant_by_name(target, variant_name)
         })
         .unwrap_or(false)
@@ -273,25 +305,28 @@ impl FieldBinding {
 
     pub fn set_optional_enum(
         &self,
-        emitter: &mut EmitterData,
+        data: &mut dyn Reflect,
         inner_variant_name: Option<&str>,
     ) -> bool {
-        self.with_resolved_mut(emitter, |target| {
+        self.with_resolved_mut(data, |target| {
             set_optional_enum_by_name(target, inner_variant_name)
         })
         .unwrap_or(false)
     }
 
-    pub fn read_reflected<'a>(&self, emitter: &'a EmitterData) -> Option<&'a dyn PartialReflect> {
-        self.resolve_ref(emitter)
+    pub fn read_reflected<'a>(
+        &self,
+        data: &'a dyn Reflect,
+    ) -> Option<&'a dyn PartialReflect> {
+        self.resolve_ref(data)
     }
 
     pub fn write_reflected(
         &self,
-        emitter: &mut EmitterData,
+        data: &mut dyn Reflect,
         f: impl FnOnce(&mut dyn PartialReflect),
     ) -> bool {
-        self.with_resolved_mut(emitter, |target| {
+        self.with_resolved_mut(data, |target| {
             f(target);
         })
         .is_some()
