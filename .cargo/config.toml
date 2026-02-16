@@ -1,0 +1,2 @@
+[alias]
+editor = "run -p bevy_sprinkles_editor"
