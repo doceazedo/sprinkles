@@ -1,9 +1,10 @@
 [package]
 name = "bevy_sprinkles_editor"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 description = "GPU particle system editor for Bevy"
+readme = "../../README.md"
 repository = "https://github.com/doceazedo/sprinkles"
 keywords = ["bevy", "particle-system", "particles", "vfx"]
 categories = ["game-development", "simulation"]
@@ -17,7 +18,7 @@ workspace = true
 
 [dependencies]
 bevy = { workspace = true, features = ["jpeg"] }
-bevy_sprinkles = { version = "0.1.0", path = "../bevy_sprinkles" }
+bevy_sprinkles = { version = "0.1.1", path = "../bevy_sprinkles" }
 serde = { workspace = true }
 ron = { workspace = true }
 rfd = "0.15"

@@ -1432,7 +1432,7 @@ dependencies = [
 
 [[package]]
 name = "bevy_sprinkles"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "bevy",
  "bitflags 2.10.0",
@@ -1445,7 +1445,7 @@ dependencies = [
 
 [[package]]
 name = "bevy_sprinkles_editor"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "Inflector",
  "bevy",
