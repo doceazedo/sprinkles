@@ -17,7 +17,7 @@ workspace = true
 
 [dependencies]
 bevy = { workspace = true, features = ["jpeg"] }
-bevy_sprinkles = { path = "../bevy_sprinkles" }
+bevy_sprinkles = { version = "0.1.0", path = "../bevy_sprinkles" }
 serde = { workspace = true }
 ron = { workspace = true }
 rfd = "0.15"
