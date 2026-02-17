@@ -17,7 +17,7 @@ pub(super) struct VariantSwatchOwner(Entity);
 pub(super) struct SolidSwatchMaterial(Entity);
 
 #[derive(Component)]
-pub(super) struct GradientSwatchNode(Entity);
+pub(super) struct GradientSwatchNode;
 
 fn swatch_fill_node() -> Node {
     Node {
@@ -49,7 +49,7 @@ fn spawn_swatch_material(
             .id(),
         SolidOrGradientColor::Gradient { gradient } => commands
             .spawn((
-                GradientSwatchNode(variant_edit_entity),
+                GradientSwatchNode,
                 MaterialNode(gradient_materials.add(GradientMaterial::swatch(gradient))),
                 swatch_fill_node(),
             ))
@@ -187,7 +187,7 @@ pub(super) fn sync_variant_swatch_from_gradient(
 
         let material_entity = commands
             .spawn((
-                GradientSwatchNode(variant_edit),
+                GradientSwatchNode,
                 MaterialNode(gradient_materials.add(GradientMaterial::swatch(&state.gradient))),
                 swatch_fill_node(),
             ))

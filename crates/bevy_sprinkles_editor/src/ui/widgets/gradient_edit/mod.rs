@@ -19,7 +19,7 @@ use crate::ui::widgets::button::{
     icon_button,
 };
 use crate::ui::widgets::color_picker::{
-    ColorPickerChangeEvent, ColorPickerCommitEvent, ColorPickerProps, EditorColorPicker,
+    ColorPickerChangeEvent, ColorPickerCommitEvent, ColorPickerProps,
     color_picker,
 };
 use crate::ui::widgets::cursor::{ActiveCursor, HoverCursor};
@@ -102,7 +102,6 @@ impl GradientEditState {
 #[derive(EntityEvent)]
 pub struct GradientEditChangeEvent {
     pub entity: Entity,
-    pub gradient: ParticleGradient,
 }
 
 #[derive(EntityEvent)]
@@ -112,10 +111,7 @@ pub struct GradientEditCommitEvent {
 }
 
 fn trigger_gradient_events(commands: &mut Commands, entity: Entity, gradient: &ParticleGradient) {
-    commands.trigger(GradientEditChangeEvent {
-        entity,
-        gradient: gradient.clone(),
-    });
+    commands.trigger(GradientEditChangeEvent { entity });
     commands.trigger(GradientEditCommitEvent {
         entity,
         gradient: gradient.clone(),
@@ -132,11 +128,6 @@ pub struct GradientEditProps {
 impl GradientEditProps {
     pub fn new() -> Self {
         Self::default()
-    }
-
-    pub fn with_gradient(mut self, gradient: ParticleGradient) -> Self {
-        self.gradient = Some(gradient);
-        self
     }
 
     pub fn inline(mut self) -> Self {
@@ -927,7 +918,6 @@ fn on_handle_drag(
 
     commands.trigger(GradientEditChangeEvent {
         entity: handle.gradient_edit,
-        gradient: state.gradient.clone(),
     });
 }
 
@@ -984,7 +974,6 @@ fn update_handle_stop_color(
     } else {
         commands.trigger(GradientEditChangeEvent {
             entity: picker.gradient_edit,
-            gradient: state.gradient.clone(),
         });
     }
 }
@@ -1539,7 +1528,6 @@ fn update_stop_color(
     } else {
         commands.trigger(GradientEditChangeEvent {
             entity: picker.gradient_edit,
-            gradient: state.gradient.clone(),
         });
     }
 }

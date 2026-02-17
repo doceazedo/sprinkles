@@ -1,9 +1,6 @@
 use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
-use bevy::reflect::{TypeInfo, Typed, VariantInfo};
-
 use crate::ui::components::binding::FieldBinding;
-use crate::ui::components::inspector::utils::field_from_type_path;
 use crate::ui::components::inspector::{FieldKind, VariantField, name_to_label, path_to_label};
 
 use crate::ui::tokens::{BORDER_COLOR, FONT_PATH, TEXT_BODY_COLOR, TEXT_MUTED_COLOR, TEXT_SIZE_SM};
@@ -18,7 +15,7 @@ use crate::ui::widgets::combobox::{
 use crate::ui::widgets::gradient_edit::{GradientEditProps, gradient_edit};
 use crate::ui::widgets::popover::{
     EditorPopover, PopoverHeaderProps, PopoverPlacement, PopoverProps, PopoverTracker,
-    activate_trigger, deactivate_trigger, popover, popover_content, popover_header,
+    activate_trigger, deactivate_trigger, popover, popover_header,
 };
 use crate::ui::widgets::text_edit::{TextEditProps, text_edit};
 
@@ -139,48 +136,6 @@ impl VariantDefinition {
         }
     }
 
-    pub fn from_reflect<T: Typed>(variant_name: &str) -> Option<Self> {
-        let TypeInfo::Enum(enum_info) = T::type_info() else {
-            return None;
-        };
-
-        let variant_info = (0..enum_info.variant_len())
-            .filter_map(|i| enum_info.variant_at(i))
-            .find(|v| v.name() == variant_name)?;
-
-        let mut def = Self::new(variant_name);
-        def.rows = Self::rows_from_variant_info(variant_info);
-        Some(def)
-    }
-
-    pub fn with_inferred_rows<T: Typed>(mut self) -> Self {
-        let TypeInfo::Enum(enum_info) = T::type_info() else {
-            return self;
-        };
-
-        let variant_info = (0..enum_info.variant_len())
-            .filter_map(|i| enum_info.variant_at(i))
-            .find(|v| v.name() == self.name);
-
-        if let Some(variant_info) = variant_info {
-            self.rows = Self::rows_from_variant_info(variant_info);
-        }
-        self
-    }
-
-    fn rows_from_variant_info(variant_info: &VariantInfo) -> Vec<Vec<VariantField>> {
-        match variant_info {
-            VariantInfo::Struct(struct_info) => struct_info
-                .iter()
-                .filter_map(|field| {
-                    let name = field.name();
-                    let type_path = field.type_path();
-                    field_from_type_path(name, type_path, None).map(|f| vec![f])
-                })
-                .collect(),
-            VariantInfo::Unit(_) | VariantInfo::Tuple(_) => Vec::new(),
-        }
-    }
 }
 
 pub fn plugin(app: &mut App) {
@@ -206,7 +161,7 @@ pub struct VariantEditConfig {
 }
 
 #[derive(Component)]
-struct VariantEditPopover(Entity);
+struct VariantEditPopover;
 
 #[derive(Component)]
 struct VariantEditLeftIcon(Entity);
@@ -255,23 +210,8 @@ impl VariantEditProps {
         self
     }
 
-    pub fn with_popover_title(mut self, title: impl Into<String>) -> Self {
-        self.popover_title = Some(title.into());
-        self
-    }
-
     pub fn with_variants(mut self, variants: Vec<VariantDefinition>) -> Self {
         self.variants = variants;
-        self
-    }
-
-    pub fn with_selected(mut self, index: usize) -> Self {
-        self.selected_index = index;
-        self
-    }
-
-    pub fn with_popover_width(mut self, width: Option<f32>) -> Self {
-        self.popover_width = width;
         self
     }
 
@@ -580,7 +520,7 @@ fn handle_variant_edit_click(
     };
 
     let popover_entity = commands
-        .spawn((VariantEditPopover(entity), popover(popover_props)))
+        .spawn((VariantEditPopover, popover(popover_props)))
         .id();
 
     commands

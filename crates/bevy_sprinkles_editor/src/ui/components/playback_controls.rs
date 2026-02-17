@@ -7,12 +7,8 @@ use crate::ui::tokens::{PRIMARY_COLOR, TEXT_BODY_COLOR};
 use crate::ui::widgets::button::{
     ButtonSize, ButtonVariant, IconButtonProps, icon_button, set_button_variant,
 };
+use crate::ui::icons::{ICON_PAUSE, ICON_PLAY, ICON_REPEAT, ICON_STOP};
 use crate::viewport::EditorParticlePreview;
-
-const PLAY_ICON: &str = "icons/ri-play-fill.png";
-const PAUSE_ICON: &str = "icons/ri-pause-fill.png";
-const STOP_ICON: &str = "icons/ri-stop-fill.png";
-const LOOP_ICON: &str = "icons/ri-repeat-fill.png";
 
 pub fn plugin(app: &mut App) {
     app.add_systems(
@@ -59,7 +55,7 @@ fn play_pause_button(asset_server: &AssetServer) -> impl Bundle {
     (
         PlayPauseButton,
         icon_button(
-            IconButtonProps::new(PAUSE_ICON)
+            IconButtonProps::new(ICON_PAUSE)
                 .color(tailwind::GREEN_500)
                 .variant(ButtonVariant::Ghost)
                 .with_size(ButtonSize::Icon),
@@ -72,7 +68,7 @@ fn stop_button(asset_server: &AssetServer) -> impl Bundle {
     (
         StopButton,
         icon_button(
-            IconButtonProps::new(STOP_ICON)
+            IconButtonProps::new(ICON_STOP)
                 .color(TEXT_BODY_COLOR)
                 .variant(ButtonVariant::Ghost)
                 .with_size(ButtonSize::Icon),
@@ -85,7 +81,7 @@ fn loop_button(asset_server: &AssetServer) -> impl Bundle {
     (
         LoopButton,
         icon_button(
-            IconButtonProps::new(LOOP_ICON)
+            IconButtonProps::new(ICON_REPEAT)
                 .color(PRIMARY_COLOR)
                 .variant(ButtonVariant::Active)
                 .with_size(ButtonSize::Icon),
@@ -149,9 +145,9 @@ fn update_play_pause_icon(
     };
 
     let icon_path = if runtime.paused {
-        PLAY_ICON
+        ICON_PLAY
     } else {
-        PAUSE_ICON
+        ICON_PAUSE
     };
 
     for children in &button_query {

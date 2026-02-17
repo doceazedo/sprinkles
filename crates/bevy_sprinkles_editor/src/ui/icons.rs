@@ -1,7 +1,6 @@
 pub const ICON_ADD: &str = "icons/ri-add-line.png";
 pub const ICON_ARROW_DOWN: &str = "icons/ri-arrow-down-s-line.png";
 pub const ICON_ARROW_LEFT_RIGHT: &str = "icons/ri-arrow-left-right-fill.png";
-pub const ICON_BOX: &str = "icons/ri-box-2-fill.png";
 pub const ICON_CHECK: &str = "icons/ri-check-fill.png";
 pub const ICON_CHECKBOX_CIRCLE: &str = "icons/ri-checkbox-circle-fill.png";
 pub const ICON_CLOSE_CIRCLE: &str = "icons/ri-close-circle-fill.png";
@@ -25,9 +24,5 @@ pub const ICON_MORE: &str = "icons/ri-more-fill.png";
 pub const ICON_PAUSE: &str = "icons/ri-pause-fill.png";
 pub const ICON_PLAY: &str = "icons/ri-play-fill.png";
 pub const ICON_REPEAT: &str = "icons/ri-repeat-fill.png";
-pub const ICON_SEEDLING: &str = "icons/ri-seedling-fill.png";
-pub const ICON_SHOWERS: &str = "icons/ri-showers-fill.png";
 pub const ICON_SPHERE: &str = "icons/blender-sphere.png";
 pub const ICON_STOP: &str = "icons/ri-stop-fill.png";
-pub const ICON_TEXTURE: &str = "icons/blender-texture.png";
-pub const ICON_TIME: &str = "icons/ri-time-line.png";

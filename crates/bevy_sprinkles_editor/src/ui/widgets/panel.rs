@@ -27,7 +27,6 @@ pub struct EditorPanel;
 pub enum PanelDirection {
     #[default]
     Left,
-    Right,
 }
 
 #[derive(Component)]
@@ -101,11 +100,9 @@ pub fn panel(props: PanelProps) -> impl Bundle {
 
     let border = match direction {
         PanelDirection::Left => UiRect::right(px(1)),
-        PanelDirection::Right => UiRect::left(px(1)),
     };
     let margin = match direction {
         PanelDirection::Left => UiRect::ZERO,
-        PanelDirection::Right => UiRect::left(Val::Auto),
     };
 
     (
@@ -188,7 +185,6 @@ fn sync_resize_handle_positions(
 
         let panel_edge = match direction {
             PanelDirection::Left => panel_center + panel_half_w,
-            PanelDirection::Right => panel_center - panel_half_w,
         };
 
         node.left = px(panel_edge - parent_left - half);
@@ -224,7 +220,6 @@ fn handle_resize_drag(
             if let Ok((mut node, mut panel_width)) = panels.get_mut(handle.panel) {
                 let delta = match handle.direction {
                     PanelDirection::Left => cursor_delta,
-                    PanelDirection::Right => -cursor_delta,
                 };
 
                 drag_state.accumulated_delta += delta;

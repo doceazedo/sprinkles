@@ -14,9 +14,8 @@ use crate::ui::tokens::{
     BORDER_COLOR, FONT_PATH, PRIMARY_COLOR, TEXT_BODY_COLOR, TEXT_MUTED_COLOR, TEXT_SIZE,
     TEXT_SIZE_SM,
 };
+use crate::ui::icons::ICON_EXPAND_HORIZONTAL;
 use crate::ui::widgets::cursor::{ActiveCursor, HoverCursor};
-
-const DEFAULT_DRAG_ICON: &str = "icons/ri-expand-horizontal-s-line.png";
 
 pub fn set_text_input_value(queue: &mut TextInputQueue, text: String) {
     queue.add(TextInputAction::Edit(TextInputEdit::SelectAll));
@@ -77,7 +76,7 @@ pub enum TextEditPrefix {
 impl Default for TextEditPrefix {
     fn default() -> Self {
         Self::Icon {
-            path: DEFAULT_DRAG_ICON.to_string(),
+            path: ICON_EXPAND_HORIZONTAL.to_string(),
         }
     }
 }
@@ -109,7 +108,6 @@ struct AllowEmpty;
 
 #[derive(Clone)]
 pub enum FilterType {
-    Alphanumeric,
     Decimal,
     Integer,
 }
@@ -169,10 +167,6 @@ impl TextEditProps {
     }
     pub fn with_placeholder(mut self, placeholder: impl Into<String>) -> Self {
         self.placeholder = placeholder.into();
-        self
-    }
-    pub fn with_variant(mut self, variant: TextEditVariant) -> Self {
-        self.variant = variant;
         self
     }
     pub fn with_prefix(mut self, prefix: TextEditPrefix) -> Self {
@@ -298,7 +292,6 @@ fn setup_text_edit_input(
 
         let is_numeric = config.variant.is_numeric();
         let filter = config.filter.as_ref().map(|f| match f {
-            FilterType::Alphanumeric => TextInputFilter::Alphanumeric,
             FilterType::Decimal => TextInputFilter::Decimal,
             FilterType::Integer => TextInputFilter::Integer,
         });

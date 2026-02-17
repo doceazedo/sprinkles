@@ -37,9 +37,6 @@ impl PopoverTracker {
         self.trigger = Some(trigger);
     }
 
-    pub fn is_open(&self) -> bool {
-        self.popover.is_some()
-    }
 }
 
 pub fn activate_trigger(

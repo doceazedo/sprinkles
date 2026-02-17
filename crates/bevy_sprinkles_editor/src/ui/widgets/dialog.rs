@@ -121,26 +121,6 @@ impl OpenDialogEvent {
         }
     }
 
-    pub fn with_title(mut self, title: impl Into<String>) -> Self {
-        self.title = Some(title.into());
-        self
-    }
-
-    pub fn with_description(mut self, description: impl Into<String>) -> Self {
-        self.description = Some(description.into());
-        self
-    }
-
-    pub fn with_action(mut self, action: impl Into<String>) -> Self {
-        self.action = Some(action.into());
-        self
-    }
-
-    pub fn with_cancel(mut self, cancel: impl Into<String>) -> Self {
-        self.cancel = Some(cancel.into());
-        self
-    }
-
     pub fn without_cancel(mut self) -> Self {
         self.cancel = None;
         self
@@ -158,11 +138,6 @@ impl OpenDialogEvent {
 
     pub fn with_close_on_click_outside(mut self, close_on_click_outside: bool) -> Self {
         self.close_on_click_outside = close_on_click_outside;
-        self
-    }
-
-    pub fn with_close_on_esc(mut self, close_on_esc: bool) -> Self {
-        self.close_on_esc = close_on_esc;
         self
     }
 

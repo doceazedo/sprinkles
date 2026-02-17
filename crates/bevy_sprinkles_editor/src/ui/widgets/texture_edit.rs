@@ -68,7 +68,6 @@ pub struct TextureEditCommitEvent {
 
 #[derive(Component)]
 struct TextureEditContent {
-    variant_edit: Entity,
     current_variant: TextureVariant,
 }
 
@@ -156,7 +155,6 @@ fn setup_texture_content(
         commands
             .entity(container_entity)
             .insert(TextureEditContent {
-                variant_edit,
                 current_variant: variant,
             });
 

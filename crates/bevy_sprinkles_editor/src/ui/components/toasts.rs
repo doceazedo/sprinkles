@@ -246,10 +246,6 @@ impl ToastEvent {
         }
     }
 
-    pub fn info(content: impl Into<String>) -> Self {
-        Self::new(ToastVariant::Info, content)
-    }
-
     pub fn success(content: impl Into<String>) -> Self {
         Self::new(ToastVariant::Success, content)
     }
@@ -258,10 +254,6 @@ impl ToastEvent {
         Self::new(ToastVariant::Error, content)
     }
 
-    pub fn with_duration(mut self, duration: Duration) -> Self {
-        self.duration = duration;
-        self
-    }
 }
 
 #[derive(EntityEvent)]

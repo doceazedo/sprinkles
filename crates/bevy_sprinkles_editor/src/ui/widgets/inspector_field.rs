@@ -274,7 +274,7 @@ fn combobox_data_to_options(data: &[ComboBoxOptionData]) -> Vec<ComboBoxOption> 
 }
 
 #[derive(Component)]
-struct ComboBoxFieldConfig {
+pub(crate) struct ComboBoxFieldConfig {
     label: String,
     options: Vec<ComboBoxOptionData>,
     initialized: bool,

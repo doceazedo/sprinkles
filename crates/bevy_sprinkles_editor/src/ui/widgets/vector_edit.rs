@@ -124,15 +124,6 @@ impl VectorEditProps {
         self
     }
 
-    pub fn vec2(mut self) -> Self {
-        self.size = VectorSize::Vec2;
-        self
-    }
-
-    pub fn vec3(mut self) -> Self {
-        self.size = VectorSize::Vec3;
-        self
-    }
 }
 
 pub fn vector_edit(props: VectorEditProps) -> impl Bundle {

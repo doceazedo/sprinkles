@@ -14,7 +14,7 @@ use bevy_sprinkles::prelude::{CurveEasing, CurveMode, CurvePoint, CurveTexture};
 use inflector::Inflector;
 
 use materials::{CurveMaterial, MAX_POINTS};
-use presets::{CURVE_PRESETS, CurvePreset};
+use presets::CURVE_PRESETS;
 
 use crate::ui::icons::{ICON_ARROW_LEFT_RIGHT, ICON_FCURVE, ICON_MORE};
 use crate::ui::tokens::{
@@ -42,7 +42,6 @@ const CONTENT_PADDING: f32 = 12.0;
 const POINT_HANDLE_SIZE: f32 = 12.0;
 const TENSION_HANDLE_SIZE: f32 = 10.0;
 const HANDLE_BORDER: f32 = 1.0;
-const BORDER_RADIUS: f32 = 4.0;
 const DRAG_SNAP_STEP: f64 = 0.01;
 
 pub fn plugin(app: &mut App) {
@@ -106,7 +105,6 @@ impl CurveEditState {
 #[derive(EntityEvent)]
 pub struct CurveEditChangeEvent {
     pub entity: Entity,
-    pub curve: CurveTexture,
 }
 
 #[derive(EntityEvent)]
@@ -116,10 +114,7 @@ pub struct CurveEditCommitEvent {
 }
 
 fn trigger_curve_events(commands: &mut Commands, entity: Entity, curve: &CurveTexture) {
-    commands.trigger(CurveEditChangeEvent {
-        entity,
-        curve: curve.clone(),
-    });
+    commands.trigger(CurveEditChangeEvent { entity });
     commands.trigger(CurveEditCommitEvent {
         entity,
         curve: curve.clone(),
@@ -135,11 +130,6 @@ pub struct CurveEditProps {
 impl CurveEditProps {
     pub fn new() -> Self {
         Self::default()
-    }
-
-    pub fn with_curve(mut self, curve: CurveTexture) -> Self {
-        self.curve = Some(curve);
-        self
     }
 
     pub fn with_label(mut self, label: impl Into<String>) -> Self {
@@ -370,7 +360,6 @@ fn on_control_press<C: CurveControl>(
 
     commands.trigger(CurveEditChangeEvent {
         entity: curve_edit_entity,
-        curve: state.curve.clone(),
     });
 }
 
@@ -433,7 +422,6 @@ fn on_control_drag_start<C: CurveControl>(
 
     commands.trigger(CurveEditChangeEvent {
         entity: curve_edit_entity,
-        curve: state.curve.clone(),
     });
 }
 
@@ -471,7 +459,6 @@ fn on_control_drag<C: CurveControl>(
 
     commands.trigger(CurveEditChangeEvent {
         entity: curve_edit_entity,
-        curve: state.curve.clone(),
     });
 }
 
@@ -1135,7 +1122,7 @@ fn handle_range_blur(
         return;
     };
 
-    for (range_edit_entity, range_edit, range_children) in &range_edits {
+    for (_range_edit_entity, range_edit, range_children) in &range_edits {
         let Ok(mut state) = states.get_mut(range_edit.0) else {
             continue;
         };
