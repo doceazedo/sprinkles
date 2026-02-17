@@ -1,4 +1,5 @@
 #![deny(missing_docs)]
+#![doc(html_logo_url = "https://raw.githubusercontent.com/doceazedo/sprinkles/refs/heads/main/assets/icon.svg")]
 //! **Sprinkles** is a GPU-accelerated particle system for the
 //! [Bevy game engine](https://bevyengine.org/), inspired by
 //! [Godot's particle system](https://docs.godotengine.org/en/stable/tutorials/3d/particles/index.html).
