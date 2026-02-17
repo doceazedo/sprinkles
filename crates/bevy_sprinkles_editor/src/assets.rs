@@ -1,3 +1,6 @@
+use std::fs;
+use std::path::Path;
+
 use bevy::asset::embedded_asset;
 use bevy::prelude::*;
 
@@ -50,4 +53,45 @@ pub fn plugin(app: &mut App) {
     embedded_asset!(app, "assets/shaders/color_picker_hue.wgsl");
     embedded_asset!(app, "assets/shaders/curve_edit.wgsl");
     embedded_asset!(app, "assets/shaders/gradient_edit.wgsl");
+
+    // example thumbnails
+    embedded_asset!(app, "assets/examples/3d-explosion.jpg");
+    embedded_asset!(app, "assets/examples/magic-puff.jpg");
+    embedded_asset!(app, "assets/examples/rain.jpg");
+}
+
+const BUNDLED_EXAMPLES: &[(&str, &str)] = &[
+    (
+        "3d-explosion.ron",
+        include_str!("../../../examples/3d-explosion.ron"),
+    ),
+    (
+        "magic-puff.ron",
+        include_str!("../../../examples/magic-puff.ron"),
+    ),
+    ("rain.ron", include_str!("../../../examples/rain.ron")),
+];
+
+pub fn extract_examples(examples_dir: &Path) {
+    // remove stale examples that are no longer bundled
+    let bundled_names: std::collections::HashSet<&str> =
+        BUNDLED_EXAMPLES.iter().map(|(name, _)| *name).collect();
+    if let Ok(entries) = fs::read_dir(examples_dir) {
+        for entry in entries.flatten() {
+            let name = entry.file_name();
+            let Some(name) = name.to_str() else { continue };
+            if name.ends_with(".ron") && !bundled_names.contains(name) {
+                let _ = fs::remove_file(entry.path());
+            }
+        }
+    }
+
+    // extract (or overwrite) all bundled examples
+    for (filename, contents) in BUNDLED_EXAMPLES {
+        let _ = fs::write(examples_dir.join(filename), contents);
+    }
+}
+
+pub fn example_thumbnail_path(stem: &str) -> String {
+    format!("embedded://sprinkles/assets/examples/{stem}.jpg")
 }

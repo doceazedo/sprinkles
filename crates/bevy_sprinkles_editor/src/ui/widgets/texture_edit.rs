@@ -10,6 +10,7 @@ use bevy::tasks::IoTaskPool;
 use bevy_sprinkles::prelude::*;
 use bevy_sprinkles::textures::preset::{PresetTexture, TextureRef};
 
+use crate::io::simplify_path;
 use crate::state::EditorState;
 use crate::ui::components::binding::{
     FieldBinding, get_inspecting_emitter, resolve_variant_field_ref,
@@ -836,23 +837,6 @@ const MAX_DISPLAY_PATH_LEN: usize = 48;
 fn format_display_path(path: &str) -> String {
     let simplified = simplify_path(Path::new(path));
     truncate_middle(&simplified, MAX_DISPLAY_PATH_LEN)
-}
-
-fn simplify_path(path: &Path) -> String {
-    let cwd = crate::io::working_dir();
-    if let Ok(relative) = path.strip_prefix(&cwd) {
-        return format!("./{}", relative.to_string_lossy());
-    }
-
-    #[cfg(unix)]
-    if let Some(home) = std::env::var_os("HOME") {
-        let home_path = PathBuf::from(home);
-        if let Ok(relative) = path.strip_prefix(&home_path) {
-            return format!("~/{}", relative.to_string_lossy());
-        }
-    }
-
-    path.to_string_lossy().to_string()
 }
 
 fn truncate_middle(s: &str, max_len: usize) -> String {

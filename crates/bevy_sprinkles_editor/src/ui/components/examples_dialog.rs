@@ -4,7 +4,8 @@ use bevy::prelude::*;
 
 use bevy_sprinkles::asset::{ParticleSystemAuthors, ParticleSystemDimension};
 
-use crate::io::project_path;
+use crate::assets::example_thumbnail_path;
+use crate::io::examples_dir;
 use crate::project::{load_project_from_path, OpenProjectEvent};
 use crate::ui::tokens::{
     BORDER_COLOR, CORNER_RADIUS_LG, FONT_PATH, TEXT_BODY_COLOR, TEXT_MUTED_COLOR, TEXT_SIZE,
@@ -17,8 +18,6 @@ use crate::ui::widgets::dialog::{
     CloseDialogEvent, DialogActionEvent, DialogChildrenSlot, EditorDialog, OpenDialogEvent,
 };
 use crate::ui::widgets::scroll::scrollbar;
-
-const EXAMPLES_DIR: &str = "examples";
 
 pub fn plugin(app: &mut App) {
     app.add_observer(handle_examples_button_click)
@@ -60,7 +59,7 @@ struct ExamplesDialogState {
 
 // TODO: this does synchronous filesystem I/O which could block the main thread with many examples
 fn collect_example_entries() -> Vec<ExampleEntry> {
-    let examples_dir = project_path(EXAMPLES_DIR);
+    let examples_dir = examples_dir();
     let Ok(read_dir) = std::fs::read_dir(&examples_dir) else {
         return Vec::new();
     };
@@ -76,9 +75,9 @@ fn collect_example_entries() -> Vec<ExampleEntry> {
             let stem = path.file_stem()?.to_string_lossy().to_string();
             Some(ExampleEntry {
                 name: asset.name,
-                path: format!("{EXAMPLES_DIR}/{stem}.ron"),
+                path: format!("examples/{stem}.ron"),
                 dimension: asset.dimension,
-                thumbnail: format!("{EXAMPLES_DIR}/{stem}.jpg"),
+                thumbnail: example_thumbnail_path(&stem),
                 authors: asset.authors,
             })
         })
@@ -211,9 +210,8 @@ fn spawn_example_card(
             node.align_items = AlignItems::Stretch;
         });
 
-    let thumbnail_path = asset_path_from_project_root(&entry.thumbnail);
     commands.entity(card).with_child((
-        ImageNode::new(asset_server.load(thumbnail_path)).with_mode(NodeImageMode::Stretch),
+        ImageNode::new(asset_server.load(&entry.thumbnail)).with_mode(NodeImageMode::Stretch),
         Node {
             width: percent(100),
             aspect_ratio: Some(16.0 / 9.0),
@@ -285,23 +283,6 @@ fn spawn_example_card(
     }
 
     card
-}
-
-fn asset_path_from_project_root(path: &str) -> String {
-    let manifest = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let assets = manifest.join("assets");
-    let root = manifest
-        .ancestors()
-        .find(|a| a.join("Cargo.toml").exists() && *a != manifest)
-        .unwrap_or(manifest);
-
-    let mut prefix = String::new();
-    let mut current = assets.as_path();
-    while current != root {
-        prefix.push_str("../");
-        current = current.parent().unwrap();
-    }
-    format!("{prefix}{path}")
 }
 
 fn handle_example_card_click(

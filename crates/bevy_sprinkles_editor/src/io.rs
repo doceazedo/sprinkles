@@ -1,13 +1,15 @@
 use std::env;
 use std::fs::File;
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use bevy::prelude::*;
 use bevy::tasks::IoTaskPool;
 use serde::{Deserialize, Serialize};
 
 pub fn plugin(app: &mut App) {
+    ensure_data_dirs();
+    crate::assets::extract_examples(&examples_dir());
     let editor_data = load_editor_data();
     app.insert_resource(editor_data);
 }
@@ -42,25 +44,64 @@ impl EditorCache {
     }
 }
 
+pub fn data_dir() -> PathBuf {
+    let home = env::var_os("HOME").map(PathBuf::from).unwrap_or_default();
+    home.join(".sprinkles")
+}
+
+pub fn projects_dir() -> PathBuf {
+    data_dir().join("projects")
+}
+
+pub fn examples_dir() -> PathBuf {
+    data_dir().join("examples")
+}
+
 pub fn working_dir() -> PathBuf {
     env::current_dir().unwrap_or_default()
 }
 
+fn ensure_data_dirs() {
+    let _ = std::fs::create_dir_all(projects_dir());
+    let _ = std::fs::create_dir_all(examples_dir());
+}
+
 fn canonicalize_path(path: &str) -> PathBuf {
-    let path_buf = if path.starts_with("./") || path.starts_with(".\\") {
-        working_dir().join(&path[2..])
-    } else {
-        PathBuf::from(path)
-    };
+    let stripped = path
+        .strip_prefix("./")
+        .or_else(|| path.strip_prefix(".\\"))
+        .unwrap_or(path);
+    let path_buf = project_path(stripped);
     path_buf.canonicalize().unwrap_or(path_buf)
 }
 
 fn editor_data_path() -> PathBuf {
-    working_dir().join("editor.ron")
+    data_dir().join("editor.ron")
 }
 
 pub fn project_path(relative_path: &str) -> PathBuf {
-    working_dir().join(relative_path)
+    let p = PathBuf::from(relative_path);
+    if p.is_absolute() {
+        p
+    } else {
+        data_dir().join(relative_path)
+    }
+}
+
+pub fn simplify_path(path: &Path) -> String {
+    if let Ok(relative) = path.strip_prefix(data_dir()) {
+        return relative.to_string_lossy().to_string();
+    }
+
+    #[cfg(unix)]
+    if let Some(home) = env::var_os("HOME") {
+        let home_path = PathBuf::from(home);
+        if let Ok(relative) = path.strip_prefix(&home_path) {
+            return format!("~/{}", relative.to_string_lossy());
+        }
+    }
+
+    path.to_string_lossy().to_string()
 }
 
 pub fn load_editor_data() -> EditorData {

@@ -12,7 +12,7 @@ use bevy_ui_text_input::{
 
 use bevy_sprinkles::prelude::*;
 
-use crate::io::{EditorData, project_path, save_editor_data, working_dir};
+use crate::io::{EditorData, data_dir, project_path, projects_dir, save_editor_data, simplify_path};
 use crate::project::{
     BrowseOpenProjectEvent, OpenProjectEvent, SaveResult, load_project_from_path,
     save_project_to_path,
@@ -289,7 +289,7 @@ fn handle_trigger_click(
         .id();
 
     for path_str in &editor_data.cache.recent_projects {
-        let full_path = working_dir().join(path_str);
+        let full_path = project_path(path_str);
         let name = load_project_from_path(&full_path)
             .map(|asset| asset.name)
             .unwrap_or_else(|| {
@@ -479,7 +479,7 @@ fn handle_popover_closed(
 }
 
 fn next_untitled_name() -> (String, String) {
-    let projects_dir = project_path("projects");
+    let projects_dir = projects_dir();
     if !projects_dir.join("untitled-project.ron").exists() {
         return (
             "Untitled project".to_string(),
@@ -527,12 +527,10 @@ fn resolve_location_path(raw: &str) -> PathBuf {
         {
             PathBuf::from(raw)
         }
-    } else if raw.starts_with("./") || raw.starts_with("../") {
-        working_dir().join(raw)
     } else if PathBuf::from(raw).is_absolute() {
         PathBuf::from(raw)
     } else {
-        working_dir().join(raw)
+        data_dir().join(raw)
     };
 
     expanded.with_extension("ron")
@@ -572,7 +570,7 @@ fn setup_new_project_dialog_content(
     };
 
     let font: Handle<Font> = asset_server.load(FONT_PATH);
-    let location_placeholder = format!("./projects/{}", state.default_slug);
+    let location_placeholder = format!("projects/{}", state.default_slug);
 
     let name_input = commands
         .spawn((
@@ -746,7 +744,7 @@ fn update_location_placeholder(
         }
     };
 
-    let new_placeholder = format!("./projects/{}", slug);
+    let new_placeholder = format!("projects/{}", slug);
     if let Ok(mut prompt) = prompts.get_mut(location_inner) {
         if prompt.text != new_placeholder {
             prompt.text = new_placeholder;
@@ -794,7 +792,7 @@ fn handle_create_project(
 
     let path = match location_raw {
         Some(raw) => resolve_location_path(&raw),
-        None => project_path(&format!("projects/{slug}.ron")),
+        None => projects_dir().join(format!("{slug}.ron")),
     };
     if let Some(parent) = path.parent() {
         let _ = std::fs::create_dir_all(parent);
@@ -824,11 +822,7 @@ fn handle_create_project(
     });
     dirty_state.has_unsaved_changes = false;
 
-    let location = path
-        .strip_prefix(working_dir())
-        .map(|p| p.to_string_lossy().to_string())
-        .unwrap_or_else(|_| path.to_string_lossy().to_string());
-    editor_data.cache.add_recent_project(location);
+    editor_data.cache.add_recent_project(simplify_path(&path));
     save_editor_data(&editor_data);
 
     commands.remove_resource::<NewProjectDialogState>();
@@ -843,14 +837,12 @@ fn handle_browse_location_click(
         return;
     }
 
-    let projects_dir = project_path("projects");
-
     let path_result = Arc::new(Mutex::new(None));
     let path_result_clone = path_result.clone();
 
     let task = rfd::AsyncFileDialog::new()
         .set_title("Select Location")
-        .set_directory(&projects_dir)
+        .set_directory(projects_dir())
         .pick_folder();
 
     IoTaskPool::get()
@@ -865,23 +857,6 @@ fn handle_browse_location_click(
         .detach();
 
     commands.insert_resource(BrowseLocationResult(path_result));
-}
-
-fn simplify_path(path: &PathBuf) -> String {
-    let cwd = working_dir();
-    if let Ok(relative) = path.strip_prefix(&cwd) {
-        return format!("./{}", relative.to_string_lossy());
-    }
-
-    #[cfg(unix)]
-    if let Some(home) = std::env::var_os("HOME") {
-        let home_path = PathBuf::from(home);
-        if let Ok(relative) = path.strip_prefix(&home_path) {
-            return format!("~/{}", relative.to_string_lossy());
-        }
-    }
-
-    path.to_string_lossy().to_string()
 }
 
 fn poll_browse_location_result(

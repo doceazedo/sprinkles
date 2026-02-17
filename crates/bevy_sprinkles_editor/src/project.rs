@@ -7,8 +7,9 @@ use bevy::prelude::*;
 use bevy::tasks::IoTaskPool;
 use bevy_sprinkles::asset::versioning::VersionStatus;
 use bevy_sprinkles::prelude::*;
+use inflector::Inflector;
 
-use crate::io::{EditorData, project_path, save_editor_data, working_dir};
+use crate::io::{EditorData, project_path, projects_dir, save_editor_data, simplify_path};
 use crate::state::{DirtyState, EditorState, Inspectable, Inspecting};
 use crate::ui::components::toasts::ToastEvent;
 
@@ -111,8 +112,7 @@ fn on_open_project_event(
 
     let has_emitters = !asset.emitters.is_empty();
     let handle = assets.add(asset);
-    editor_state.current_project = Some(handle);
-    editor_state.current_project_path = Some(path);
+    editor_state.open_project(handle, path, &mut dirty_state);
     editor_state.inspecting = if has_emitters {
         Some(Inspecting {
             kind: Inspectable::Emitter,
@@ -121,14 +121,13 @@ fn on_open_project_event(
     } else {
         None
     };
-    dirty_state.has_unsaved_changes = false;
 
     editor_data.cache.add_recent_project(location.clone());
     save_editor_data(&editor_data);
 }
 
 fn on_browse_open_project_event(_event: On<BrowseOpenProjectEvent>, mut commands: Commands) {
-    let projects_dir = project_path("projects");
+    let projects_dir = projects_dir();
 
     let path_result = Arc::new(Mutex::new(None));
     let path_result_clone = path_result.clone();
@@ -166,12 +165,7 @@ fn poll_browse_open_result(result: Option<Res<BrowseOpenResult>>, mut commands: 
     };
 
     if let Some(path) = path {
-        let relative = path
-            .strip_prefix(working_dir())
-            .map(|p| p.to_string_lossy().to_string())
-            .unwrap_or_else(|_| path.to_string_lossy().to_string());
-
-        commands.trigger(OpenProjectEvent(relative));
+        commands.trigger(OpenProjectEvent(simplify_path(&path)));
         commands.remove_resource::<BrowseOpenResult>();
     }
 }
@@ -248,8 +242,8 @@ fn on_save_project_as_event(
         return;
     };
 
-    let projects_dir = project_path("projects");
-    let default_name = format!("{}.ron", asset.name);
+    let projects_dir = projects_dir();
+    let default_name = format!("{}.ron", asset.name.to_kebab_case());
     let asset_clone = asset.clone();
 
     let path_result = Arc::new(Mutex::new(None));
@@ -302,12 +296,7 @@ fn poll_save_as_result(
     if let Some(path) = path {
         editor_state.current_project_path = Some(path.clone());
 
-        let relative = path
-            .strip_prefix(working_dir())
-            .map(|p| p.to_string_lossy().to_string())
-            .unwrap_or_else(|_| path.to_string_lossy().to_string());
-
-        editor_data.cache.add_recent_project(relative);
+        editor_data.cache.add_recent_project(simplify_path(&path));
         save_editor_data(&editor_data);
         dirty_state.has_unsaved_changes = false;
         commands.remove_resource::<SaveAsResult>();

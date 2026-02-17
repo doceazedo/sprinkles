@@ -2,9 +2,9 @@ use bevy::color::palettes::tailwind::ZINC_950;
 use bevy::prelude::*;
 use bevy_sprinkles::prelude::*;
 
-use crate::io::{EditorData, project_path, save_editor_data};
+use crate::io::{EditorData, project_path, save_editor_data, working_dir};
 use crate::project::load_project_from_path;
-use crate::state::{EditorState, Inspectable, Inspecting};
+use crate::state::{DirtyState, EditorState, Inspectable, Inspecting};
 use crate::viewport::{
     CameraSettings, ViewportInputState, configure_floor_texture, despawn_preview_on_project_change,
     draw_collider_gizmos, handle_playback_play_event, handle_playback_reset_event,
@@ -65,15 +65,20 @@ fn load_initial_project(
     cli_args: Res<CliArgs>,
     mut editor_state: ResMut<EditorState>,
     mut editor_data: ResMut<EditorData>,
+    mut dirty_state: ResMut<DirtyState>,
     mut assets: ResMut<Assets<ParticleSystemAsset>>,
 ) {
     if let Some(file) = &cli_args.initial_file {
-        let path = project_path(file);
+        let cwd_path = working_dir().join(file);
+        let path = if cwd_path.exists() {
+            cwd_path
+        } else {
+            project_path(file)
+        };
         if let Some(asset) = load_project_from_path(&path) {
             let has_emitters = !asset.emitters.is_empty();
             let handle = assets.add(asset);
-            editor_state.current_project = Some(handle);
-            editor_state.current_project_path = Some(path);
+            editor_state.open_project(handle, path, &mut dirty_state);
             if has_emitters {
                 editor_state.inspecting = Some(Inspecting {
                     kind: Inspectable::Emitter,
@@ -94,8 +99,7 @@ fn load_initial_project(
             if let Some(asset) = load_project_from_path(&path) {
                 let has_emitters = !asset.emitters.is_empty();
                 let handle = assets.add(asset);
-                editor_state.current_project = Some(handle);
-                editor_state.current_project_path = Some(path);
+                editor_state.open_project(handle, path, &mut dirty_state);
                 if has_emitters {
                     editor_state.inspecting = Some(Inspecting {
                         kind: Inspectable::Emitter,
@@ -116,8 +120,7 @@ fn load_initial_project(
             if let Some(asset) = load_project_from_path(&demo_path) {
                 let has_emitters = !asset.emitters.is_empty();
                 let handle = assets.add(asset);
-                editor_state.current_project = Some(handle);
-                editor_state.current_project_path = Some(demo_path);
+                editor_state.open_project(handle, demo_path, &mut dirty_state);
                 if has_emitters {
                     editor_state.inspecting = Some(Inspecting {
                         kind: Inspectable::Emitter,
@@ -144,6 +147,7 @@ fn load_initial_project(
     );
     let handle = assets.add(asset);
     editor_state.current_project = Some(handle);
+    dirty_state.has_unsaved_changes = true;
     editor_state.inspecting = Some(Inspecting {
         kind: Inspectable::Emitter,
         index: 0,

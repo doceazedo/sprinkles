@@ -4,6 +4,8 @@ use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use bevy_sprinkles::prelude::*;
 
+use crate::io::examples_dir;
+
 pub fn plugin(app: &mut App) {
     app.init_resource::<EditorState>()
         .init_resource::<DirtyState>()
@@ -16,6 +18,20 @@ pub struct EditorState {
     pub current_project: Option<Handle<ParticleSystemAsset>>,
     pub current_project_path: Option<PathBuf>,
     pub inspecting: Option<Inspecting>,
+}
+
+impl EditorState {
+    pub fn open_project(
+        &mut self,
+        handle: Handle<ParticleSystemAsset>,
+        path: PathBuf,
+        dirty_state: &mut DirtyState,
+    ) {
+        let is_example = path.starts_with(examples_dir());
+        self.current_project = Some(handle);
+        self.current_project_path = if is_example { None } else { Some(path) };
+        dirty_state.has_unsaved_changes = is_example;
+    }
 }
 
 #[derive(Resource, Default)]
