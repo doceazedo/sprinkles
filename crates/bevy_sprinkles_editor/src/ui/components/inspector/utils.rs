@@ -8,7 +8,7 @@ use crate::ui::widgets::combobox::ComboBoxOptionData;
 use crate::ui::widgets::variant_edit::VariantDefinition;
 use crate::ui::widgets::vector_edit::VectorSuffixes;
 
-use super::types::VariantField;
+use super::types::{ComboBoxOption, VariantField};
 
 const UPPERCASE_ACRONYMS: &[&str] = &["fps", "x", "y", "z", "ior"];
 
@@ -94,20 +94,15 @@ impl VariantConfig {
     }
 
     pub fn override_combobox<T: Typed>(self, name: &'static str) -> Self {
-        let options = combobox_options_from_reflect::<T>()
-            .iter()
-            .map(|o| o.label.clone())
-            .collect::<Vec<_>>();
+        let options = combobox_options_to_combobox(combobox_options_from_reflect::<T>());
         self.override_field(name, VariantField::combobox(name, options))
     }
 
     pub fn override_optional_combobox<T: Typed>(self, name: &'static str) -> Self {
-        let mut options = vec!["Disabled".to_string()];
-        options.extend(
-            combobox_options_from_reflect::<T>()
-                .iter()
-                .map(|o| o.label.clone()),
-        );
+        let mut options = vec![ComboBoxOption::new("Disabled", "Disabled")];
+        options.extend(combobox_options_to_combobox(
+            combobox_options_from_reflect::<T>(),
+        ));
         self.override_field(name, VariantField::optional_combobox(name, options))
     }
 
@@ -288,6 +283,15 @@ pub fn combobox_options_from_reflect<T: Typed>() -> Vec<ComboBoxOptionData> {
             let name = variant.name();
             let label = name_to_label(name);
             Some(ComboBoxOptionData::new(label).with_value(name))
+        })
+        .collect()
+}
+
+fn combobox_options_to_combobox(opts: Vec<ComboBoxOptionData>) -> Vec<ComboBoxOption> {
+    opts.into_iter()
+        .map(|o| {
+            let value = o.value.unwrap_or_else(|| o.label.clone());
+            ComboBoxOption::new(o.label, value)
         })
         .collect()
 }

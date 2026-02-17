@@ -7,7 +7,7 @@ use super::gradient_edit::{GradientEditProps, gradient_edit};
 use super::text_edit::{TextEditPrefix, TextEditProps, text_edit};
 use super::vector_edit::{VectorEditProps, VectorSuffixes, vector_edit};
 use crate::ui::components::binding::FieldBinding;
-use crate::ui::components::inspector::{FieldKind, path_to_label};
+use crate::ui::components::inspector::{ComboBoxOption, FieldKind, path_to_label};
 
 pub fn plugin(app: &mut App) {
     app.add_systems(Update, setup_combobox_fields);
@@ -80,21 +80,18 @@ impl InspectorFieldProps {
         self
     }
 
-    pub fn combobox(mut self, options: Vec<ComboBoxOptionData>) -> Self {
-        let option_labels: Vec<String> = options.iter().map(|o| o.label.clone()).collect();
-        self.kind = FieldKind::ComboBox {
-            options: option_labels,
-            optional: false,
-        };
-        self.combobox_options = Some(options);
-        self
+    pub fn combobox(self, options: Vec<ComboBoxOptionData>) -> Self {
+        self.set_combobox(options, false)
     }
 
-    pub fn optional_combobox(mut self, options: Vec<ComboBoxOptionData>) -> Self {
-        let option_labels: Vec<String> = options.iter().map(|o| o.label.clone()).collect();
+    pub fn optional_combobox(self, options: Vec<ComboBoxOptionData>) -> Self {
+        self.set_combobox(options, true)
+    }
+
+    fn set_combobox(mut self, options: Vec<ComboBoxOptionData>, optional: bool) -> Self {
         self.kind = FieldKind::ComboBox {
-            options: option_labels,
-            optional: true,
+            options: combobox_data_to_options(&options),
+            optional,
         };
         self.combobox_options = Some(options);
         self
@@ -265,6 +262,15 @@ pub fn spawn_inspector_field(
     }
 
     spawner.spawn((field, text_edit(text_props)));
+}
+
+fn combobox_data_to_options(data: &[ComboBoxOptionData]) -> Vec<ComboBoxOption> {
+    data.iter()
+        .map(|o| {
+            let value = o.value.clone().unwrap_or_else(|| o.label.clone());
+            ComboBoxOption::new(o.label.clone(), value)
+        })
+        .collect()
 }
 
 #[derive(Component)]

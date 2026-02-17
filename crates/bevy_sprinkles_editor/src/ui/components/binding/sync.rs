@@ -70,6 +70,7 @@ pub(super) fn bind_widget_values(
     tracker: Res<InspectedEmitterTracker>,
     new_bindings: Query<Entity, Added<FieldBinding>>,
     new_variant_edits: Query<Entity, Added<EditorVariantEdit>>,
+    new_bound: Query<Entity, Added<BoundTo>>,
     bindings: Query<&FieldBinding>,
     mut checkbox_states: Query<(&FieldBinding, &mut CheckboxState)>,
     mut curve_edits: Query<(&FieldBinding, &mut CurveEditState), With<EditorCurveEdit>>,
@@ -78,7 +79,11 @@ pub(super) fn bind_widget_values(
     mut bound_comboboxes: Query<(&BoundTo, &mut ComboBoxConfig), Without<FieldBinding>>,
     mut variant_edits: Query<(&FieldBinding, &mut VariantEditConfig), With<EditorVariantEdit>>,
 ) {
-    if !tracker.is_changed() && new_bindings.is_empty() && new_variant_edits.is_empty() {
+    if !tracker.is_changed()
+        && new_bindings.is_empty()
+        && new_variant_edits.is_empty()
+        && new_bound.is_empty()
+    {
         return;
     }
 

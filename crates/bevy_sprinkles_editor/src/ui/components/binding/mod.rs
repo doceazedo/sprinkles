@@ -17,6 +17,7 @@ use crate::ui::widgets::vector_edit::VectorComponentIndex;
 
 pub(super) use super::inspector::FieldKind;
 pub(super) use super::inspector::InspectedEmitterTracker;
+use super::inspector::ComboBoxOption;
 
 pub(super) const MAX_ANCESTOR_DEPTH: usize = 10;
 
@@ -472,8 +473,22 @@ pub(super) fn parse_field_value(text: &str, kind: &FieldKind) -> FieldValue {
 }
 
 fn reflect_to_field_value(value: &dyn PartialReflect, kind: &FieldKind) -> FieldValue {
-    if let FieldKind::ComboBox { optional: true, .. } = kind {
-        if let Some(index) = read_optional_enum_index(value) {
+    if let FieldKind::ComboBox {
+        optional: true,
+        options,
+    } = kind
+    {
+        if let Some(index) = read_optional_enum_index(value, options) {
+            return FieldValue::U32(index as u32);
+        }
+        return FieldValue::None;
+    }
+    if let FieldKind::ComboBox {
+        optional: false,
+        options,
+    } = kind
+    {
+        if let Some(index) = read_enum_index(value, options) {
             return FieldValue::U32(index as u32);
         }
         return FieldValue::None;
@@ -508,7 +523,15 @@ fn reflect_to_field_value(value: &dyn PartialReflect, kind: &FieldKind) -> Field
     FieldValue::None
 }
 
-fn read_optional_enum_index(value: &dyn PartialReflect) -> Option<usize> {
+fn read_enum_index(value: &dyn PartialReflect, options: &[ComboBoxOption]) -> Option<usize> {
+    let ReflectRef::Enum(enum_ref) = value.reflect_ref() else {
+        return None;
+    };
+    let variant_name = enum_ref.variant_name();
+    options.iter().position(|o| o.value == variant_name)
+}
+
+fn read_optional_enum_index(value: &dyn PartialReflect, options: &[ComboBoxOption]) -> Option<usize> {
     let ReflectRef::Enum(enum_ref) = value.reflect_ref() else {
         return None;
     };
@@ -516,11 +539,7 @@ fn read_optional_enum_index(value: &dyn PartialReflect) -> Option<usize> {
         return Some(0);
     }
     let inner = enum_ref.field_at(0)?;
-    if let ReflectRef::Enum(inner_enum) = inner.reflect_ref() {
-        Some(inner_enum.variant_index() + 1)
-    } else {
-        None
-    }
+    read_enum_index(inner, options)
 }
 
 fn apply_field_value_to_reflect(target: &mut dyn PartialReflect, value: &FieldValue) -> bool {

@@ -14,7 +14,7 @@ pub mod types;
 pub mod utils;
 mod velocities;
 
-pub use types::{FieldKind, VariantField};
+pub use types::{ComboBoxOption, FieldKind, VariantField};
 pub use utils::{name_to_label, path_to_label};
 
 use bevy::prelude::*;

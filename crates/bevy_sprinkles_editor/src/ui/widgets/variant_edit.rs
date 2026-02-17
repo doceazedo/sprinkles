@@ -819,8 +819,10 @@ fn spawn_field_widget(
             .id(),
 
         FieldKind::ComboBox { options, .. } => {
-            let combobox_options: Vec<ComboBoxOptionData> =
-                options.iter().map(|o| ComboBoxOptionData::new(o)).collect();
+            let combobox_options: Vec<ComboBoxOptionData> = options
+                .iter()
+                .map(|o| ComboBoxOptionData::new(&o.label).with_value(&o.value))
+                .collect();
             spawn_labeled_field(
                 commands,
                 asset_server,

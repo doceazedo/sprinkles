@@ -1,5 +1,20 @@
 use crate::ui::widgets::vector_edit::VectorSuffixes;
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct ComboBoxOption {
+    pub label: String,
+    pub value: String,
+}
+
+impl ComboBoxOption {
+    pub fn new(label: impl Into<String>, value: impl Into<String>) -> Self {
+        Self {
+            label: label.into(),
+            value: value.into(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Default)]
 pub enum FieldKind {
     #[default]
@@ -12,7 +27,7 @@ pub enum FieldKind {
     Bool,
     Vector(VectorSuffixes),
     ComboBox {
-        options: Vec<String>,
+        options: Vec<ComboBoxOption>,
         optional: bool,
     },
     Color,
@@ -56,16 +71,16 @@ impl VariantField {
         Self::new(name).with_kind(FieldKind::Vector(suffixes))
     }
 
-    pub fn combobox(name: impl Into<String>, options: Vec<impl Into<String>>) -> Self {
+    pub fn combobox(name: impl Into<String>, options: Vec<ComboBoxOption>) -> Self {
         Self::new(name).with_kind(FieldKind::ComboBox {
-            options: options.into_iter().map(Into::into).collect(),
+            options,
             optional: false,
         })
     }
 
-    pub fn optional_combobox(name: impl Into<String>, options: Vec<impl Into<String>>) -> Self {
+    pub fn optional_combobox(name: impl Into<String>, options: Vec<ComboBoxOption>) -> Self {
         Self::new(name).with_kind(FieldKind::ComboBox {
-            options: options.into_iter().map(Into::into).collect(),
+            options,
             optional: true,
         })
     }
