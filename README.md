@@ -1,4 +1,4 @@
-![](./assets/header.png)
+![](https://raw.githubusercontent.com/doceazedo/sprinkles/main/assets/header.png)
 
 <p align="center">
   <a href="#license">
@@ -7,7 +7,7 @@
   <a href="https://crates.io/crates/bevy_sprinkles">
     <img src="https://img.shields.io/crates/v/bevy_sprinkles.svg">
   </a>
-  <a href="https://docs.rs/bevy/latest/bevy_sprinkles">
+  <a href="https://docs.rs/bevy_sprinkles/latest/bevy_sprinkles">
     <img src="https://docs.rs/bevy_sprinkles/badge.svg">
   </a>
   <img src="https://img.shields.io/static/v1?label=Bevy&message=v0.18&color=4a6e91&logo=bevy">
@@ -18,7 +18,7 @@
 Sprinkles is a GPU-accelerated particle system for the [Bevy game engine](https://bevy.org) with a built-in dedicated visual editor.
 
 <p align="center">
-  <img src="./assets/demo.gif">
+  <img src="https://raw.githubusercontent.com/doceazedo/sprinkles/main/assets/demo.gif">
 </p>
 
 ## Usage
@@ -147,8 +147,8 @@ All bundled textures are provided by the very talented and generous [Kenney](htt
 
 Licensed under either of
 
-- Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
-- MIT license ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
+- Apache License, Version 2.0, ([LICENSE-APACHE](https://github.com/doceazedo/sprinkles/blob/main/LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
+- MIT license ([LICENSE-MIT](https://github.com/doceazedo/sprinkles/blob/main/LICENSE-MIT) or http://opensource.org/licenses/MIT)
 
 at your option.
 
