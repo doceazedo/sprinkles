@@ -133,49 +133,21 @@ fn default_fog_enabled() -> bool {
     true
 }
 
-fn default_ior() -> f32 {
-    1.5
+macro_rules! serde_default {
+    ($name:ident, $ty:ty, $val:expr) => {
+        ::paste::paste! {
+            fn [<default_ $name>]() -> $ty { $val }
+            fn [<is_default_ $name>](v: &$ty) -> bool { *v == [<default_ $name>]() }
+        }
+    };
 }
 
-fn is_default_ior(v: &f32) -> bool {
-    *v == default_ior()
-}
-
-fn default_attenuation_distance() -> f32 {
-    f32::INFINITY
-}
-
-fn is_default_attenuation_distance(v: &f32) -> bool {
-    *v == default_attenuation_distance()
-}
-
-fn default_white_color() -> [f32; 4] {
-    default_base_color()
-}
-
-fn is_default_white_color(v: &[f32; 4]) -> bool {
-    *v == default_white_color()
-}
-
-fn default_cull_mode() -> Option<SerializableFace> {
-    Some(SerializableFace::Back)
-}
-
-fn is_default_cull_mode(v: &Option<SerializableFace>) -> bool {
-    *v == default_cull_mode()
-}
-
-fn default_clearcoat_perceptual_roughness() -> f32 {
-    default_perceptual_roughness()
-}
-
-fn is_default_clearcoat_perceptual_roughness(v: &f32) -> bool {
-    *v == default_clearcoat_perceptual_roughness()
-}
-
-fn is_default_emissive(v: &[f32; 4]) -> bool {
-    *v == [0.0, 0.0, 0.0, 1.0]
-}
+serde_default!(emissive, [f32; 4], [0.0, 0.0, 0.0, 1.0]);
+serde_default!(ior, f32, 1.5);
+serde_default!(attenuation_distance, f32, f32::INFINITY);
+serde_default!(white_color, [f32; 4], default_base_color());
+serde_default!(cull_mode, Option<SerializableFace>, Some(SerializableFace::Back));
+serde_default!(clearcoat_perceptual_roughness, f32, default_perceptual_roughness());
 
 fn color_from_array(c: [f32; 4]) -> Color {
     Color::linear_rgba(c[0], c[1], c[2], c[3])
@@ -213,7 +185,7 @@ pub struct StandardParticleMaterial {
     ///
     /// The default emissive color is black `[0.0, 0.0, 0.0, 1.0]`, which doesn't
     /// add anything to the material color.
-    #[serde(default, skip_serializing_if = "is_default_emissive")]
+    #[serde(default = "default_emissive", skip_serializing_if = "is_default_emissive")]
     pub emissive: [f32; 4],
 
     /// This color is multiplied by `emissive` to get the final emitted color.

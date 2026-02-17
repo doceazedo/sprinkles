@@ -1437,6 +1437,7 @@ dependencies = [
  "bevy",
  "bitflags 2.10.0",
  "bytemuck",
+ "paste",
  "ron 0.10.1",
  "serde",
  "thiserror 2.0.18",

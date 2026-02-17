@@ -19,3 +19,4 @@ ron = "0.10"
 thiserror = "2"
 bytemuck = { version = "1.14", features = ["derive"] }
 bitflags = { version = "2", features = ["serde"] }
+paste = "1"
