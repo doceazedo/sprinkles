@@ -95,7 +95,6 @@ pub struct ParticleSortData {
 }
 
 pub struct SortEmitterData {
-    pub entity: Entity,
     pub particle_buffer: Buffer,
     pub indices_buffer: Buffer,
     pub sorted_particles_buffer: Buffer,
@@ -113,7 +112,7 @@ pub fn prepare_particle_sort_data(
 ) {
     let mut emitters = Vec::new();
 
-    for (entity, emitter_data) in &extracted_systems.emitters {
+    for (_entity, emitter_data) in &extracted_systems.emitters {
         let Some(particle_buffer) = gpu_storage_buffers.get(&emitter_data.particle_buffer_handle)
         else {
             continue;
@@ -131,7 +130,6 @@ pub fn prepare_particle_sort_data(
         };
 
         emitters.push(SortEmitterData {
-            entity: *entity,
             particle_buffer: particle_buffer.buffer.clone(),
             indices_buffer: indices_buffer.buffer.clone(),
             sorted_particles_buffer: sorted_particles_buffer.buffer.clone(),

@@ -674,12 +674,6 @@ impl Default for AnimatedVelocity {
     }
 }
 
-impl AnimatedVelocity {
-    fn is_default(&self) -> bool {
-        self.velocity.is_zero() && self.velocity_over_lifetime.is_none()
-    }
-}
-
 /// Initial rotation angle and animated rotation for particles.
 ///
 /// Only applied when [`ParticleFlags::DISABLE_Z`] or [`ParticleFlags::ROTATE_Y`] are set,
