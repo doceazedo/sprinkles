@@ -1,0 +1,53 @@
+use bevy::asset::embedded_asset;
+use bevy::prelude::*;
+
+pub fn plugin(app: &mut App) {
+    // font
+    embedded_asset!(app, "assets/InterVariable.ttf");
+
+    // floor texture
+    embedded_asset!(app, "assets/floor.png");
+
+    // icons
+    embedded_asset!(app, "assets/icons/blender-cone.png");
+    embedded_asset!(app, "assets/icons/blender-cube.png");
+    embedded_asset!(app, "assets/icons/blender-empty-axis.png");
+    embedded_asset!(app, "assets/icons/blender-fcurve.png");
+    embedded_asset!(app, "assets/icons/blender-mesh-cylinder.png");
+    embedded_asset!(app, "assets/icons/blender-mesh-plane.png");
+    embedded_asset!(app, "assets/icons/blender-mesh-torus.png");
+    embedded_asset!(app, "assets/icons/blender-mesh-uvsphere.png");
+    embedded_asset!(app, "assets/icons/blender-sphere.png");
+    embedded_asset!(app, "assets/icons/blender-texture.png");
+    embedded_asset!(app, "assets/icons/ri-add-line.png");
+    embedded_asset!(app, "assets/icons/ri-arrow-down-s-line.png");
+    embedded_asset!(app, "assets/icons/ri-arrow-left-right-fill.png");
+    embedded_asset!(app, "assets/icons/ri-box-2-fill.png");
+    embedded_asset!(app, "assets/icons/ri-check-fill.png");
+    embedded_asset!(app, "assets/icons/ri-checkbox-circle-fill.png");
+    embedded_asset!(app, "assets/icons/ri-close-circle-fill.png");
+    embedded_asset!(app, "assets/icons/ri-close-fill.png");
+    embedded_asset!(app, "assets/icons/ri-expand-horizontal-s-line.png");
+    embedded_asset!(app, "assets/icons/ri-file-add-line.png");
+    embedded_asset!(app, "assets/icons/ri-folder-image-line.png");
+    embedded_asset!(app, "assets/icons/ri-folder-open-line.png");
+    embedded_asset!(app, "assets/icons/ri-hashtag.png");
+    embedded_asset!(app, "assets/icons/ri-heart-3-fill.png");
+    embedded_asset!(app, "assets/icons/ri-information-fill.png");
+    embedded_asset!(app, "assets/icons/ri-more-fill.png");
+    embedded_asset!(app, "assets/icons/ri-pause-fill.png");
+    embedded_asset!(app, "assets/icons/ri-play-fill.png");
+    embedded_asset!(app, "assets/icons/ri-repeat-fill.png");
+    embedded_asset!(app, "assets/icons/ri-seedling-fill.png");
+    embedded_asset!(app, "assets/icons/ri-showers-fill.png");
+    embedded_asset!(app, "assets/icons/ri-stop-fill.png");
+    embedded_asset!(app, "assets/icons/ri-time-line.png");
+
+    // shaders (except common.wgsl which uses load_internal_asset!)
+    embedded_asset!(app, "assets/shaders/color_picker_alpha.wgsl");
+    embedded_asset!(app, "assets/shaders/color_picker_checkerboard.wgsl");
+    embedded_asset!(app, "assets/shaders/color_picker_hsv_rect.wgsl");
+    embedded_asset!(app, "assets/shaders/color_picker_hue.wgsl");
+    embedded_asset!(app, "assets/shaders/curve_edit.wgsl");
+    embedded_asset!(app, "assets/shaders/gradient_edit.wgsl");
+}

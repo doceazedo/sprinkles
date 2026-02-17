@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+use crate::ui::icons::{ICON_SEEDLING, ICON_TIME};
 use crate::ui::widgets::inspector_field::InspectorFieldProps;
 
 use super::{InspectorSection, inspector_section};
@@ -13,18 +14,18 @@ pub fn time_section(asset_server: &AssetServer) -> impl Bundle {
             vec![
                 vec![
                     InspectorFieldProps::new("time.lifetime")
-                        .with_icon("icons/ri-time-line.png")
+                        .with_icon(ICON_TIME)
                         .with_suffix("s")
                         .into(),
                     InspectorFieldProps::new("time.lifetime_randomness")
                         .percent()
-                        .with_icon("icons/ri-time-line.png")
+                        .with_icon(ICON_TIME)
                         .into(),
                 ],
                 vec![
                     InspectorFieldProps::new("time.delay")
                         .with_min(0.)
-                        .with_icon("icons/ri-time-line.png")
+                        .with_icon(ICON_TIME)
                         .with_suffix("s")
                         .into(),
                 ],
@@ -43,7 +44,7 @@ pub fn time_section(asset_server: &AssetServer) -> impl Bundle {
                         .into(),
                     InspectorFieldProps::new("time.fixed_seed")
                         .optional_u32()
-                        .with_icon("icons/ri-seedling-fill.png")
+                        .with_icon(ICON_SEEDLING)
                         .with_placeholder("Random")
                         .into(),
                 ],

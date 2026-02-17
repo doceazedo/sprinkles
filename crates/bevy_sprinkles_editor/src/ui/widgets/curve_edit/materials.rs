@@ -4,7 +4,7 @@ use bevy::render::render_resource::*;
 use bevy::shader::ShaderRef;
 use bevy_sprinkles::prelude::CurveTexture;
 
-const SHADER_CURVE_PATH: &str = "shaders/curve_edit.wgsl";
+const SHADER_CURVE_PATH: &str = "embedded://sprinkles/assets/shaders/curve_edit.wgsl";
 pub const MAX_POINTS: usize = 8;
 const BORDER_RADIUS: f32 = 4.0;
 

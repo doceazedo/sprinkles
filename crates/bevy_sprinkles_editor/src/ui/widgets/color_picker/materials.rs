@@ -3,10 +3,10 @@ use bevy::reflect::TypePath;
 use bevy::render::render_resource::*;
 use bevy::shader::ShaderRef;
 
-const SHADER_HSV_RECT_PATH: &str = "shaders/color_picker_hsv_rect.wgsl";
-const SHADER_HUE_PATH: &str = "shaders/color_picker_hue.wgsl";
-const SHADER_ALPHA_PATH: &str = "shaders/color_picker_alpha.wgsl";
-const SHADER_CHECKERBOARD_PATH: &str = "shaders/color_picker_checkerboard.wgsl";
+const SHADER_HSV_RECT_PATH: &str = "embedded://sprinkles/assets/shaders/color_picker_hsv_rect.wgsl";
+const SHADER_HUE_PATH: &str = "embedded://sprinkles/assets/shaders/color_picker_hue.wgsl";
+const SHADER_ALPHA_PATH: &str = "embedded://sprinkles/assets/shaders/color_picker_alpha.wgsl";
+const SHADER_CHECKERBOARD_PATH: &str = "embedded://sprinkles/assets/shaders/color_picker_checkerboard.wgsl";
 
 #[derive(AsBindGroup, Asset, TypePath, Debug, Clone)]
 pub struct HsvRectMaterial {

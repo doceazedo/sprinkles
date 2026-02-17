@@ -6,7 +6,7 @@ use bevy_sprinkles::prelude::ParticleGradient;
 
 use super::{MAX_STOPS, pack_gradient_stops};
 
-const SHADER_GRADIENT_PATH: &str = "shaders/gradient_edit.wgsl";
+const SHADER_GRADIENT_PATH: &str = "embedded://sprinkles/assets/shaders/gradient_edit.wgsl";
 const BORDER_RADIUS: f32 = 4.0;
 const CHECKERBOARD_SIZE: f32 = 6.0;
 const SWATCH_CHECKERBOARD_SIZE: f32 = 4.0;

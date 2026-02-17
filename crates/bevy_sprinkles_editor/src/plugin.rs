@@ -31,6 +31,7 @@ pub struct SprinklesEditorPlugin;
 impl Plugin for SprinklesEditorPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(CliArgs::from_env())
+            .add_plugins(crate::assets::plugin)
             .add_plugins(SprinklesPlugin)
             .add_plugins(crate::io::plugin)
             .add_plugins(crate::state::plugin)

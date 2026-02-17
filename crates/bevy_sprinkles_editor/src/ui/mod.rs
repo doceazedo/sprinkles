@@ -20,7 +20,7 @@ impl Plugin for EditorUiPlugin {
         load_internal_asset!(
             app,
             SHADER_COMMON,
-            "../../assets/shaders/common.wgsl",
+            "../assets/shaders/common.wgsl",
             Shader::from_wgsl
         );
 

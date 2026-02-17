@@ -20,4 +20,4 @@ pub const TEXT_SIZE_LG: f32 = 14.0;
 pub const TEXT_SIZE_XL: f32 = 18.0;
 
 // font
-pub const FONT_PATH: &str = "InterVariable.ttf";
+pub const FONT_PATH: &str = "embedded://sprinkles/assets/InterVariable.ttf";

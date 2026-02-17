@@ -19,7 +19,7 @@ use crate::ui::widgets::popover::{
 };
 use crate::ui::widgets::text_edit::{TextEditProps, text_edit};
 
-use crate::ui::icons::ICON_MORE;
+use crate::ui::icons::{ICON_MORE, ICON_TEXTURE};
 use crate::ui::widgets::scroll::scrollbar;
 use crate::ui::widgets::utils::is_descendant_of;
 use crate::ui::widgets::vector_edit::{VectorEditProps, vector_edit};
@@ -848,13 +848,13 @@ fn fields_row() -> impl Bundle {
 fn texture_ref_variants() -> Vec<VariantDefinition> {
     vec![
         VariantDefinition::new("None")
-            .with_icon("icons/blender-texture.png")
+            .with_icon(ICON_TEXTURE)
             .with_default(Option::<TextureRef>::None),
         VariantDefinition::new("Preset")
-            .with_icon("icons/blender-texture.png")
+            .with_icon(ICON_TEXTURE)
             .with_default(Some(TextureRef::Preset(PresetTexture::Circle1))),
         VariantDefinition::new("Custom")
-            .with_icon("icons/blender-texture.png")
+            .with_icon(ICON_TEXTURE)
             .with_aliases(vec!["Asset", "Local"])
             .with_default(Some(TextureRef::Asset(String::new()))),
     ]

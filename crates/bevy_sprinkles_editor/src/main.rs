@@ -1,3 +1,4 @@
+mod assets;
 mod io;
 mod plugin;
 mod project;

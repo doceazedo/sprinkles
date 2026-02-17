@@ -21,6 +21,7 @@ use bevy::prelude::*;
 use bevy_sprinkles::prelude::*;
 
 use crate::state::{EditorState, Inspectable};
+use crate::ui::icons::{ICON_BOX, ICON_SHOWERS};
 use crate::ui::tokens::{
     BORDER_COLOR, FONT_PATH, TEXT_BODY_COLOR, TEXT_MUTED_COLOR, TEXT_SIZE_LG, TEXT_SIZE_SM,
 };
@@ -318,7 +319,7 @@ fn panel_title(asset_server: &AssetServer) -> impl Bundle {
                 children![
                     (
                         PanelTitleIcon,
-                        ImageNode::new(asset_server.load("icons/ri-showers-fill.png"))
+                        ImageNode::new(asset_server.load(ICON_SHOWERS))
                             .with_color(Color::Srgba(TEXT_BODY_COLOR)),
                         Node {
                             width: px(16.0),
@@ -469,12 +470,12 @@ fn update_panel_title(
         Inspectable::Emitter => {
             let emitter = asset.emitters.get(inspecting.index as usize);
             let name = emitter.map(|e| e.name.clone()).unwrap_or_default();
-            (name, "icons/ri-showers-fill.png")
+            (name, ICON_SHOWERS)
         }
         Inspectable::Collider => {
             let collider = asset.colliders.get(inspecting.index as usize);
             let name = collider.map(|c| c.name.clone()).unwrap_or_default();
-            (name, "icons/ri-box-2-fill.png")
+            (name, ICON_BOX)
         }
     };
 

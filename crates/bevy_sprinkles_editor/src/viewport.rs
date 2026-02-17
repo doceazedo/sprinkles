@@ -112,7 +112,8 @@ pub fn setup_floor(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    let floor_texture: Handle<Image> = asset_server.load("floor.png");
+    let floor_texture: Handle<Image> =
+        asset_server.load("embedded://sprinkles/assets/floor.png");
     commands.insert_resource(FloorTexture(floor_texture.clone()));
 
     let mesh = meshes.add(Plane3d::new(*Dir3::Y, Vec2::splat(FLOOR_SIZE / 2.)));
