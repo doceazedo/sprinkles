@@ -1,10 +1,10 @@
 # Example projects
 
-| Example                                                                                                                            | Open on editor                              |
-| ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
-| <p align="center"><img src="../crates/bevy_sprinkles_editor/src/assets/examples/3d-explosion.jpg" width="320" /><br/>Explosion</p> | `cargo editor -- examples/3d-explosion.ron` |
-| <p align="center"><img src="../crates/bevy_sprinkles_editor/src/assets/examples/magic-puff.jpg" width="320" /><br/>Magic Puff</p>  | `cargo editor -- examples/magic-puff.ron`   |
-| <p align="center"><img src="../crates/bevy_sprinkles_editor/src/assets/examples/rain.jpg" width="320" /><br/>Rain</p>              | `cargo editor -- examples/rain.ron`         |
+| Example                                                                          | Open on editor                              |
+| -------------------------------------------------------------------------------- | ------------------------------------------- |
+| <p align="center"><img src="./3d-explosion.jpg" width="320" /><br/>Explosion</p> | `cargo editor -- examples/3d-explosion.ron` |
+| <p align="center"><img src="./magic-puff.jpg" width="320" /><br/>Magic Puff</p>  | `cargo editor -- examples/magic-puff.ron`   |
+| <p align="center"><img src="./rain.jpg" width="320" /><br/>Rain</p>              | `cargo editor -- examples/rain.ron`         |
 
 ## License
 
