@@ -10,6 +10,9 @@
   <a href="https://docs.rs/bevy_sprinkles/latest/bevy_sprinkles">
     <img src="https://docs.rs/bevy_sprinkles/badge.svg">
   </a>
+  <a href="https://github.com/doceazedo/sprinkles/actions">
+    <img src="https://github.com/doceazedo/sprinkles/workflows/CI/badge.svg">
+  </a>
   <img src="https://img.shields.io/static/v1?label=Bevy&message=v0.18&color=4a6e91&logo=bevy">
 </p>
 
