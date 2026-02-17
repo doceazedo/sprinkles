@@ -22,6 +22,7 @@ Sprinkles is a GPU-accelerated particle system for the [Bevy game engine](https:
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/doceazedo/sprinkles/main/assets/demo.gif">
+  ⛹️ Check out all the examples <a href="./crates/bevy_sprinkles_editor/src/assets/examples">here</a>!
 </p>
 
 ## Usage

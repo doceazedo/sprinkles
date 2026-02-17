@@ -63,13 +63,13 @@ pub fn plugin(app: &mut App) {
 const BUNDLED_EXAMPLES: &[(&str, &str)] = &[
     (
         "3d-explosion.ron",
-        include_str!("../../../examples/3d-explosion.ron"),
+        include_str!("assets/examples/3d-explosion.ron"),
     ),
     (
         "magic-puff.ron",
-        include_str!("../../../examples/magic-puff.ron"),
+        include_str!("assets/examples/magic-puff.ron"),
     ),
-    ("rain.ron", include_str!("../../../examples/rain.ron")),
+    ("rain.ron", include_str!("assets/examples/rain.ron")),
 ];
 
 pub fn extract_examples(examples_dir: &Path) {
