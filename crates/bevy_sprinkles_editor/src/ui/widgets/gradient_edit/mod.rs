@@ -19,8 +19,7 @@ use crate::ui::widgets::button::{
     icon_button,
 };
 use crate::ui::widgets::color_picker::{
-    ColorPickerChangeEvent, ColorPickerCommitEvent, ColorPickerProps,
-    color_picker,
+    ColorPickerChangeEvent, ColorPickerCommitEvent, ColorPickerProps, color_picker,
 };
 use crate::ui::widgets::cursor::{ActiveCursor, HoverCursor};
 use crate::ui::widgets::panel_section::{PanelSectionProps, panel_section};

@@ -6,13 +6,13 @@ use bevy_sprinkles::asset::{ParticleSystemAuthors, ParticleSystemDimension};
 
 use crate::assets::example_thumbnail_path;
 use crate::io::examples_dir;
-use crate::project::{load_project_from_path, OpenProjectEvent};
+use crate::project::{OpenProjectEvent, load_project_from_path};
 use crate::ui::tokens::{
     BORDER_COLOR, CORNER_RADIUS_LG, FONT_PATH, TEXT_BODY_COLOR, TEXT_MUTED_COLOR, TEXT_SIZE,
     TEXT_SIZE_SM,
 };
 use crate::ui::widgets::button::{
-    button_base, ButtonClickEvent, ButtonVariant, EditorButton, set_button_variant,
+    ButtonClickEvent, ButtonVariant, EditorButton, button_base, set_button_variant,
 };
 use crate::ui::widgets::dialog::{
     CloseDialogEvent, DialogActionEvent, DialogChildrenSlot, EditorDialog, OpenDialogEvent,
@@ -25,10 +25,7 @@ pub fn plugin(app: &mut App) {
         .add_observer(handle_open_example)
         .add_systems(
             Update,
-            (
-                setup_examples_dialog_content,
-                cleanup_examples_dialog_state,
-            ),
+            (setup_examples_dialog_content, cleanup_examples_dialog_state),
         );
 }
 
@@ -163,10 +160,7 @@ fn setup_examples_dialog_content(
         .id();
 
     for entry in &state.entries {
-        let is_active = state
-            .active_path
-            .as_ref()
-            .is_some_and(|p| p == &entry.path);
+        let is_active = state.active_path.as_ref().is_some_and(|p| p == &entry.path);
 
         let card = spawn_example_card(&mut commands, &asset_server, &font, entry, is_active);
         commands.entity(grid).add_child(card);
@@ -299,10 +293,7 @@ fn handle_example_card_click(
 
     let Some(mut state) = state else { return };
 
-    let was_active = state
-        .active_path
-        .as_ref()
-        .is_some_and(|p| p == &card.0);
+    let was_active = state.active_path.as_ref().is_some_and(|p| p == &card.0);
 
     if was_active {
         open_active_example(&state, &mut commands);

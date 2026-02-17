@@ -12,7 +12,9 @@ use bevy_ui_text_input::{
 
 use bevy_sprinkles::prelude::*;
 
-use crate::io::{EditorData, data_dir, project_path, projects_dir, save_editor_data, simplify_path};
+use crate::io::{
+    EditorData, data_dir, project_path, projects_dir, save_editor_data, simplify_path,
+};
 use crate::project::{
     BrowseOpenProjectEvent, OpenProjectEvent, SaveResult, load_project_from_path,
     save_project_to_path,

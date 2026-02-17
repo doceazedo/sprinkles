@@ -29,8 +29,8 @@ use crate::ui::widgets::checkbox::{CheckboxProps, checkbox};
 use crate::ui::widgets::combobox::{ComboBoxOptionData, combobox_with_selected};
 use crate::ui::widgets::inspector_field::{InspectorFieldProps, fields_row, spawn_inspector_field};
 use crate::ui::widgets::panel::{PanelDirection, PanelProps, panel};
-use crate::ui::widgets::scroll::scrollbar;
 use crate::ui::widgets::panel_section::{PanelSectionProps, PanelSectionSize, panel_section};
+use crate::ui::widgets::scroll::scrollbar;
 use crate::ui::widgets::variant_edit::{VariantEditProps, variant_edit};
 
 use super::binding::FieldBinding;

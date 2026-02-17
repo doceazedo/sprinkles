@@ -10,11 +10,11 @@ use bevy_ui_text_input::{
 
 use bevy::window::SystemCursorIcon;
 
+use crate::ui::icons::ICON_EXPAND_HORIZONTAL;
 use crate::ui::tokens::{
     BORDER_COLOR, FONT_PATH, PRIMARY_COLOR, TEXT_BODY_COLOR, TEXT_MUTED_COLOR, TEXT_SIZE,
     TEXT_SIZE_SM,
 };
-use crate::ui::icons::ICON_EXPAND_HORIZONTAL;
 use crate::ui::widgets::cursor::{ActiveCursor, HoverCursor};
 
 pub fn set_text_input_value(queue: &mut TextInputQueue, text: String) {

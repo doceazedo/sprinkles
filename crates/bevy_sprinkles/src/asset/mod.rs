@@ -40,7 +40,9 @@ pub enum ParticleSystemAssetLoaderError {
     #[error("Unknown sprinkles_version. You may need a newer version of Sprinkles.")]
     UnknownVersion,
     /// The asset file has a version that requires breaking changes to upgrade.
-    #[error("Asset version \"{found}\" is incompatible with current version \"{current}\". Manual migration is required.")]
+    #[error(
+        "Asset version \"{found}\" is incompatible with current version \"{current}\". Manual migration is required."
+    )]
     IncompatibleVersion {
         /// The version found in the asset file.
         found: String,
@@ -68,7 +70,9 @@ impl AssetLoader for ParticleSystemAssetLoader {
             VersionStatus::Current => {}
             VersionStatus::Outdated { found, current } => {
                 let path = load_context.path();
-                warn!("{path:?}: loaded asset with sprinkles_version \"{found}\", current is \"{current}\"");
+                warn!(
+                    "{path:?}: loaded asset with sprinkles_version \"{found}\", current is \"{current}\""
+                );
             }
             VersionStatus::Incompatible { found, current } => {
                 return Err(ParticleSystemAssetLoaderError::IncompatibleVersion {

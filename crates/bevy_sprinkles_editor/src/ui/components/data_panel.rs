@@ -12,8 +12,8 @@ use crate::ui::widgets::combobox::{
 };
 use crate::ui::widgets::dialog::{DialogActionEvent, EditorDialog, OpenConfirmationDialogEvent};
 use crate::ui::widgets::panel::{PanelDirection, PanelProps, panel};
-use crate::ui::widgets::scroll::scrollbar;
 use crate::ui::widgets::panel_section::{PanelSectionProps, panel_section};
+use crate::ui::widgets::scroll::scrollbar;
 use crate::ui::widgets::text_edit::{
     EditorTextEdit, TextEditCommitEvent, TextEditProps, text_edit,
 };

@@ -146,8 +146,16 @@ serde_default!(emissive, [f32; 4], [0.0, 0.0, 0.0, 1.0]);
 serde_default!(ior, f32, 1.5);
 serde_default!(attenuation_distance, f32, f32::INFINITY);
 serde_default!(white_color, [f32; 4], default_base_color());
-serde_default!(cull_mode, Option<SerializableFace>, Some(SerializableFace::Back));
-serde_default!(clearcoat_perceptual_roughness, f32, default_perceptual_roughness());
+serde_default!(
+    cull_mode,
+    Option<SerializableFace>,
+    Some(SerializableFace::Back)
+);
+serde_default!(
+    clearcoat_perceptual_roughness,
+    f32,
+    default_perceptual_roughness()
+);
 
 fn color_from_array(c: [f32; 4]) -> Color {
     Color::linear_rgba(c[0], c[1], c[2], c[3])
@@ -185,7 +193,10 @@ pub struct StandardParticleMaterial {
     ///
     /// The default emissive color is black `[0.0, 0.0, 0.0, 1.0]`, which doesn't
     /// add anything to the material color.
-    #[serde(default = "default_emissive", skip_serializing_if = "is_default_emissive")]
+    #[serde(
+        default = "default_emissive",
+        skip_serializing_if = "is_default_emissive"
+    )]
     pub emissive: [f32; 4],
 
     /// This color is multiplied by `emissive` to get the final emitted color.
@@ -280,7 +291,10 @@ pub struct StandardParticleMaterial {
     /// that it has no effect for non-metals.
     ///
     /// Defaults to white `[1.0, 1.0, 1.0, 1.0]`.
-    #[serde(default = "default_white_color", skip_serializing_if = "is_default_white_color")]
+    #[serde(
+        default = "default_white_color",
+        skip_serializing_if = "is_default_white_color"
+    )]
     pub specular_tint: [f32; 4],
 
     /// The amount of light transmitted diffusely through the material (i.e. "translucency").
@@ -330,14 +344,20 @@ pub struct StandardParticleMaterial {
     /// surface before being absorbed.
     ///
     /// Defaults to [`f32::INFINITY`], i.e. light is never absorbed.
-    #[serde(default = "default_attenuation_distance", skip_serializing_if = "is_default_attenuation_distance")]
+    #[serde(
+        default = "default_attenuation_distance",
+        skip_serializing_if = "is_default_attenuation_distance"
+    )]
     pub attenuation_distance: f32,
 
     /// The resulting (non-absorbed) color after white light travels through the
     /// attenuation distance.
     ///
     /// Defaults to white `[1.0, 1.0, 1.0, 1.0]`, i.e. no change.
-    #[serde(default = "default_white_color", skip_serializing_if = "is_default_white_color")]
+    #[serde(
+        default = "default_white_color",
+        skip_serializing_if = "is_default_white_color"
+    )]
     pub attenuation_color: [f32; 4],
 
     /// An extra thin translucent layer on top of the main PBR layer.
@@ -357,7 +377,10 @@ pub struct StandardParticleMaterial {
     /// [`clearcoat`](Self::clearcoat) value is zero, this has no effect.
     ///
     /// Defaults to `0.5`.
-    #[serde(default = "default_clearcoat_perceptual_roughness", skip_serializing_if = "is_default_clearcoat_perceptual_roughness")]
+    #[serde(
+        default = "default_clearcoat_perceptual_roughness",
+        skip_serializing_if = "is_default_clearcoat_perceptual_roughness"
+    )]
     pub clearcoat_perceptual_roughness: f32,
 
     /// Increases the roughness along a specific direction, so that the specular
@@ -390,7 +413,10 @@ pub struct StandardParticleMaterial {
     /// If set to `None`, the two sides of the mesh are visible.
     ///
     /// Defaults to `Some(Back)`.
-    #[serde(default = "default_cull_mode", skip_serializing_if = "is_default_cull_mode")]
+    #[serde(
+        default = "default_cull_mode",
+        skip_serializing_if = "is_default_cull_mode"
+    )]
     pub cull_mode: Option<SerializableFace>,
 
     /// Whether to apply only the base color to this material.

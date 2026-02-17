@@ -1,7 +1,7 @@
-use bevy::picking::hover::Hovered;
-use bevy::prelude::*;
 use crate::ui::components::binding::FieldBinding;
 use crate::ui::components::inspector::{FieldKind, VariantField, name_to_label, path_to_label};
+use bevy::picking::hover::Hovered;
+use bevy::prelude::*;
 
 use crate::ui::tokens::{BORDER_COLOR, FONT_PATH, TEXT_BODY_COLOR, TEXT_MUTED_COLOR, TEXT_SIZE_SM};
 use crate::ui::widgets::button::{
@@ -135,7 +135,6 @@ impl VariantDefinition {
             }
         }
     }
-
 }
 
 pub fn plugin(app: &mut App) {
@@ -699,8 +698,7 @@ fn spawn_variant_fields_for_entity(
             let binding =
                 FieldBinding::emitter_variant(path, &field.name, field.kind.clone(), variant_edit);
 
-            let field_entity =
-                spawn_field_widget(commands, asset_server, field, label, binding);
+            let field_entity = spawn_field_widget(commands, asset_server, field, label, binding);
             commands.entity(row_entity).add_child(field_entity);
         }
     }

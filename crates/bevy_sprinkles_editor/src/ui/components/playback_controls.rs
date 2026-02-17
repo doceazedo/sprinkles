@@ -3,11 +3,11 @@ use bevy::prelude::*;
 use bevy_sprinkles::prelude::*;
 
 use crate::state::{PlaybackPlayEvent, PlaybackResetEvent};
+use crate::ui::icons::{ICON_PAUSE, ICON_PLAY, ICON_REPEAT, ICON_STOP};
 use crate::ui::tokens::{PRIMARY_COLOR, TEXT_BODY_COLOR};
 use crate::ui::widgets::button::{
     ButtonSize, ButtonVariant, IconButtonProps, icon_button, set_button_variant,
 };
-use crate::ui::icons::{ICON_PAUSE, ICON_PLAY, ICON_REPEAT, ICON_STOP};
 use crate::viewport::EditorParticlePreview;
 
 pub fn plugin(app: &mut App) {

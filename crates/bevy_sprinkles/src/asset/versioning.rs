@@ -5,8 +5,14 @@ struct FormatVersion {
 
 // all known asset format versions. the last must always be the current version.
 const FORMAT_VERSIONS: &[FormatVersion] = &[
-    FormatVersion { version: "0.0", breaking: false }, // initial
-    FormatVersion { version: "0.1", breaking: false },
+    FormatVersion {
+        version: "0.0",
+        breaking: false,
+    }, // initial
+    FormatVersion {
+        version: "0.1",
+        breaking: false,
+    },
 ];
 
 /// The result of validating an asset's `sprinkles_version` against the current format version.
@@ -33,7 +39,10 @@ pub enum VersionStatus {
 
 /// Returns the current asset format version string.
 pub fn current_format_version() -> &'static str {
-    FORMAT_VERSIONS.last().expect("FORMAT_VERSIONS must not be empty").version
+    FORMAT_VERSIONS
+        .last()
+        .expect("FORMAT_VERSIONS must not be empty")
+        .version
 }
 
 fn find_version_index(version: &str) -> Option<usize> {

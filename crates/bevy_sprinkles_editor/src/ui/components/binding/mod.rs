@@ -15,9 +15,9 @@ use crate::ui::widgets::text_edit::EditorTextEdit;
 use crate::ui::widgets::variant_edit::VariantDefinition;
 use crate::ui::widgets::vector_edit::VectorComponentIndex;
 
+use super::inspector::ComboBoxOption;
 pub(super) use super::inspector::FieldKind;
 pub(super) use super::inspector::InspectedEmitterTracker;
-use super::inspector::ComboBoxOption;
 
 pub(super) const MAX_ANCESTOR_DEPTH: usize = 10;
 
@@ -531,7 +531,10 @@ fn read_enum_index(value: &dyn PartialReflect, options: &[ComboBoxOption]) -> Op
     options.iter().position(|o| o.value == variant_name)
 }
 
-fn read_optional_enum_index(value: &dyn PartialReflect, options: &[ComboBoxOption]) -> Option<usize> {
+fn read_optional_enum_index(
+    value: &dyn PartialReflect,
+    options: &[ComboBoxOption],
+) -> Option<usize> {
     let ReflectRef::Enum(enum_ref) = value.reflect_ref() else {
         return None;
     };

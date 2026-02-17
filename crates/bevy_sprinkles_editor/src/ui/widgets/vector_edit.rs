@@ -123,7 +123,6 @@ impl VectorEditProps {
         self.max = Some(max);
         self
     }
-
 }
 
 pub fn vector_edit(props: VectorEditProps) -> impl Bundle {

@@ -85,9 +85,7 @@ fn load_initial_project(
                     index: 0,
                 });
             }
-            editor_data
-                .cache
-                .add_recent_project(file.clone());
+            editor_data.cache.add_recent_project(file.clone());
             save_editor_data(&editor_data);
             return;
         }

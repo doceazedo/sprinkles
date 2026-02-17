@@ -253,7 +253,6 @@ impl ToastEvent {
     pub fn error(content: impl Into<String>) -> Self {
         Self::new(ToastVariant::Error, content)
     }
-
 }
 
 #[derive(EntityEvent)]

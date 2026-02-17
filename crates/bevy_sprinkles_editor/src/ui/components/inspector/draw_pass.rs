@@ -145,8 +145,7 @@ fn material_variants() -> Vec<VariantDefinition> {
                 .override_field("reflectance", VariantField::percent("reflectance"))
                 .override_field(
                     "attenuation_distance",
-                    VariantField::new("attenuation_distance")
-                        .with_kind(FieldKind::F32OrInfinity),
+                    VariantField::new("attenuation_distance").with_kind(FieldKind::F32OrInfinity),
                 )
                 .override_rows(vec![
                     vec!["base_color", "base_color_texture"],

@@ -36,7 +36,6 @@ impl PopoverTracker {
         self.popover = Some(popover);
         self.trigger = Some(trigger);
     }
-
 }
 
 pub fn activate_trigger(
