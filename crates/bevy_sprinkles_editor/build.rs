@@ -44,7 +44,7 @@ fn main() {
     for stem in &ron_stems {
         let abs_path = examples_dir.join(format!("{stem}.ron"));
         bundled.push_str(&format!(
-            "    (\"{stem}.ron\", include_str!(\"{}\")),\n",
+            "    (\"{stem}.ron\", include_str!(r\"{}\")),\n",
             abs_path.display()
         ));
     }
