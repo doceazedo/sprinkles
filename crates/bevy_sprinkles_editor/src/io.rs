@@ -80,14 +80,19 @@ fn editor_data_path() -> PathBuf {
 }
 
 pub fn project_path(relative_path: &str) -> PathBuf {
-    let p = PathBuf::from(relative_path);
-
-    if p.is_absolute() {
-        p
-    } else if p.starts_with("~") {
-        PathBuf::from(shellexpand::tilde(relative_path).to_string())
+    if relative_path.starts_with("~/") {
+        #[cfg(unix)]
+        {
+            std::env::var_os("HOME")
+                .map(|home| PathBuf::from(home).join(&relative_path[2..]))
+                .unwrap_or_else(|| PathBuf::from(relative_path))
+        }
+        #[cfg(not(unix))]
+        {
+            PathBuf::from(relative_path)
+        }
     } else {
-        data_dir().join(relative_path)
+        PathBuf::from(relative_path)
     }
 }
 
