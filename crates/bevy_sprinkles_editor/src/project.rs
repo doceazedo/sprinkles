@@ -61,8 +61,17 @@ pub struct SaveResult(pub Arc<Mutex<Option<SaveResultStatus>>>);
 pub fn load_project_from_path(
     path: &std::path::Path,
 ) -> Option<bevy_sprinkles::asset::ParticleSystemAsset> {
-    let contents = std::fs::read_to_string(path).ok()?;
-    ron::from_str(&contents).ok()
+    let contents = std::fs::read_to_string(path)
+        .map_err(|err| {
+            warn!("Failed to read project file: '{err}' [{path:?}]");
+        })
+        .ok()?;
+
+    ron::from_str(&contents)
+        .map_err(|err| {
+            warn!("Failed to parse project file: '{err}' [{path:?}]");
+        })
+        .ok()
 }
 
 fn on_open_project_event(

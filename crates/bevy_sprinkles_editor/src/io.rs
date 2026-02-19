@@ -80,19 +80,23 @@ fn editor_data_path() -> PathBuf {
 }
 
 pub fn project_path(relative_path: &str) -> PathBuf {
-    let p = PathBuf::from(relative_path);
-    if p.is_absolute() {
-        p
+    if relative_path.starts_with("~/") {
+        #[cfg(unix)]
+        {
+            std::env::var_os("HOME")
+                .map(|home| PathBuf::from(home).join(&relative_path[2..]))
+                .unwrap_or_else(|| PathBuf::from(relative_path))
+        }
+        #[cfg(not(unix))]
+        {
+            PathBuf::from(relative_path)
+        }
     } else {
-        data_dir().join(relative_path)
+        PathBuf::from(relative_path)
     }
 }
 
 pub fn simplify_path(path: &Path) -> String {
-    if let Ok(relative) = path.strip_prefix(data_dir()) {
-        return relative.to_string_lossy().to_string();
-    }
-
     #[cfg(unix)]
     if let Some(home) = env::var_os("HOME") {
         let home_path = PathBuf::from(home);

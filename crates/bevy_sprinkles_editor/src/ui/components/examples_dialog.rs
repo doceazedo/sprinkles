@@ -72,7 +72,7 @@ fn collect_example_entries() -> Vec<ExampleEntry> {
             let stem = path.file_stem()?.to_string_lossy().to_string();
             Some(ExampleEntry {
                 name: asset.name,
-                path: format!("examples/{stem}.ron"),
+                path: format!("~/.sprinkles/examples/{stem}.ron"),
                 dimension: asset.dimension,
                 thumbnail: example_thumbnail_path(&stem),
                 authors: asset.authors,
