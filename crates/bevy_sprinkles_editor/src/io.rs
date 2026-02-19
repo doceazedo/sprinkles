@@ -97,10 +97,6 @@ pub fn project_path(relative_path: &str) -> PathBuf {
 }
 
 pub fn simplify_path(path: &Path) -> String {
-    if let Ok(relative) = path.strip_prefix(data_dir()) {
-        return relative.to_string_lossy().to_string();
-    }
-
     #[cfg(unix)]
     if let Some(home) = env::var_os("HOME") {
         let home_path = PathBuf::from(home);
