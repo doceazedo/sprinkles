@@ -1,0 +1,203 @@
+(
+    sprinkles_version: "0.1",
+    name: "velvet-fog",
+    dimension: D3,
+    emitters: [
+        (
+            name: "fog",
+            time: (
+                lifetime: 1.0,
+                fixed_seed: Some(10),
+            ),
+            draw_pass: (
+                mesh: Cylinder(
+                    top_radius: 0.01,
+                    bottom_radius: 0.01,
+                    height: 3.0,
+                    radial_segments: 7,
+                    rings: 11,
+                    cap_top: true,
+                    cap_bottom: true,
+                ),
+                material: Standard((
+                    base_color: (1.0, 1.0, 1.0, 1.0),
+                    base_color_texture: Some(Preset(Flame3)),
+                    emissive: (1.0, 1.0, 1.0, 0.7582418),
+                    emissive_exposure_weight: 0.9,
+                    alpha_mode: Blend,
+                    perceptual_roughness: 0.5,
+                    reflectance: 0.0,
+                    specular_tint: (1.0, 1.0, 1.0, 0.0),
+                    unlit: true,
+                )),
+                shadow_caster: false,
+                transform_align: Some(YToVelocity),
+            ),
+            emission: (
+                scale: (5.0, 5.0, 5.0),
+                shape: Box(
+                    extents: (1.0, 1.0, 1.0),
+                ),
+                particles_amount: 1000,
+            ),
+            scale: (
+                range: (
+                    min: 0.1,
+                    max: 10.0,
+                ),
+            ),
+            colors: (
+                initial_color: Gradient(
+                    gradient: (
+                        stops: [
+                            (
+                                color: (0.0, 0.0, 0.0, 1.0),
+                                position: 0.0,
+                            ),
+                            (
+                                color: (1.0, 1.0, 1.0, 1.0),
+                                position: 0.5,
+                            ),
+                        ],
+                    ),
+                ),
+                color_over_lifetime: (
+                    stops: [
+                        (
+                            color: (1.0, 1.0, 1.0, 1.0),
+                            position: 1.0,
+                        ),
+                        (
+                            color: (1.0, 1.0, 1.0, 1.0),
+                            position: 1.0,
+                        ),
+                    ],
+                ),
+                alpha_over_lifetime: Some((
+                    points: [
+                        (
+                            position: 0.0,
+                            value: 0.0,
+                            mode: DoubleCurve,
+                            tension: 0.0,
+                            easing: Power,
+                        ),
+                        (
+                            position: 0.22,
+                            value: 0.4,
+                            mode: DoubleCurve,
+                            tension: 0.0,
+                            easing: Power,
+                        ),
+                        (
+                            position: 0.57,
+                            value: 1.0,
+                            mode: DoubleCurve,
+                            tension: 0.25,
+                            easing: Power,
+                        ),
+                        (
+                            position: 1.0,
+                            value: 0.01,
+                            mode: SingleCurve,
+                            tension: -0.5005005005,
+                            easing: Power,
+                        ),
+                    ],
+                    range: (
+                        min: 0.0,
+                        max: 1.0,
+                    ),
+                )),
+            ),
+            velocities: (
+                initial_direction: (0.0, 0.0, 12.0),
+                spread: 0.0,
+                initial_velocity: (
+                    min: 10.0,
+                    max: 10.0,
+                ),
+                radial_velocity: (),
+                angular_velocity: (),
+                pivot: (5.0, 0.0, 0.0),
+                inherit_ratio: 1.0,
+            ),
+            accelerations: (
+                gravity: (0.0, 0.0, 10.0),
+            ),
+            collision: (
+                base_size: 0.01,
+            ),
+            particle_flags: "",
+        ),
+        (
+            name: "dust",
+            time: (
+                lifetime: 3.0,
+            ),
+            draw_pass: (
+                draw_order: Lifetime,
+                mesh: Sphere(
+                    radius: 0.03,
+                ),
+                material: Standard((
+                    base_color: (1.0, 1.0, 1.0, 1.0),
+                    emissive: (1.0, 1.0, 1.0, 1.0),
+                    emissive_texture: Some(Preset(Smoke10)),
+                    alpha_mode: AlphaToCoverage,
+                    perceptual_roughness: 0.5,
+                    reflectance: 0.5,
+                )),
+                shadow_caster: false,
+            ),
+            emission: (
+                scale: (5.0, 5.0, 5.0),
+                shape: Box(
+                    extents: (1.0, 1.0, 1.0),
+                ),
+                particles_amount: 100,
+            ),
+            scale: (
+                range: (
+                    min: 1.0,
+                    max: 1.0,
+                ),
+            ),
+            colors: (
+                initial_color: Solid(
+                    color: (1.0, 1.0, 1.0, 1.0),
+                ),
+                color_over_lifetime: (
+                    stops: [
+                        (
+                            color: (1.0, 1.0, 1.0, 1.0),
+                            position: 0.0,
+                        ),
+                        (
+                            color: (1.0, 1.0, 1.0, 1.0),
+                            position: 1.0,
+                        ),
+                    ],
+                ),
+            ),
+            velocities: (
+                initial_direction: (0.0, 0.0, 10.0),
+                spread: 0.0,
+                initial_velocity: (
+                    min: 0.0,
+                    max: 10.0,
+                ),
+                radial_velocity: (),
+                angular_velocity: (),
+            ),
+            accelerations: (
+                gravity: (0.0, -2.0, 10.0),
+            ),
+            collision: (
+                base_size: 0.01,
+            ),
+            particle_flags: "",
+        ),
+    ],
+    colliders: [],
+)

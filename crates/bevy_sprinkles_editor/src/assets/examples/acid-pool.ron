@@ -1,0 +1,260 @@
+(
+    sprinkles_version: "0.1",
+    name: "acid-cloud",
+    dimension: D3,
+    emitters: [
+        (
+            name: "bubbles",
+            time: (
+                lifetime: 1.0,
+            ),
+            draw_pass: (
+                mesh: Cuboid(
+                    half_size: (0.2, 0.2, 0.2),
+                ),
+                material: Standard((
+                    base_color: (0.0745098, 0.69803923, 0.16862738, 1.0),
+                    emissive: (0.0, 1.0, 0.14509797, 1.0),
+                    emissive_exposure_weight: 0.5,
+                    alpha_mode: Opaque,
+                    perceptual_roughness: 0.5,
+                    reflectance: 0.5,
+                )),
+                shadow_caster: false,
+            ),
+            emission: (
+                offset: (0.0, 1.0, 0.0),
+                scale: (2.0, 1.0, 2.0),
+                shape: Sphere(
+                    radius: 3.0,
+                ),
+                particles_amount: 15,
+            ),
+            scale: (
+                range: (
+                    min: 1.0,
+                    max: 2.0,
+                ),
+                scale_over_lifetime: Some((
+                    points: [
+                        (
+                            position: 0.0,
+                            value: 0.0,
+                            mode: DoubleCurve,
+                            tension: 0.0,
+                            easing: Power,
+                        ),
+                        (
+                            position: 0.97,
+                            value: 0.59,
+                            mode: SingleCurve,
+                            tension: -0.79,
+                            easing: Power,
+                        ),
+                    ],
+                    range: (
+                        min: 0.0,
+                        max: 1.0,
+                    ),
+                )),
+            ),
+            colors: (
+                initial_color: Solid(
+                    color: (1.0, 1.0, 1.0, 1.0),
+                ),
+                color_over_lifetime: (
+                    stops: [
+                        (
+                            color: (1.0, 1.0, 1.0, 1.0),
+                            position: 0.0,
+                        ),
+                        (
+                            color: (1.0, 1.0, 1.0, 1.0),
+                            position: 1.0,
+                        ),
+                    ],
+                ),
+            ),
+            velocities: (
+                initial_direction: (1.0, 0.0, 0.0),
+                spread: 45.0,
+                radial_velocity: (),
+                angular_velocity: (),
+            ),
+            accelerations: (
+                gravity: (0.0, 9.8, 0.0),
+            ),
+            collision: (
+                base_size: 0.01,
+            ),
+            particle_flags: "",
+        ),
+        (
+            name: "pool",
+            time: (
+                lifetime: 3.0,
+            ),
+            draw_pass: (
+                mesh: Quad(
+                    orientation: FaceY,
+                    size: (5.0, 5.0),
+                ),
+                material: Standard((
+                    base_color: (0.0076992735, 0.10416666, 0.015119847, 1.0),
+                    emissive: (0.0, 1.0, 0.14509797, 1.0),
+                    emissive_exposure_weight: 0.1,
+                    alpha_mode: Blend,
+                    perceptual_roughness: 0.5,
+                    reflectance: 0.5,
+                )),
+                shadow_caster: false,
+            ),
+            emission: (
+                offset: (0.0, -1.0, 0.0),
+                scale: (5.0, 1.0, 5.0),
+                shape: Ring(
+                    axis: (0.0, 1.0, 0.0),
+                    height: 0.0,
+                    radius: 1.0,
+                    inner_radius: 0.0,
+                ),
+                particles_amount: 50,
+            ),
+            scale: (
+                range: (
+                    min: 1.0,
+                    max: 1.0,
+                ),
+            ),
+            angle: (
+                angle_over_lifetime: Some((
+                    name: Some("Constant"),
+                    points: [
+                        (
+                            position: 0.0,
+                            value: 1.0,
+                            mode: DoubleCurve,
+                            tension: 0.0,
+                            easing: Power,
+                        ),
+                        (
+                            position: 1.0,
+                            value: 1.0,
+                            mode: DoubleCurve,
+                            tension: 0.0,
+                            easing: Power,
+                        ),
+                    ],
+                    range: (
+                        min: 0.0,
+                        max: 1.0,
+                    ),
+                )),
+            ),
+            colors: (
+                initial_color: Solid(
+                    color: (1.0, 1.0, 1.0, 1.0),
+                ),
+                color_over_lifetime: (
+                    stops: [
+                        (
+                            color: (1.0, 1.0, 1.0, 1.0),
+                            position: 0.0,
+                        ),
+                        (
+                            color: (1.0, 1.0, 1.0, 1.0),
+                            position: 1.0,
+                        ),
+                    ],
+                ),
+                alpha_over_lifetime: Some((
+                    points: [
+                        (
+                            position: 0.0,
+                            value: 0.0,
+                            mode: DoubleCurve,
+                            tension: 0.0,
+                            easing: Power,
+                        ),
+                        (
+                            position: 0.23,
+                            value: 0.43,
+                            mode: DoubleCurve,
+                            tension: 0.0,
+                            easing: Power,
+                        ),
+                        (
+                            position: 0.57,
+                            value: 1.0,
+                            mode: DoubleCurve,
+                            tension: 0.25,
+                            easing: Power,
+                        ),
+                        (
+                            position: 1.0,
+                            value: 0.01,
+                            mode: SingleCurve,
+                            tension: -0.5005005005,
+                            easing: Power,
+                        ),
+                    ],
+                    range: (
+                        min: 0.0,
+                        max: 1.0,
+                    ),
+                )),
+                emission_over_lifetime: Some((
+                    points: [
+                        (
+                            position: 0.01,
+                            value: 0.0,
+                            mode: DoubleCurve,
+                            tension: 0.0,
+                            easing: Power,
+                        ),
+                        (
+                            position: 0.37,
+                            value: 0.72,
+                            mode: DoubleCurve,
+                            tension: 0.37,
+                            easing: Power,
+                        ),
+                        (
+                            position: 0.73,
+                            value: 0.7000000000000001,
+                            mode: DoubleCurve,
+                            tension: -0.65,
+                            easing: Power,
+                        ),
+                        (
+                            position: 0.98,
+                            value: 0.0,
+                            mode: DoubleCurve,
+                            tension: 0.08,
+                            easing: Power,
+                        ),
+                    ],
+                    range: (
+                        min: 0.0,
+                        max: 1.0,
+                    ),
+                )),
+            ),
+            velocities: (
+                initial_direction: (0.0, 0.0, 0.0),
+                spread: 6.7,
+                flatness: 10.0,
+                radial_velocity: (),
+                angular_velocity: (),
+            ),
+            accelerations: (
+                gravity: (0.0, 0.0, 0.0),
+            ),
+            collision: (
+                base_size: 0.01,
+            ),
+            particle_flags: "",
+        ),
+    ],
+    colliders: [],
+)
