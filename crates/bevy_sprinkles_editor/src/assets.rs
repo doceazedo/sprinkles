@@ -56,8 +56,10 @@ pub fn plugin(app: &mut App) {
 
     // example thumbnails
     embedded_asset!(app, "assets/examples/3d-explosion.jpg");
+    embedded_asset!(app, "assets/examples/acid-pool.jpg");
     embedded_asset!(app, "assets/examples/magic-puff.jpg");
     embedded_asset!(app, "assets/examples/rain.jpg");
+    embedded_asset!(app, "assets/examples/windy-snow.jpg");
 }
 
 const BUNDLED_EXAMPLES: &[(&str, &str)] = &[
@@ -66,10 +68,18 @@ const BUNDLED_EXAMPLES: &[(&str, &str)] = &[
         include_str!("assets/examples/3d-explosion.ron"),
     ),
     (
+        "acid-pool.ron",
+        include_str!("assets/examples/acid-pool.ron"),
+    ),
+    (
         "magic-puff.ron",
         include_str!("assets/examples/magic-puff.ron"),
     ),
     ("rain.ron", include_str!("assets/examples/rain.ron")),
+    (
+        "windy-snow.ron",
+        include_str!("assets/examples/windy-snow.ron"),
+    ),
 ];
 
 pub fn extract_examples(examples_dir: &Path) {
