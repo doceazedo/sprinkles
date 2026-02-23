@@ -1,0 +1,9 @@
+[package]
+name = "bevy_sprinkles_benches"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+bevy = { workspace = true }
+bevy_sprinkles = { path = "../crates/bevy_sprinkles" }
