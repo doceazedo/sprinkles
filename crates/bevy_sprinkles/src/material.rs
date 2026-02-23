@@ -4,7 +4,8 @@ use bevy::{
     prelude::*,
     render::{
         render_resource::{
-            AsBindGroup, CompareFunction, RenderPipelineDescriptor, SpecializedMeshPipelineError,
+            AsBindGroup, CompareFunction, RenderPipelineDescriptor, ShaderType,
+            SpecializedMeshPipelineError,
         },
         storage::ShaderStorageBuffer,
     },
@@ -13,22 +14,32 @@ use bevy::{
 
 const SHADER_ASSET_PATH: &str = "embedded://bevy_sprinkles/shaders/particle_material.wgsl";
 
-/// A [`MaterialExtension`] that drives GPU particle rendering.
+/// GPU-side per-emitter uniforms passed to the particle material shader.
+#[derive(Clone, Copy, Default, ShaderType)]
+pub struct ParticleEmitterUniforms {
+    /// World-space transform matrix for the emitter.
+    pub emitter_transform: Mat4,
+    /// Maximum number of particles this emitter can hold.
+    pub max_particles: u32,
+    /// Particle behavior flags (see [`ParticleFlags`](crate::ParticleFlags)).
+    pub particle_flags: u32,
+    #[doc(hidden)]
+    pub _pad: [u32; 2],
+}
+
+/// A material extension that binds particle data buffers for GPU particle rendering.
 ///
-/// This extension binds particle data buffers to the shader pipeline so that
-/// the vertex shader can read per-particle state (position, color, scale, etc.)
-/// and transform each mesh instance accordingly.
+/// This extension provides the sorted particle buffer and per-emitter uniforms
+/// to the vertex shader so it can read per-particle state (position, color,
+/// scale, etc.) and transform each instanced mesh accordingly.
 #[derive(Asset, AsBindGroup, Reflect, Debug, Clone)]
 pub struct ParticleMaterialExtension {
     /// Handle to the sorted particle data buffer, read by the vertex shader.
     #[storage(100, read_only)]
     pub sorted_particles: Handle<ShaderStorageBuffer>,
-    /// Maximum number of particles this buffer can hold.
-    #[uniform(101)]
-    pub max_particles: u32,
-    /// Particle behavior flags (see [`ParticleFlags`](crate::ParticleFlags)).
-    #[uniform(102)]
-    pub particle_flags: u32,
+    /// Handle to the per-emitter uniforms buffer (transform, flags, etc.).
+    #[storage(101, read_only)]
+    pub emitter_uniforms: Handle<ShaderStorageBuffer>,
 }
 
 impl MaterialExtension for ParticleMaterialExtension {

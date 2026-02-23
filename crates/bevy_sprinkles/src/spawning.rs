@@ -4,17 +4,18 @@ use bevy::{
 
 use crate::{
     asset::{DrawPassMaterial, EmitterData, ParticleSystemAsset},
-    material::ParticleMaterialExtension,
-    mesh::create_particle_mesh,
+    material::{ParticleEmitterUniforms, ParticleMaterialExtension},
+    mesh::ParticleMeshCache,
     runtime::{
-        ColliderEntity, CurrentMaterialConfig, CurrentMeshConfig, EmitterEntity, EmitterMeshEntity,
-        EmitterRuntime, ParticleBufferHandle, ParticleData, ParticleMaterial,
-        ParticleMaterialHandle, ParticleMeshHandle, ParticleSystem3D, ParticleSystemRuntime,
-        ParticlesCollider3D, SimulationStep, SubEmitterBufferHandle,
+        ColliderEntity, CurrentMaterialConfig, CurrentMeshConfig, EmitterEntity, EmitterRuntime,
+        ParticleBufferHandle, ParticleData, ParticleMaterial, ParticleMaterialHandle,
+        ParticleMeshHandle, ParticleSystem3D, ParticleSystemRuntime, ParticlesCollider3D,
+        SimulationStep, SubEmitterBufferHandle,
     },
 };
 
 const MAX_FRAME_DELTA: f32 = 0.1;
+const INACTIVE_GRACE_FACTOR: f32 = 1.2;
 
 fn get_particle_asset<'a>(
     parent_system: Entity,
@@ -23,6 +24,16 @@ fn get_particle_asset<'a>(
 ) -> Option<&'a ParticleSystemAsset> {
     let particle_system = particle_systems.get(parent_system).ok()?;
     assets.get(&particle_system.handle)
+}
+
+fn get_emitter_data<'a>(
+    parent_system: Entity,
+    emitter_index: usize,
+    particle_systems: &Query<&ParticleSystem3D>,
+    assets: &'a Assets<ParticleSystemAsset>,
+) -> Option<&'a EmitterData> {
+    get_particle_asset(parent_system, particle_systems, assets)
+        .and_then(|asset| asset.emitters.get(emitter_index))
 }
 
 pub fn update_particle_time(
@@ -49,7 +60,7 @@ pub fn update_particle_time(
         let clear_requested = runtime.clear_requested;
         runtime.clear_requested = false;
 
-        if system_runtime.paused {
+        if runtime.inactive || system_runtime.paused {
             if clear_requested {
                 let step = SimulationStep {
                     prev_system_time: runtime.system_time,
@@ -123,8 +134,18 @@ pub fn update_particle_time(
         }
 
         if emitter_data.time.one_shot && runtime.cycle > 0 && !runtime.one_shot_completed {
-            runtime.emitting = false;
+            runtime.set_emitting(false);
             runtime.one_shot_completed = true;
+        }
+
+        if !runtime.emitting {
+            runtime.inactive_time += time.delta_secs();
+            let grace = emitter_data.time.lifetime * INACTIVE_GRACE_FACTOR;
+            if runtime.inactive_time > grace {
+                runtime.inactive = true;
+            }
+        } else {
+            runtime.inactive_time = 0.0;
         }
     }
 }
@@ -146,8 +167,7 @@ fn combined_particle_flags(emitter: &EmitterData) -> u32 {
 fn create_particle_material_from_config(
     config: &DrawPassMaterial,
     sorted_particles_buffer: Handle<ShaderStorageBuffer>,
-    max_particles: u32,
-    particle_flags: u32,
+    emitter_uniforms_buffer: Handle<ShaderStorageBuffer>,
     asset_server: &AssetServer,
 ) -> ParticleMaterial {
     let base = match config {
@@ -161,8 +181,7 @@ fn create_particle_material_from_config(
         base,
         extension: ParticleMaterialExtension {
             sorted_particles: sorted_particles_buffer,
-            max_particles,
-            particle_flags,
+            emitter_uniforms: emitter_uniforms_buffer,
         },
     }
 }
@@ -173,6 +192,7 @@ pub fn setup_particle_systems(
     assets: Res<Assets<ParticleSystemAsset>>,
     asset_server: Res<AssetServer>,
     mut meshes: ResMut<Assets<Mesh>>,
+    mut mesh_cache: ResMut<ParticleMeshCache>,
     mut buffers: ResMut<Assets<ShaderStorageBuffer>>,
     mut materials: ResMut<Assets<ParticleMaterial>>,
 ) {
@@ -205,55 +225,59 @@ pub fn setup_particle_systems(
 
             let sorted_particles_buffer_handle = buffers.add(ShaderStorageBuffer::from(particles));
 
+            let emitter_uniforms = ParticleEmitterUniforms {
+                emitter_transform: Mat4::IDENTITY,
+                max_particles: amount,
+                particle_flags: combined_particle_flags(emitter),
+                ..default()
+            };
+            let mut emitter_uniforms_ssbo = ShaderStorageBuffer::default();
+            emitter_uniforms_ssbo.set_data(emitter_uniforms);
+            let emitter_uniforms_buffer_handle = buffers.add(emitter_uniforms_ssbo);
+
             let current_mesh = emitter.draw_pass.mesh.clone();
             let current_material = emitter.draw_pass.material.clone();
             let shadow_caster = emitter.draw_pass.shadow_caster;
 
-            let particle_mesh_handle = create_particle_mesh(&current_mesh, amount, &mut meshes);
+            let particle_mesh_handle = mesh_cache.get_or_create(&current_mesh, amount, &mut meshes);
 
             let material_handle = materials.add(create_particle_material_from_config(
                 &current_material,
                 sorted_particles_buffer_handle.clone(),
-                amount,
-                combined_particle_flags(emitter),
+                emitter_uniforms_buffer_handle.clone(),
                 &asset_server,
             ));
 
-            let emitter_entity = commands
-                .spawn((
-                    EmitterEntity {
-                        parent_system: system_entity,
-                    },
-                    EmitterRuntime::new(emitter_index, emitter.time.fixed_seed),
-                    ParticleBufferHandle {
-                        particle_buffer: particle_buffer_handle.clone(),
-                        indices_buffer: indices_buffer_handle.clone(),
-                        sorted_particles_buffer: sorted_particles_buffer_handle.clone(),
-                        max_particles: amount,
-                    },
-                    CurrentMeshConfig(current_mesh),
-                    CurrentMaterialConfig(current_material),
-                    ParticleMeshHandle(particle_mesh_handle.clone()),
-                    ParticleMaterialHandle(material_handle.clone()),
-                    Transform::from_translation(emitter.position),
-                    Visibility::default(),
-                ))
-                .id();
-
-            emitter_entities.push(emitter_entity);
-            commands.entity(system_entity).add_child(emitter_entity);
-
-            let mut mesh_entity = commands.spawn((
-                Mesh3d(particle_mesh_handle),
-                MeshMaterial3d(material_handle),
-                Transform::default(),
+            let mut emitter_cmds = commands.spawn((
+                EmitterEntity {
+                    parent_system: system_entity,
+                },
+                EmitterRuntime::new(emitter_index, emitter.time.fixed_seed),
+                ParticleBufferHandle {
+                    particle_buffer: particle_buffer_handle.clone(),
+                    indices_buffer: indices_buffer_handle.clone(),
+                    sorted_particles_buffer: sorted_particles_buffer_handle.clone(),
+                    emitter_uniforms_buffer: emitter_uniforms_buffer_handle,
+                    max_particles: amount,
+                },
+                Mesh3d(particle_mesh_handle.clone()),
+                MeshMaterial3d(material_handle.clone()),
+                CurrentMeshConfig(current_mesh),
+                CurrentMaterialConfig(current_material),
+                ParticleMeshHandle(particle_mesh_handle),
+                ParticleMaterialHandle(material_handle),
+                Transform::from_translation(emitter.position),
                 Visibility::default(),
-                EmitterMeshEntity { emitter_entity },
             ));
 
             if !shadow_caster {
-                mesh_entity.insert(NotShadowCaster);
+                emitter_cmds.insert(NotShadowCaster);
             }
+
+            let emitter_entity = emitter_cmds.id();
+
+            emitter_entities.push(emitter_entity);
+            commands.entity(system_entity).add_child(emitter_entity);
         }
 
         for (emitter_index, emitter) in asset.emitters.iter().enumerate() {
@@ -306,33 +330,9 @@ pub fn setup_particle_systems(
     }
 }
 
-const EMITTER_DEPTH_OFFSET: f32 = 0.0001;
-
-pub fn sync_emitter_mesh_transforms(
-    camera_query: Query<&GlobalTransform, With<Camera3d>>,
-    emitter_query: Query<(&GlobalTransform, &EmitterRuntime), With<EmitterEntity>>,
-    mut mesh_query: Query<(&EmitterMeshEntity, &mut Transform)>,
-) {
-    let camera_forward = camera_query
-        .iter()
-        .next()
-        .map(|t| t.forward().as_vec3())
-        .unwrap_or(Vec3::NEG_Z);
-
-    for (emitter_mesh, mut mesh_transform) in mesh_query.iter_mut() {
-        if let Ok((emitter_global, runtime)) = emitter_query.get(emitter_mesh.emitter_entity) {
-            let depth_offset =
-                camera_forward * (runtime.emitter_index as f32 * EMITTER_DEPTH_OFFSET);
-            mesh_transform.translation = emitter_global.translation() + depth_offset;
-        }
-    }
-}
-
 pub fn cleanup_particle_entities(
     mut commands: Commands,
     mut removed_systems: RemovedComponents<ParticleSystem3D>,
-    mut removed_emitters: RemovedComponents<EmitterEntity>,
-    mesh_entities: Query<(Entity, &EmitterMeshEntity)>,
     emitter_entities: Query<Entity, With<EmitterEntity>>,
     emitter_parent_query: Query<&EmitterEntity>,
     collider_entities: Query<(Entity, &ColliderEntity)>,
@@ -346,25 +346,9 @@ pub fn cleanup_particle_entities(
             }
         }
 
-        for (mesh_entity, emitter_mesh) in mesh_entities.iter() {
-            if let Ok(emitter) = emitter_parent_query.get(emitter_mesh.emitter_entity) {
-                if emitter.parent_system == removed_system {
-                    commands.entity(mesh_entity).despawn();
-                }
-            }
-        }
-
         for (entity, collider) in collider_entities.iter() {
             if collider.parent_system == removed_system {
                 commands.entity(entity).despawn();
-            }
-        }
-    }
-
-    for removed_emitter in removed_emitters.read() {
-        for (mesh_entity, emitter_mesh) in mesh_entities.iter() {
-            if emitter_mesh.emitter_entity == removed_emitter {
-                commands.entity(mesh_entity).despawn();
             }
         }
     }
@@ -403,10 +387,12 @@ pub fn sync_emitter_transform(
     }
 
     for (emitter, runtime, mut transform) in emitter_query.iter_mut() {
-        let Some(emitter_data) =
-            get_particle_asset(emitter.parent_system, &particle_systems, &assets)
-                .and_then(|asset| asset.emitters.get(runtime.emitter_index))
-        else {
+        let Some(emitter_data) = get_emitter_data(
+            emitter.parent_system,
+            runtime.emitter_index,
+            &particle_systems,
+            &assets,
+        ) else {
             continue;
         };
 
@@ -417,24 +403,26 @@ pub fn sync_emitter_transform(
 pub fn sync_particle_mesh(
     particle_systems: Query<&ParticleSystem3D>,
     mut emitter_query: Query<(
-        Entity,
         &EmitterEntity,
         &EmitterRuntime,
         &ParticleBufferHandle,
         &mut CurrentMeshConfig,
         &mut ParticleMeshHandle,
+        &mut Mesh3d,
     )>,
-    mut mesh_entities: Query<(&EmitterMeshEntity, &mut Mesh3d)>,
     assets: Res<Assets<ParticleSystemAsset>>,
     mut meshes: ResMut<Assets<Mesh>>,
+    mut mesh_cache: ResMut<ParticleMeshCache>,
 ) {
-    for (emitter_entity, emitter, runtime, buffer_handle, mut current_config, mut mesh_handle) in
+    for (emitter, runtime, buffer_handle, mut current_config, mut mesh_handle, mut mesh3d) in
         emitter_query.iter_mut()
     {
-        let Some(emitter_data) =
-            get_particle_asset(emitter.parent_system, &particle_systems, &assets)
-                .and_then(|asset| asset.emitters.get(runtime.emitter_index))
-        else {
+        let Some(emitter_data) = get_emitter_data(
+            emitter.parent_system,
+            runtime.emitter_index,
+            &particle_systems,
+            &assets,
+        ) else {
             continue;
         };
 
@@ -442,16 +430,44 @@ pub fn sync_particle_mesh(
 
         if current_config.0 != new_mesh {
             let new_mesh_handle =
-                create_particle_mesh(&new_mesh, buffer_handle.max_particles, &mut meshes);
-
-            for (emitter_mesh, mut mesh3d) in mesh_entities.iter_mut() {
-                if emitter_mesh.emitter_entity == emitter_entity {
-                    mesh3d.0 = new_mesh_handle.clone();
-                }
-            }
-
+                mesh_cache.get_or_create(&new_mesh, buffer_handle.max_particles, &mut meshes);
+            mesh3d.0 = new_mesh_handle.clone();
             current_config.0 = new_mesh;
             mesh_handle.0 = new_mesh_handle;
+        }
+    }
+}
+
+pub fn write_emitter_uniforms(
+    particle_systems: Query<&ParticleSystem3D>,
+    emitter_query: Query<(
+        &EmitterEntity,
+        &EmitterRuntime,
+        &ParticleBufferHandle,
+        &GlobalTransform,
+    )>,
+    assets: Res<Assets<ParticleSystemAsset>>,
+    mut buffers: ResMut<Assets<ShaderStorageBuffer>>,
+) {
+    for (emitter, runtime, buffer_handle, global_transform) in emitter_query.iter() {
+        let Some(emitter_data) = get_emitter_data(
+            emitter.parent_system,
+            runtime.emitter_index,
+            &particle_systems,
+            &assets,
+        ) else {
+            continue;
+        };
+
+        let uniforms = ParticleEmitterUniforms {
+            emitter_transform: global_transform.to_matrix(),
+            max_particles: buffer_handle.max_particles,
+            particle_flags: combined_particle_flags(emitter_data),
+            ..default()
+        };
+
+        if let Some(buffer) = buffers.get_mut(&buffer_handle.emitter_uniforms_buffer) {
+            buffer.set_data(uniforms);
         }
     }
 }
@@ -459,67 +475,51 @@ pub fn sync_particle_mesh(
 pub fn sync_particle_material(
     particle_systems: Query<&ParticleSystem3D>,
     mut emitter_query: Query<(
-        Entity,
         &EmitterEntity,
         &EmitterRuntime,
-        &ParticleBufferHandle,
         &mut CurrentMaterialConfig,
         &mut ParticleMaterialHandle,
+        &mut MeshMaterial3d<ParticleMaterial>,
     )>,
-    mut mesh_entities: Query<(&EmitterMeshEntity, &mut MeshMaterial3d<ParticleMaterial>)>,
     assets: Res<Assets<ParticleSystemAsset>>,
     asset_server: Res<AssetServer>,
     mut materials: ResMut<Assets<ParticleMaterial>>,
 ) {
-    for (
-        emitter_entity,
-        emitter,
-        runtime,
-        buffer_handle,
-        mut current_config,
-        mut material_handle,
-    ) in emitter_query.iter_mut()
+    for (emitter, runtime, mut current_config, mut material_handle, mut material3d) in
+        emitter_query.iter_mut()
     {
-        let Some(emitter_data) =
-            get_particle_asset(emitter.parent_system, &particle_systems, &assets)
-                .and_then(|asset| asset.emitters.get(runtime.emitter_index))
-        else {
+        let Some(emitter_data) = get_emitter_data(
+            emitter.parent_system,
+            runtime.emitter_index,
+            &particle_systems,
+            &assets,
+        ) else {
             continue;
         };
 
         let new_material = emitter_data.draw_pass.material.clone();
 
         if current_config.0.cache_key() != new_material.cache_key() {
-            let sorted_particles_handle = {
+            let (sorted_particles_handle, emitter_uniforms_handle) = {
                 let Some(existing_material) = materials.get(&material_handle.0) else {
                     continue;
                 };
-                existing_material.extension.sorted_particles.clone()
+                (
+                    existing_material.extension.sorted_particles.clone(),
+                    existing_material.extension.emitter_uniforms.clone(),
+                )
             };
 
             let new_material_handle = materials.add(create_particle_material_from_config(
                 &new_material,
                 sorted_particles_handle,
-                buffer_handle.max_particles,
-                combined_particle_flags(emitter_data),
+                emitter_uniforms_handle,
                 &asset_server,
             ));
 
-            for (emitter_mesh, mut material3d) in mesh_entities.iter_mut() {
-                if emitter_mesh.emitter_entity == emitter_entity {
-                    material3d.0 = new_material_handle.clone();
-                }
-            }
-
+            material3d.0 = new_material_handle.clone();
             current_config.0 = new_material;
             material_handle.0 = new_material_handle;
-        } else {
-            let new_flags = combined_particle_flags(emitter_data);
-            if let Some(material) = materials.get_mut(&material_handle.0) {
-                if material.extension.particle_flags != new_flags {
-                    material.extension.particle_flags = new_flags;
-                }
-            }
         }
     }
 }

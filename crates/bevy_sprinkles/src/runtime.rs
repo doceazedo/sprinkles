@@ -110,7 +110,7 @@ pub struct SimulationStep {
 #[derive(Component)]
 pub struct EmitterRuntime {
     /// Whether this emitter is actively spawning particles.
-    pub emitting: bool,
+    pub(crate) emitting: bool,
     /// Current simulation time in seconds.
     pub system_time: f32,
     /// Simulation time from the previous frame.
@@ -123,6 +123,10 @@ pub struct EmitterRuntime {
     pub random_seed: u32,
     /// Whether a one-shot emission cycle has completed.
     pub one_shot_completed: bool,
+    /// Whether this emitter is fully idle (not emitting and all particles are dead).
+    pub inactive: bool,
+    /// Accumulated real time since the emitter stopped emitting.
+    pub inactive_time: f32,
     /// Whether to clear all particles on the next frame.
     pub clear_requested: bool,
     /// Index of this emitter within the parent [`ParticleSystemAsset::emitters`].
@@ -146,6 +150,8 @@ impl EmitterRuntime {
             accumulated_delta: 0.0,
             random_seed,
             one_shot_completed: false,
+            inactive: false,
+            inactive_time: 0.0,
             clear_requested: false,
             emitter_index,
             simulation_steps: Vec::new(),
@@ -167,15 +173,29 @@ impl EmitterRuntime {
         is_past_delay(self.system_time, time)
     }
 
+    /// Returns `true` if the emitter is actively spawning particles.
+    pub fn is_emitting(&self) -> bool {
+        self.emitting
+    }
+
+    pub(crate) fn set_emitting(&mut self, emitting: bool) {
+        self.emitting = emitting;
+        if emitting {
+            self.inactive = false;
+            self.inactive_time = 0.0;
+        }
+    }
+
     /// Starts or resumes emission, resetting the one-shot completed flag.
     pub fn play(&mut self) {
-        self.emitting = true;
+        self.set_emitting(true);
         self.one_shot_completed = false;
     }
 
     /// Stops emission and resets all timing state. Clears existing particles.
     pub fn stop(&mut self, fixed_seed: Option<u32>) {
-        self.emitting = false;
+        self.set_emitting(false);
+        self.inactive = true;
         self.system_time = 0.0;
         self.prev_system_time = 0.0;
         self.cycle = 0;
@@ -189,7 +209,7 @@ impl EmitterRuntime {
     /// Stops and immediately restarts emission from the beginning.
     pub fn restart(&mut self, fixed_seed: Option<u32>) {
         self.stop(fixed_seed);
-        self.emitting = true;
+        self.set_emitting(true);
     }
 
     /// Jumps the emitter's simulation time to the given value.
@@ -258,6 +278,8 @@ pub struct ParticleBufferHandle {
     pub indices_buffer: Handle<ShaderStorageBuffer>,
     /// Buffer holding sorted/reordered particle data for rendering.
     pub sorted_particles_buffer: Handle<ShaderStorageBuffer>,
+    /// Buffer holding per-emitter uniforms (transform, flags) for the material shader.
+    pub emitter_uniforms_buffer: Handle<ShaderStorageBuffer>,
     /// Maximum number of particles this buffer can hold.
     pub max_particles: u32,
 }
@@ -271,13 +293,6 @@ pub struct ParticleGpuBuffers {
     pub uniform_buffer: Buffer,
     /// Maximum number of particles this buffer can hold.
     pub max_particles: u32,
-}
-
-/// Component linking a mesh entity back to its parent emitter entity.
-#[derive(Component)]
-pub struct EmitterMeshEntity {
-    /// The emitter entity this mesh belongs to.
-    pub emitter_entity: Entity,
 }
 
 /// Tracks the currently applied mesh configuration for change detection.

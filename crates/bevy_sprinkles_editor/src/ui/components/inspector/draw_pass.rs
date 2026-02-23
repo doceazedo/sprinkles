@@ -96,7 +96,12 @@ fn mesh_variants() -> Vec<VariantDefinition> {
             "Sphere",
             VariantConfig::default()
                 .icon(ICON_MESH_UVSPHERE)
-                .default_value(ParticleMesh::Sphere { radius: 1.0 }),
+                .override_rows(vec![vec!["radius"], vec!["segments", "rings"]])
+                .default_value(ParticleMesh::Sphere {
+                    radius: 1.0,
+                    segments: 32,
+                    rings: 16,
+                }),
         ),
         (
             "Cuboid",

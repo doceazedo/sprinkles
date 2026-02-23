@@ -1,5 +1,6 @@
 #import bevy_sprinkles::common::{
     Particle,
+    ParticleEmitterUniforms,
     PARTICLE_FLAG_ACTIVE,
     EMITTER_FLAG_ROTATE_Y,
     TRANSFORM_ALIGN_SHIFT,
@@ -36,8 +37,7 @@ const STANDARD_MATERIAL_FLAGS_UNLIT_BIT: u32 = 1u << 5u;
 
 // sorted particle data, written in draw order by the sort compute shader
 @group(#{MATERIAL_BIND_GROUP}) @binding(100) var<storage, read> sorted_particles: array<Particle>;
-@group(#{MATERIAL_BIND_GROUP}) @binding(101) var<uniform> max_particles: u32;
-@group(#{MATERIAL_BIND_GROUP}) @binding(102) var<uniform> particle_flags: u32;
+@group(#{MATERIAL_BIND_GROUP}) @binding(101) var<storage, read> emitter_uniforms: ParticleEmitterUniforms;
 
 // computes a rotation matrix that aligns Y axis to a direction
 fn align_y_to_direction(dir: vec3<f32>) -> mat3x3<f32> {
@@ -78,7 +78,7 @@ fn vertex(vertex: Vertex) -> VertexOutput {
     var rotated_normal = vertex.normal;
 #endif
 
-    let transform_align = (particle_flags >> TRANSFORM_ALIGN_SHIFT) & TRANSFORM_ALIGN_MASK;
+    let transform_align = (emitter_uniforms.particle_flags >> TRANSFORM_ALIGN_SHIFT) & TRANSFORM_ALIGN_MASK;
 
     if transform_align == TRANSFORM_ALIGN_Y_TO_VELOCITY {
         let alignment_dir = particle.alignment_dir.xyz;
@@ -97,7 +97,7 @@ fn vertex(vertex: Vertex) -> VertexOutput {
     if abs(angle) > 0.0001 {
         let cos_a = cos(angle);
         let sin_a = sin(angle);
-        if (particle_flags & EMITTER_FLAG_ROTATE_Y) != 0u {
+        if (emitter_uniforms.particle_flags & EMITTER_FLAG_ROTATE_Y) != 0u {
             let angle_matrix = mat3x3<f32>(
                 vec3(cos_a, 0.0, sin_a),
                 vec3(0.0, 1.0, 0.0),

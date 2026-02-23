@@ -16,8 +16,8 @@
                     top_radius: 0.1,
                     bottom_radius: 0.0,
                     height: 4.0,
-                    radial_segments: 16,
-                    rings: 4,
+                    radial_segments: 8,
+                    rings: 2,
                     cap_top: true,
                     cap_bottom: true,
                 ),
@@ -200,6 +200,8 @@
             draw_pass: (
                 mesh: Sphere(
                     radius: 1.0,
+                    segments: 16,
+                    rings: 8,
                 ),
                 material: Standard((
                     base_color: (1.0, 1.0, 1.0, 1.0),
@@ -370,6 +372,8 @@
             draw_pass: (
                 mesh: Sphere(
                     radius: 1.0,
+                    segments: 32,
+                    rings: 16,
                 ),
                 material: Standard((
                     base_color: (1.0, 1.0, 1.0, 1.0),
@@ -506,8 +510,8 @@
                     top_radius: 0.2,
                     bottom_radius: 0.0,
                     height: 3.0,
-                    radial_segments: 16,
-                    rings: 4,
+                    radial_segments: 8,
+                    rings: 2,
                     cap_top: true,
                     cap_bottom: true,
                 ),

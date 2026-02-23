@@ -565,7 +565,7 @@ pub fn sync_playback_state(
         if !system_runtime.paused {
             for (emitter, mut runtime) in emitter_query.iter_mut() {
                 if emitter.parent_system == system_entity
-                    && !runtime.emitting
+                    && !runtime.is_emitting()
                     && !runtime.one_shot_completed
                 {
                     runtime.play();

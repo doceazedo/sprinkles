@@ -537,7 +537,7 @@ pub fn extract_particle_systems(
             continue;
         };
 
-        if !emitter.enabled {
+        if !emitter.enabled || runtime.inactive {
             continue;
         }
 

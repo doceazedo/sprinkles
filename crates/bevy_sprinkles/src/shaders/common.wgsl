@@ -8,6 +8,13 @@ struct Particle {
     alignment_dir: vec4<f32>,  // xyz direction for ALIGN_Y_TO_VELOCITY, w = angle (radians)
 }
 
+struct ParticleEmitterUniforms {
+    emitter_transform: mat4x4<f32>,
+    max_particles: u32,
+    particle_flags: u32,
+    _pad: vec2<u32>,
+}
+
 struct CurveUniform {
     enabled: u32,
     min_value: f32,
