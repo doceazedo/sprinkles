@@ -128,26 +128,20 @@ pub struct EditorInspectorPanel;
 #[derive(Component)]
 struct InspectorPanelContent;
 
-#[derive(Component)]
-struct EmitterInspectorContent;
-
-#[derive(Component)]
-struct ColliderInspectorContent;
-
-#[derive(Component)]
-struct ProjectInspectorContent;
-
-#[derive(Component)]
-struct SettingsInspectorContent;
+#[derive(Component, PartialEq, Eq)]
+enum InspectorContentKind {
+    Emitter,
+    Collider,
+    Project,
+    Settings,
+    EnabledCheckbox,
+}
 
 #[derive(Component)]
 struct PanelTitleText;
 
 #[derive(Component)]
 struct PanelTitleIcon;
-
-#[derive(Component)]
-struct EnabledCheckbox;
 
 #[derive(Component)]
 pub(super) struct DynamicSectionContent;
@@ -188,7 +182,7 @@ fn setup_inspector_panel(
                     .with_children(|content| {
                         content
                             .spawn((
-                                EmitterInspectorContent,
+                                InspectorContentKind::Emitter,
                                 Node {
                                     width: percent(100),
                                     flex_direction: FlexDirection::Column,
@@ -218,7 +212,7 @@ fn setup_inspector_panel(
 
                         content
                             .spawn((
-                                ColliderInspectorContent,
+                                InspectorContentKind::Collider,
                                 Node {
                                     width: percent(100),
                                     flex_direction: FlexDirection::Column,
@@ -235,7 +229,7 @@ fn setup_inspector_panel(
 
                         content
                             .spawn((
-                                ProjectInspectorContent,
+                                InspectorContentKind::Project,
                                 Node {
                                     width: percent(100),
                                     flex_direction: FlexDirection::Column,
@@ -254,7 +248,7 @@ fn setup_inspector_panel(
 
                         content
                             .spawn((
-                                SettingsInspectorContent,
+                                InspectorContentKind::Settings,
                                 Node {
                                     width: percent(100),
                                     flex_direction: FlexDirection::Column,
@@ -272,60 +266,10 @@ fn setup_inspector_panel(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 fn toggle_inspector_content(
     editor_state: Res<EditorState>,
     active_tab: Res<ActiveSidebarTab>,
-    mut emitter_content: Query<
-        &mut Node,
-        (
-            With<EmitterInspectorContent>,
-            Without<ColliderInspectorContent>,
-            Without<ProjectInspectorContent>,
-            Without<SettingsInspectorContent>,
-            Without<EnabledCheckbox>,
-        ),
-    >,
-    mut collider_content: Query<
-        &mut Node,
-        (
-            With<ColliderInspectorContent>,
-            Without<EmitterInspectorContent>,
-            Without<ProjectInspectorContent>,
-            Without<SettingsInspectorContent>,
-            Without<EnabledCheckbox>,
-        ),
-    >,
-    mut project_content: Query<
-        &mut Node,
-        (
-            With<ProjectInspectorContent>,
-            Without<EmitterInspectorContent>,
-            Without<ColliderInspectorContent>,
-            Without<SettingsInspectorContent>,
-            Without<EnabledCheckbox>,
-        ),
-    >,
-    mut settings_content: Query<
-        &mut Node,
-        (
-            With<SettingsInspectorContent>,
-            Without<EmitterInspectorContent>,
-            Without<ColliderInspectorContent>,
-            Without<ProjectInspectorContent>,
-            Without<EnabledCheckbox>,
-        ),
-    >,
-    mut enabled_checkbox: Query<
-        &mut Node,
-        (
-            With<EnabledCheckbox>,
-            Without<EmitterInspectorContent>,
-            Without<ColliderInspectorContent>,
-            Without<ProjectInspectorContent>,
-            Without<SettingsInspectorContent>,
-        ),
-    >,
+    mut content: Query<(&mut Node, &InspectorContentKind)>,
 ) {
     if !editor_state.is_changed() && !active_tab.is_changed() {
         return;
@@ -337,64 +281,23 @@ fn toggle_inspector_content(
         None
     };
 
-    let emitter_display = if inspecting_kind == Some(Inspectable::Emitter) {
-        Display::Flex
-    } else {
-        Display::None
-    };
-
-    let collider_display = if inspecting_kind == Some(Inspectable::Collider) {
-        Display::Flex
-    } else {
-        Display::None
-    };
-
-    let project_display =
-        if active_tab.0 == SidebarTab::Project && editor_state.current_project.is_some() {
+    for (mut node, kind) in &mut content {
+        let visible = match kind {
+            InspectorContentKind::Emitter => inspecting_kind == Some(Inspectable::Emitter),
+            InspectorContentKind::Collider => inspecting_kind == Some(Inspectable::Collider),
+            InspectorContentKind::Project => {
+                active_tab.0 == SidebarTab::Project && editor_state.current_project.is_some()
+            }
+            InspectorContentKind::Settings => active_tab.0 == SidebarTab::Settings,
+            InspectorContentKind::EnabledCheckbox => inspecting_kind.is_some(),
+        };
+        let display = if visible {
             Display::Flex
         } else {
             Display::None
         };
-
-    let settings_display = if active_tab.0 == SidebarTab::Settings {
-        Display::Flex
-    } else {
-        Display::None
-    };
-
-    for mut node in &mut emitter_content {
-        if node.display != emitter_display {
-            node.display = emitter_display;
-        }
-    }
-
-    for mut node in &mut collider_content {
-        if node.display != collider_display {
-            node.display = collider_display;
-        }
-    }
-
-    for mut node in &mut project_content {
-        if node.display != project_display {
-            node.display = project_display;
-        }
-    }
-
-    for mut node in &mut settings_content {
-        if node.display != settings_display {
-            node.display = settings_display;
-        }
-    }
-
-    let checkbox_display = if inspecting_kind.is_some() {
-        Display::Flex
-    } else {
-        Display::None
-    };
-
-    for mut node in &mut enabled_checkbox {
-        if node.display != checkbox_display {
-            node.display = checkbox_display;
+        if node.display != display {
+            node.display = display;
         }
     }
 }
@@ -445,7 +348,7 @@ fn panel_title(asset_server: &AssetServer) -> impl Bundle {
                 ],
             ),
             (
-                EnabledCheckbox,
+                InspectorContentKind::EnabledCheckbox,
                 FieldBinding::emitter("enabled", FieldKind::Bool),
                 checkbox(CheckboxProps::new("Enabled").checked(true), asset_server)
             ),
