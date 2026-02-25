@@ -11,6 +11,7 @@ pub struct EditorSeparator;
 pub enum SeparatorDirection {
     #[default]
     Vertical,
+    Horizontal,
 }
 
 #[derive(Clone, Copy, Default)]
@@ -27,6 +28,13 @@ impl SeparatorProps {
         }
     }
 
+    pub fn horizontal() -> Self {
+        Self {
+            direction: SeparatorDirection::Horizontal,
+            alpha: DEFAULT_ALPHA,
+        }
+    }
+
     pub fn with_alpha(mut self, alpha: f32) -> Self {
         self.alpha = alpha;
         self
@@ -36,6 +44,7 @@ impl SeparatorProps {
 pub fn separator(props: SeparatorProps) -> impl Bundle {
     let (width, height) = match props.direction {
         SeparatorDirection::Vertical => (px(1), px(24)),
+        SeparatorDirection::Horizontal => (percent(100), px(1)),
     };
 
     (
@@ -52,5 +61,9 @@ pub fn separator(props: SeparatorProps) -> impl Bundle {
 impl EditorSeparator {
     pub fn vertical() -> impl Bundle {
         separator(SeparatorProps::vertical())
+    }
+
+    pub fn horizontal() -> impl Bundle {
+        separator(SeparatorProps::horizontal())
     }
 }

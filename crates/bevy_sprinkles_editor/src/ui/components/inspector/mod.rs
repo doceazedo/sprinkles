@@ -21,7 +21,7 @@ pub use utils::{name_to_label, path_to_label};
 use bevy::prelude::*;
 use bevy_sprinkles::prelude::*;
 
-use crate::state::{EditorState, Inspectable};
+use crate::state::{ActiveSidebarTab, EditorState, Inspectable, SidebarTab};
 use crate::ui::icons::{ICON_BOX, ICON_SHOWERS};
 use crate::ui::tokens::{
     BORDER_COLOR, FONT_PATH, TEXT_BODY_COLOR, TEXT_MUTED_COLOR, TEXT_SIZE_LG, TEXT_SIZE_SM,
@@ -230,6 +230,7 @@ fn setup_inspector_panel(
 
 fn toggle_inspector_content(
     editor_state: Res<EditorState>,
+    active_tab: Res<ActiveSidebarTab>,
     mut emitter_content: Query<
         &mut Node,
         (
@@ -255,11 +256,15 @@ fn toggle_inspector_content(
         ),
     >,
 ) {
-    if !editor_state.is_changed() {
+    if !editor_state.is_changed() && !active_tab.is_changed() {
         return;
     }
 
-    let inspecting_kind = editor_state.inspecting.as_ref().map(|i| i.kind);
+    let inspecting_kind = if active_tab.0 == SidebarTab::Outliner {
+        editor_state.inspecting.as_ref().map(|i| i.kind)
+    } else {
+        None
+    };
 
     let emitter_display = if inspecting_kind == Some(Inspectable::Emitter) {
         Display::Flex
@@ -444,32 +449,14 @@ fn setup_inspector_section_fields(
     }
 }
 
-fn update_panel_title(
-    editor_state: Res<EditorState>,
-    assets: Res<Assets<ParticleSystemAsset>>,
-    mut title_text: Query<&mut Text, With<PanelTitleText>>,
-    mut title_icon: Query<&mut ImageNode, With<PanelTitleIcon>>,
-    asset_server: Res<AssetServer>,
-    new_titles: Query<Entity, Added<PanelTitleText>>,
-) {
-    let should_update = editor_state.is_changed() || !new_titles.is_empty();
-    if !should_update {
-        return;
-    }
-
-    let Some(inspecting) = &editor_state.inspecting else {
-        return;
-    };
-
-    let Some(handle) = &editor_state.current_project else {
-        return;
-    };
-
-    let Some(asset) = assets.get(handle) else {
-        return;
-    };
-
-    let (name, icon_path) = match inspecting.kind {
+fn get_outliner_title(
+    editor_state: &EditorState,
+    assets: &Assets<ParticleSystemAsset>,
+) -> Option<(String, &'static str)> {
+    let inspecting = editor_state.inspecting.as_ref()?;
+    let handle = editor_state.current_project.as_ref()?;
+    let asset = assets.get(handle)?;
+    Some(match inspecting.kind {
         Inspectable::Emitter => {
             let emitter = asset.emitters.get(inspecting.index as usize);
             let name = emitter.map(|e| e.name.clone()).unwrap_or_default();
@@ -480,6 +467,32 @@ fn update_panel_title(
             let name = collider.map(|c| c.name.clone()).unwrap_or_default();
             (name, ICON_BOX)
         }
+    })
+}
+
+fn update_panel_title(
+    editor_state: Res<EditorState>,
+    active_tab: Res<ActiveSidebarTab>,
+    assets: Res<Assets<ParticleSystemAsset>>,
+    mut title_text: Query<&mut Text, With<PanelTitleText>>,
+    mut title_icon: Query<&mut ImageNode, With<PanelTitleIcon>>,
+    asset_server: Res<AssetServer>,
+    new_titles: Query<Entity, Added<PanelTitleText>>,
+) {
+    let should_update =
+        editor_state.is_changed() || active_tab.is_changed() || !new_titles.is_empty();
+    if !should_update {
+        return;
+    }
+
+    let (name, icon_path) = match active_tab.0 {
+        SidebarTab::Outliner => get_outliner_title(&editor_state, &assets).unwrap_or_else(|| {
+            (
+                SidebarTab::Outliner.label().to_string(),
+                SidebarTab::Outliner.icon(),
+            )
+        }),
+        tab => (tab.label().to_string(), tab.icon()),
     };
 
     for mut text in &mut title_text {

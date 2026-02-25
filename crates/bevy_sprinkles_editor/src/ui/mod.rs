@@ -8,6 +8,7 @@ use bevy::prelude::*;
 
 use components::data_panel::data_panel;
 use components::inspector::inspector_panel;
+use components::sidebar::sidebar;
 use components::topbar::topbar;
 use components::viewport::{setup_viewport, viewport_container};
 
@@ -48,6 +49,7 @@ impl Plugin for EditorUiPlugin {
             .add_plugins(components::examples_dialog::plugin)
             .add_plugins(components::project_selector::plugin)
             .add_plugins(widgets::dialog::plugin)
+            .add_plugins(components::sidebar::plugin)
             .add_plugins(components::toasts::plugin)
             .add_plugins(components::topbar::plugin)
             .add_systems(Startup, setup_ui)
@@ -73,6 +75,7 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                     ..default()
                 },
                 children![
+                    sidebar(),
                     data_panel(&asset_server),
                     inspector_panel(&asset_server),
                     viewport_container(),

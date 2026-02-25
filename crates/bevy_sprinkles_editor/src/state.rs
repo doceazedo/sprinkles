@@ -5,10 +5,12 @@ use bevy::window::PrimaryWindow;
 use bevy_sprinkles::prelude::*;
 
 use crate::io::examples_dir;
+use crate::ui::icons::{ICON_FILE, ICON_NODE_TREE, ICON_SETTINGS};
 
 pub fn plugin(app: &mut App) {
     app.init_resource::<EditorState>()
         .init_resource::<DirtyState>()
+        .init_resource::<ActiveSidebarTab>()
         .add_systems(PostStartup, update_window_title)
         .add_systems(Update, update_window_title);
 }
@@ -50,6 +52,35 @@ pub enum Inspectable {
     Emitter,
     Collider,
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum SidebarTab {
+    Project,
+    #[default]
+    Outliner,
+    Settings,
+}
+
+impl SidebarTab {
+    pub fn label(&self) -> &'static str {
+        match self {
+            Self::Project => "Project",
+            Self::Outliner => "Outliner",
+            Self::Settings => "Settings",
+        }
+    }
+
+    pub fn icon(&self) -> &'static str {
+        match self {
+            Self::Project => ICON_FILE,
+            Self::Outliner => ICON_NODE_TREE,
+            Self::Settings => ICON_SETTINGS,
+        }
+    }
+}
+
+#[derive(Resource, Default)]
+pub struct ActiveSidebarTab(pub SidebarTab);
 
 #[derive(Event)]
 pub struct PlaybackResetEvent;
