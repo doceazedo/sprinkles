@@ -85,59 +85,14 @@ Documentation is available at [docs.rs](https://docs.rs/bevy_sprinkles/latest/be
 
 ## Features
 
-- [ ] 3D
-  - [ ] Emission
-    - [x] Particle amount & one shot
-    - [x] Explosiveness & spawn randomness
-    - [x] Lifetime & lifetime randomness
-    - [x] Fixed FPS & fixed seed
-    - [x] Emission shapes
-    - [ ] Amount ratio
-    - [ ] Speed scale
-    - [ ] Preprocess (simulate ahead)
-    - [ ] Interpolation to end
-    - [ ] Frame interpolation
-    - [ ] Local coordinates
-  - [ ] Direction & velocity
-    - [x] Initial direction, spread & flatness
-    - [x] Initial velocity
-    - [x] Velocity inherit ratio & pivot
-    - [x] Radial velocity
-    - [x] Angular velocity
-    - [ ] Orbit velocity
-    - [ ] Directional velocity
-    - [ ] Velocity limit curve
-  - [ ] Acceleration
-    - [x] Gravity
-    - [ ] Linear
-    - [ ] Radial
-    - [ ] Tangential
-    - [ ] Damping
-  - [ ] Scale & rotation
-    - [x] Initial scale & scale over lifetime
-    - [x] Initial angle & angle over lifetime
-    - [ ] Scale over velocity
-  - [ ] Color
-    - [x] Initial color (solid or gradient)
-    - [x] Color over lifetime, alpha over lifetime, emission over lifetime
-    - [ ] Hue variation
-  - [x] Drawing
-    - [x] Draw order
-    - [x] Transform alignment
-    - [x] PBR material & custom shaders
-    - [x] Mesh options (quad, sphere, cuboid, cylinder, prism)
-  - [x] Turbulence
-  - [ ] Collision
-    - [x] Collision mode, bounce, friction, scale & base size
-    - [x] Box & sphere collider shapes
-    - [ ] Attractors
-  - [ ] Sub-emitters
-  - [ ] Trails
-- [ ] 2D
-  - [ ] Sprite texture rendering
-  - [ ] 2D trails
-  - [ ] 2D visibility rect
-  - [ ] Pixel-scale collision defaults
+- GPU particle simulation and sorting
+- Fully fledged built-in visual editor
+- 3D support (2D is planned)
+- PBR material support (custom shaders is planned)
+- Particle collision
+- Curl noise turbulence
+- Billboard and velocity-aligned transform modes
+- Sub-emitters
 
 ## Acknowledgements
 
