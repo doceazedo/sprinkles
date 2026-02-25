@@ -8,6 +8,7 @@ mod emission;
 mod particle_flags;
 mod project_properties;
 mod scale;
+mod settings_properties;
 mod sub_emitter;
 mod time;
 mod transform;
@@ -55,8 +56,8 @@ pub fn plugin(app: &mut App) {
             sub_emitter::plugin,
             particle_flags::plugin,
             collider_properties::plugin,
-            project_properties::plugin,
         ))
+        .add_plugins(project_properties::plugin)
         .add_systems(
             Update,
             (
@@ -135,6 +136,9 @@ struct ColliderInspectorContent;
 
 #[derive(Component)]
 struct ProjectInspectorContent;
+
+#[derive(Component)]
+struct SettingsInspectorContent;
 
 #[derive(Component)]
 struct PanelTitleText;
@@ -247,11 +251,28 @@ fn setup_inspector_panel(
                                     &asset_server,
                                 ));
                             });
+
+                        content
+                            .spawn((
+                                SettingsInspectorContent,
+                                Node {
+                                    width: percent(100),
+                                    flex_direction: FlexDirection::Column,
+                                    display: Display::None,
+                                    ..default()
+                                },
+                            ))
+                            .with_children(|settings_content| {
+                                settings_content.spawn(
+                                    settings_properties::settings_properties_section(&asset_server),
+                                );
+                            });
                     });
             });
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn toggle_inspector_content(
     editor_state: Res<EditorState>,
     active_tab: Res<ActiveSidebarTab>,
@@ -261,6 +282,7 @@ fn toggle_inspector_content(
             With<EmitterInspectorContent>,
             Without<ColliderInspectorContent>,
             Without<ProjectInspectorContent>,
+            Without<SettingsInspectorContent>,
             Without<EnabledCheckbox>,
         ),
     >,
@@ -270,6 +292,7 @@ fn toggle_inspector_content(
             With<ColliderInspectorContent>,
             Without<EmitterInspectorContent>,
             Without<ProjectInspectorContent>,
+            Without<SettingsInspectorContent>,
             Without<EnabledCheckbox>,
         ),
     >,
@@ -279,6 +302,17 @@ fn toggle_inspector_content(
             With<ProjectInspectorContent>,
             Without<EmitterInspectorContent>,
             Without<ColliderInspectorContent>,
+            Without<SettingsInspectorContent>,
+            Without<EnabledCheckbox>,
+        ),
+    >,
+    mut settings_content: Query<
+        &mut Node,
+        (
+            With<SettingsInspectorContent>,
+            Without<EmitterInspectorContent>,
+            Without<ColliderInspectorContent>,
+            Without<ProjectInspectorContent>,
             Without<EnabledCheckbox>,
         ),
     >,
@@ -289,6 +323,7 @@ fn toggle_inspector_content(
             Without<EmitterInspectorContent>,
             Without<ColliderInspectorContent>,
             Without<ProjectInspectorContent>,
+            Without<SettingsInspectorContent>,
         ),
     >,
 ) {
@@ -321,6 +356,12 @@ fn toggle_inspector_content(
             Display::None
         };
 
+    let settings_display = if active_tab.0 == SidebarTab::Settings {
+        Display::Flex
+    } else {
+        Display::None
+    };
+
     for mut node in &mut emitter_content {
         if node.display != emitter_display {
             node.display = emitter_display;
@@ -336,6 +377,12 @@ fn toggle_inspector_content(
     for mut node in &mut project_content {
         if node.display != project_display {
             node.display = project_display;
+        }
+    }
+
+    for mut node in &mut settings_content {
+        if node.display != settings_display {
+            node.display = settings_display;
         }
     }
 

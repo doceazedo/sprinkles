@@ -11,12 +11,26 @@ pub fn plugin(app: &mut App) {
     ensure_data_dirs();
     crate::assets::extract_examples(&examples_dir());
     let editor_data = load_editor_data();
-    app.insert_resource(editor_data);
+    app.register_type::<EditorSettings>()
+        .insert_resource(editor_data);
 }
 
 #[derive(Resource, Serialize, Deserialize, Default)]
 pub struct EditorData {
     pub cache: EditorCache,
+    #[serde(default)]
+    pub settings: EditorSettings,
+}
+
+#[derive(Serialize, Deserialize, Reflect, Clone)]
+pub struct EditorSettings {
+    pub show_fps: bool,
+}
+
+impl Default for EditorSettings {
+    fn default() -> Self {
+        Self { show_fps: true }
+    }
 }
 
 #[derive(Serialize, Deserialize, Default)]

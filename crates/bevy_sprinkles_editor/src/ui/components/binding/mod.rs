@@ -10,6 +10,7 @@ use bevy::reflect::{
 };
 use bevy_sprinkles::prelude::*;
 
+use crate::io::EditorData;
 use crate::state::{DirtyState, EditorState, Inspectable};
 use crate::ui::widgets::combobox::ComboBoxConfig;
 use crate::ui::widgets::text_edit::EditorTextEdit;
@@ -138,10 +139,12 @@ pub(super) fn resolve_binding_data<'a>(
     binding: &FieldBinding,
     editor_state: &EditorState,
     assets: &'a Assets<ParticleSystemAsset>,
+    editor_data: &'a EditorData,
 ) -> Option<&'a dyn Reflect> {
     match binding.target {
         BindingTarget::Inspected => get_inspected_data(editor_state, assets),
         BindingTarget::Asset => get_asset_data(editor_state, assets),
+        BindingTarget::EditorSettings => Some(&editor_data.settings),
     }
 }
 
@@ -149,10 +152,12 @@ pub(super) fn resolve_binding_data_mut<'a>(
     binding: &FieldBinding,
     editor_state: &EditorState,
     assets: &'a mut Assets<ParticleSystemAsset>,
+    editor_data: &'a mut EditorData,
 ) -> Option<&'a mut dyn Reflect> {
     match binding.target {
         BindingTarget::Inspected => get_inspected_data_mut(editor_state, assets),
         BindingTarget::Asset => get_asset_data_mut(editor_state, assets),
+        BindingTarget::EditorSettings => Some(&mut editor_data.settings),
     }
 }
 
@@ -237,11 +242,12 @@ fn propagate_bindings(
     }
 }
 
-#[derive(Clone, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
 pub enum BindingTarget {
     #[default]
     Inspected,
     Asset,
+    EditorSettings,
 }
 
 #[derive(Clone)]
@@ -274,6 +280,15 @@ impl FieldBinding {
             kind,
             variant_edit: None,
             target: BindingTarget::Asset,
+        }
+    }
+
+    pub fn editor_settings(path: impl Into<String>, kind: FieldKind) -> Self {
+        Self {
+            accessor: FieldAccessor::Direct(path.into()),
+            kind,
+            variant_edit: None,
+            target: BindingTarget::EditorSettings,
         }
     }
 

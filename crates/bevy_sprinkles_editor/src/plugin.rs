@@ -1,4 +1,5 @@
 use bevy::color::palettes::tailwind::ZINC_950;
+use bevy::diagnostic::FrameTimeDiagnosticsPlugin;
 use bevy::prelude::*;
 use bevy_sprinkles::prelude::*;
 
@@ -33,6 +34,7 @@ impl Plugin for SprinklesEditorPlugin {
         app.insert_resource(CliArgs::from_env())
             .add_plugins(crate::assets::plugin)
             .add_plugins(SprinklesPlugin)
+            .add_plugins(FrameTimeDiagnosticsPlugin::default())
             .add_plugins(crate::io::plugin)
             .add_plugins(crate::state::plugin)
             .add_plugins(crate::project::plugin)

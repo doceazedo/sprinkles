@@ -3,6 +3,7 @@ use bevy::reflect::{PartialReflect, ReflectRef};
 use bevy_sprinkles::prelude::*;
 use bevy_ui_text_input::TextInputQueue;
 
+use crate::io::EditorData;
 use crate::state::EditorState;
 use crate::ui::components::inspector::FieldKind;
 use crate::ui::widgets::checkbox::CheckboxState;
@@ -23,6 +24,7 @@ use super::{
 pub(super) fn bind_text_inputs(
     editor_state: Res<EditorState>,
     assets: Res<Assets<ParticleSystemAsset>>,
+    editor_data: Res<EditorData>,
     tracker: Res<InspectedEmitterTracker>,
     new_bindings: Query<Entity, Added<FieldBinding>>,
     new_bound: Query<Entity, Added<BoundTo>>,
@@ -38,7 +40,7 @@ pub(super) fn bind_text_inputs(
             continue;
         };
 
-        let Some(data) = resolve_binding_data(binding, &editor_state, &assets) else {
+        let Some(data) = resolve_binding_data(binding, &editor_state, &assets, &editor_data) else {
             continue;
         };
 
@@ -67,6 +69,7 @@ pub(super) fn bind_text_inputs(
 pub(super) fn bind_widget_values(
     editor_state: Res<EditorState>,
     assets: Res<Assets<ParticleSystemAsset>>,
+    editor_data: Res<EditorData>,
     tracker: Res<InspectedEmitterTracker>,
     new_bindings: Query<Entity, Added<FieldBinding>>,
     new_variant_edits: Query<Entity, Added<EditorVariantEdit>>,
@@ -88,7 +91,7 @@ pub(super) fn bind_widget_values(
     }
 
     for (binding, mut state) in &mut checkbox_states {
-        let Some(data) = resolve_binding_data(binding, &editor_state, &assets) else {
+        let Some(data) = resolve_binding_data(binding, &editor_state, &assets, &editor_data) else {
             continue;
         };
         let value = binding.read_value(data);
@@ -101,7 +104,7 @@ pub(super) fn bind_widget_values(
         if binding.kind != FieldKind::Curve {
             continue;
         }
-        let Some(data) = resolve_binding_data(binding, &editor_state, &assets) else {
+        let Some(data) = resolve_binding_data(binding, &editor_state, &assets, &editor_data) else {
             continue;
         };
         let Some(reflected) = binding.read_reflected(data) else {
@@ -120,7 +123,7 @@ pub(super) fn bind_widget_values(
         if binding.kind != FieldKind::Gradient {
             continue;
         }
-        let Some(data) = resolve_binding_data(binding, &editor_state, &assets) else {
+        let Some(data) = resolve_binding_data(binding, &editor_state, &assets, &editor_data) else {
             continue;
         };
         let Some(reflected) = binding.read_reflected(data) else {
@@ -135,7 +138,7 @@ pub(super) fn bind_widget_values(
         if !matches!(binding.kind, FieldKind::ComboBox { .. }) {
             continue;
         }
-        let Some(data) = resolve_binding_data(binding, &editor_state, &assets) else {
+        let Some(data) = resolve_binding_data(binding, &editor_state, &assets, &editor_data) else {
             continue;
         };
         let value = binding.read_value(data);
@@ -151,7 +154,7 @@ pub(super) fn bind_widget_values(
         if !matches!(binding.kind, FieldKind::ComboBox { .. }) {
             continue;
         }
-        let Some(data) = resolve_binding_data(binding, &editor_state, &assets) else {
+        let Some(data) = resolve_binding_data(binding, &editor_state, &assets, &editor_data) else {
             continue;
         };
         let value = binding.read_value(data);
@@ -161,7 +164,7 @@ pub(super) fn bind_widget_values(
     }
 
     for (binding, mut config) in &mut variant_edits {
-        let Some(data) = resolve_binding_data(binding, &editor_state, &assets) else {
+        let Some(data) = resolve_binding_data(binding, &editor_state, &assets, &editor_data) else {
             continue;
         };
         let new_index = if binding.is_variant() {
@@ -184,6 +187,7 @@ pub(super) fn bind_color_pickers(
     mut commands: Commands,
     editor_state: Res<EditorState>,
     assets: Res<Assets<ParticleSystemAsset>>,
+    editor_data: Res<EditorData>,
     mut color_pickers: Query<
         (Entity, &mut ColorPickerState, &FieldBinding),
         (With<EditorColorPicker>, Without<BindingInitialized>),
@@ -200,7 +204,7 @@ pub(super) fn bind_color_pickers(
             continue;
         }
 
-        let Some(data) = resolve_binding_data(binding, &editor_state, &assets) else {
+        let Some(data) = resolve_binding_data(binding, &editor_state, &assets, &editor_data) else {
             continue;
         };
 

@@ -43,7 +43,7 @@ impl PanelSectionSize {
     fn padding(&self) -> UiRect {
         match self {
             Self::MD => UiRect::all(px(12)),
-            Self::XL => UiRect::axes(px(24), px(14)),
+            Self::XL => UiRect::new(px(24), px(24), px(14), px(24)),
         }
     }
 }

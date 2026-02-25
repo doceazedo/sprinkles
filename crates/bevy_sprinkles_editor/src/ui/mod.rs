@@ -50,6 +50,7 @@ impl Plugin for EditorUiPlugin {
             .add_plugins(components::project_selector::plugin)
             .add_plugins(widgets::dialog::plugin)
             .add_plugins(components::sidebar::plugin)
+            .add_plugins(components::fps_overlay::plugin)
             .add_plugins(components::toasts::plugin)
             .add_plugins(components::topbar::plugin)
             .add_systems(Startup, setup_ui)

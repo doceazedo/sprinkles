@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use bevy::reflect::{PartialReflect, ReflectRef};
 use bevy_sprinkles::prelude::*;
 
+use crate::io::{EditorData, save_editor_data};
 use crate::state::{DirtyState, EditorState};
 use crate::ui::components::inspector::FieldKind;
 use crate::ui::widgets::checkbox::CheckboxCommitEvent;
@@ -24,6 +25,7 @@ use super::{
 pub(super) struct CommitContext<'w, 's> {
     editor_state: Res<'w, EditorState>,
     assets: ResMut<'w, Assets<ParticleSystemAsset>>,
+    editor_data: ResMut<'w, EditorData>,
     dirty_state: ResMut<'w, DirtyState>,
     bindings: Query<'w, 's, &'static FieldBinding>,
     bound_query: Query<'w, 's, &'static BoundTo>,
@@ -39,15 +41,40 @@ impl CommitContext<'_, '_> {
         self.bindings.get(bound.binding).ok().cloned()
     }
 
-    fn mark_change(&mut self, is_asset: bool, fixed_seed: Option<u32>) {
-        if is_asset {
-            self.dirty_state.has_unsaved_changes = true;
+    fn resolve_data_mut(
+        &mut self,
+        binding: &FieldBinding,
+    ) -> Option<(&mut dyn Reflect, BindingTarget, Option<u32>)> {
+        let target = binding.target;
+        let data = resolve_binding_data_mut(
+            binding,
+            &self.editor_state,
+            &mut self.assets,
+            &mut self.editor_data,
+        )?;
+        let fixed_seed = if target == BindingTarget::Inspected {
+            read_fixed_seed(&*data)
         } else {
-            mark_dirty_and_restart(
-                &mut self.dirty_state,
-                &mut self.emitter_runtimes,
-                fixed_seed,
-            );
+            None
+        };
+        Some((data, target, fixed_seed))
+    }
+
+    fn mark_change(&mut self, target: BindingTarget, fixed_seed: Option<u32>) {
+        match target {
+            BindingTarget::Asset => {
+                self.dirty_state.has_unsaved_changes = true;
+            }
+            BindingTarget::EditorSettings => {
+                save_editor_data(&self.editor_data);
+            }
+            BindingTarget::Inspected => {
+                mark_dirty_and_restart(
+                    &mut self.dirty_state,
+                    &mut self.emitter_runtimes,
+                    fixed_seed,
+                );
+            }
         }
     }
 
@@ -55,19 +82,12 @@ impl CommitContext<'_, '_> {
         let Some(binding) = self.resolve_binding(entity) else {
             return;
         };
-        let is_asset = binding.target == BindingTarget::Asset;
-        let Some(data) = resolve_binding_data_mut(&binding, &self.editor_state, &mut self.assets)
-        else {
+        let Some((data, target, fixed_seed)) = self.resolve_data_mut(&binding) else {
             return;
-        };
-        let fixed_seed = if is_asset {
-            None
-        } else {
-            read_fixed_seed(&*data)
         };
         let changed = binding.write_reflected(data, apply_fn);
         if changed {
-            self.mark_change(is_asset, fixed_seed);
+            self.mark_change(target, fixed_seed);
         }
     }
 
@@ -75,24 +95,17 @@ impl CommitContext<'_, '_> {
         let Some(binding) = self.resolve_binding(entity) else {
             return false;
         };
-        let is_asset = binding.target == BindingTarget::Asset;
-        let should_respawn = if is_asset {
-            false
-        } else {
+        let should_respawn = if binding.target == BindingTarget::Inspected {
             requires_respawn_binding(&binding)
-        };
-        let Some(data) = resolve_binding_data_mut(&binding, &self.editor_state, &mut self.assets)
-        else {
-            return false;
-        };
-        let fixed_seed = if is_asset {
-            None
         } else {
-            read_fixed_seed(&*data)
+            false
+        };
+        let Some((data, target, fixed_seed)) = self.resolve_data_mut(&binding) else {
+            return false;
         };
         let changed = binding.write_value(data, &value);
         if changed {
-            self.mark_change(is_asset, fixed_seed);
+            self.mark_change(target, fixed_seed);
         }
         changed && should_respawn
     }
@@ -143,23 +156,16 @@ pub(super) fn handle_text_commit(
                 return;
             };
 
-            let is_asset = binding.target == BindingTarget::Asset;
-            let Some(data) = resolve_binding_data_mut(&binding, &ctx.editor_state, &mut ctx.assets)
-            else {
+            let Some((data, target, fixed_seed)) = ctx.resolve_data_mut(&binding) else {
                 return;
             };
 
             let current_value = binding.read_value(&*data);
             let new_value = set_field_value_component(&current_value, idx, v);
-            let fixed_seed = if is_asset {
-                None
-            } else {
-                read_fixed_seed(&*data)
-            };
             let changed = binding.write_value(data, &new_value);
             if changed {
-                ctx.mark_change(is_asset, fixed_seed);
-                if !is_asset && requires_respawn_binding(&binding) {
+                ctx.mark_change(target, fixed_seed);
+                if target == BindingTarget::Inspected && requires_respawn_binding(&binding) {
                     commands.trigger(RespawnEmittersEvent);
                 }
             }
