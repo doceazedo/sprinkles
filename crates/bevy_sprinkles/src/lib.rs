@@ -80,6 +80,7 @@
 //!             ..default()
 //!         }],
 //!         vec![],
+//!         false,
 //!         None,
 //!     ));
 //!
@@ -184,6 +185,7 @@ use asset::{ParticleSystemAsset, ParticleSystemAssetLoader};
 use compute::ParticleComputePlugin;
 use extract::{extract_colliders, extract_particle_systems};
 use mesh::ParticleMeshCache;
+use runtime::check_particle_system_finished;
 use sort::ParticleSortPlugin;
 use spawning::{
     cleanup_particle_entities, setup_particle_systems, sync_collider_data, sync_emitter_transform,
@@ -235,6 +237,7 @@ impl Plugin for SprinklesPlugin {
                 sync_emitter_transform,
                 sync_collider_data,
                 update_particle_time,
+                check_particle_system_finished.after(update_particle_time),
                 cleanup_particle_entities,
             ),
         );
@@ -266,7 +269,7 @@ pub use asset::{
 };
 pub use material::ParticleMaterialExtension;
 pub use runtime::{
-    ColliderEntity, EmitterEntity, EmitterRuntime, ParticleBufferHandle, ParticleData,
+    ColliderEntity, EmitterEntity, EmitterRuntime, Finished, ParticleBufferHandle, ParticleData,
     ParticleMaterial, ParticleMaterialHandle, ParticleSystem2D, ParticleSystem3D,
     ParticleSystemRuntime, ParticlesCollider3D,
 };

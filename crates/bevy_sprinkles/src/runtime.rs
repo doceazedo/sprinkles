@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use bevy::pbr::ExtendedMaterial;
 use bevy::prelude::*;
 use bevy::render::render_resource::{Buffer, ShaderType};
@@ -53,6 +55,13 @@ impl ParticleData {
     }
 }
 
+/// Triggered when all active emitters have finished processing.
+///
+/// This event is only fired when **every** emitter in the system has
+/// [`one_shot`](crate::EmitterTime::one_shot) set to `true`.
+#[derive(EntityEvent)]
+pub struct Finished(pub Entity);
+
 /// Runtime state for a particle system entity, controlling playback.
 #[derive(Component)]
 pub struct ParticleSystemRuntime {
@@ -62,6 +71,7 @@ pub struct ParticleSystemRuntime {
     pub force_loop: bool,
     /// Global random seed for all emitters in this system.
     pub global_seed: u32,
+    pub(crate) finished: bool,
 }
 
 impl Default for ParticleSystemRuntime {
@@ -70,6 +80,7 @@ impl Default for ParticleSystemRuntime {
             paused: false,
             force_loop: true,
             global_seed: rand_seed(),
+            finished: false,
         }
     }
 }
@@ -343,6 +354,56 @@ impl Default for ParticlesCollider3D {
         Self {
             enabled: true,
             shape: ParticlesColliderShape3D::default(),
+        }
+    }
+}
+
+pub(crate) fn check_particle_system_finished(
+    mut commands: Commands,
+    assets: Res<Assets<ParticleSystemAsset>>,
+    mut system_query: Query<(Entity, &ParticleSystem3D, &mut ParticleSystemRuntime)>,
+    emitter_query: Query<(&EmitterEntity, &EmitterRuntime)>,
+) {
+    let mut system_states: HashMap<Entity, (bool, bool)> = HashMap::new();
+    for (emitter, runtime) in emitter_query.iter() {
+        let (any_emitting, all_finished) = system_states
+            .entry(emitter.parent_system)
+            .or_insert((false, true));
+        if runtime.emitting {
+            *any_emitting = true;
+        }
+        if !runtime.one_shot_completed {
+            *all_finished = false;
+        }
+    }
+
+    for (system_entity, particle_system, mut system_runtime) in system_query.iter_mut() {
+        let Some(asset) = assets.get(&particle_system.handle) else {
+            continue;
+        };
+
+        if !asset.emitters.iter().all(|e| e.time.one_shot) {
+            continue;
+        }
+
+        let Some(&(any_emitting, all_finished)) = system_states.get(&system_entity) else {
+            continue;
+        };
+
+        if system_runtime.finished {
+            if any_emitting {
+                system_runtime.finished = false;
+            }
+            continue;
+        }
+
+        if all_finished {
+            commands.entity(system_entity).trigger(Finished);
+            system_runtime.finished = true;
+
+            if asset.despawn_on_finish {
+                commands.entity(system_entity).despawn();
+            }
         }
     }
 }

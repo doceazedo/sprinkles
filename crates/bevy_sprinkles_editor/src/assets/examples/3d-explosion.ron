@@ -2,6 +2,7 @@
     sprinkles_version: "0.1",
     name: "Explosion",
     dimension: D3,
+    despawn_on_finish: true,
     emitters: [
         (
             name: "Windup",

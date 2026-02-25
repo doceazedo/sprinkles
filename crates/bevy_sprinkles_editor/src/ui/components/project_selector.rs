@@ -800,14 +800,15 @@ fn handle_create_project(
         let _ = std::fs::create_dir_all(parent);
     }
 
-    let asset = bevy_sprinkles::asset::ParticleSystemAsset::new(
+    let asset = ParticleSystemAsset::new(
         name,
-        bevy_sprinkles::asset::ParticleSystemDimension::D3,
-        vec![bevy_sprinkles::asset::EmitterData {
+        ParticleSystemDimension::D3,
+        vec![EmitterData {
             name: "Emitter 1".to_string(),
             ..Default::default()
         }],
         vec![],
+        false,
         None,
     );
 

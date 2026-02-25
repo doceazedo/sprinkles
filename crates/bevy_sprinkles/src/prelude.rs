@@ -15,7 +15,7 @@ pub use crate::textures::preset::PresetTexture;
 pub use crate::textures::preset::TextureRef;
 
 pub use crate::runtime::{
-    ColliderEntity, EmitterEntity, EmitterRuntime, ParticleMaterial, ParticleMaterialHandle,
-    ParticleSystem2D, ParticleSystem3D, ParticleSystemRuntime, ParticlesCollider3D,
-    SubEmitterBufferHandle,
+    ColliderEntity, EmitterEntity, EmitterRuntime, Finished, ParticleMaterial,
+    ParticleMaterialHandle, ParticleSystem2D, ParticleSystem3D, ParticleSystemRuntime,
+    ParticlesCollider3D, SubEmitterBufferHandle,
 };

@@ -1145,6 +1145,11 @@ pub struct ParticleSystemAsset {
     /// Optional colliders that particles can interact with.
     #[serde(default)]
     pub colliders: Vec<ColliderData>,
+    /// Whether to despawn the particle system entity when all one-shot emitters finish.
+    ///
+    /// Defaults to `false`.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub despawn_on_finish: bool,
     /// Optional attribution information.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub authors: Option<ParticleSystemAuthors>,
@@ -1157,6 +1162,7 @@ impl ParticleSystemAsset {
         dimension: ParticleSystemDimension,
         emitters: Vec<EmitterData>,
         colliders: Vec<ColliderData>,
+        despawn_on_finish: bool,
         authors: Option<ParticleSystemAuthors>,
     ) -> Self {
         Self {
@@ -1165,6 +1171,7 @@ impl ParticleSystemAsset {
             dimension,
             emitters,
             colliders,
+            despawn_on_finish,
             authors,
         }
     }
