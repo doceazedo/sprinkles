@@ -6,9 +6,56 @@ This is an unordered list of planned features. Nothing here is guaranteed to be 
 
 - 2D particle systems[^1]
 - Add smoothstep interpolation for `GradientEdit`
-- Auto instantiate/reuse materials
-- Support deleting entity when particle system finishes
 - Add `editor_only` checkbox for colliders (useful if already present in-game)
+
+### Godot feature parity
+
+Features from [GPUParticles3D](https://docs.godotengine.org/en/stable/classes/class_gpuparticles3d.html)
+and [ParticleProcessMaterial](https://docs.godotengine.org/en/stable/classes/class_particleprocessmaterial.html) not yet
+implemented in Sprinkles.
+
+- **EmitterData**
+    - use_local_coords
+    - **EmitterTime**
+        - speed_scale
+        - preprocess
+        - fract_delta
+        - interpolate
+        - interpolate_to_end
+    - **EmitterDrawPass**
+        - trails
+        - **ParticleMesh**
+            - Custom GLTF
+            - TubeTrail
+            - RibbonTrail
+        - **DrawPassMaterial**
+            - Convert it from an enum to a struct and add optional shader fields to it directly
+    - **EmitterEmission**
+        - amount_ratio
+        - **EmissionShape**
+            - Point
+            - Box
+            - Points
+            - DirectedPoints
+    - **EmitterScale**
+        - scale_over_velocity
+    - **EmitterColors**
+        - ~~hue_variation~~[^2]
+        - ~~hue_variation_over_lifetime~~[^2]
+    - **EmitterVelocities**
+        - orbit_velocity
+        - directional_velocity
+        - velocity_limit_over_lifetime
+    - **EmitterAccelerations**
+        - linear_acceleration
+        - radial_acceleration
+        - tangential_acceleration
+        - damping (+ ParticleFlags::DAMPING_AS_FRICTION
+    - **EmitterTurbulence**
+        - initial_displacement
+    - ~~**EmitterSpritesheet**~~[^2]
+    - ~~**VisibilityAabb**~~[^2]
+- **AttractorData**
 
 ## Editor
 
@@ -20,32 +67,12 @@ This is an unordered list of planned features. Nothing here is guaranteed to be 
 - In-editor docs
 - WASM build
 
-### Project selector / hamburger menu
+### Settings
 
-I want to replace the project selector button, and have a hamburger icon instead with:
-
-- _(all existing options)_
-- About Sprinkles
-- Check for updates
-- Preferences
-- Quit
-
-And then have the project name as an item, on top of the emitters (needs design). Clicking on it will show the project settings in the inspector on the right, with the following options:
-
-- Project name
-- Project/assets folder location
-- Authors
-- Folder location + "Reveal in Finder" button
-
-### Preferences (editor settings)
-
-- Bloom
-- Anti-aliasing
-- Toggle FPS counter
 - Check for updates automatically
 - Grid / Floor / Skybox
-- Tonemapper
 - Light mode (maybe?)
+- Footnotes (version, hash, links/buttons...)
 
 ## Testing
 
@@ -57,3 +84,5 @@ And then have the project name as an item, on top of the emitters (needs design)
 - Guide for using Sprinkles in-game
 
 [^1]: Eventually.
+
+[^2]: Not planned, personally.
