@@ -463,6 +463,7 @@ pub fn write_emitter_uniforms(
             emitter_transform: global_transform.to_matrix(),
             max_particles: buffer_handle.max_particles,
             particle_flags: combined_particle_flags(emitter_data),
+            use_local_coords: emitter_data.draw_pass.use_local_coords as u32,
             ..default()
         };
 

@@ -192,6 +192,8 @@ pub struct EmitterUniforms {
     pub _sub_emitter_pad0: u32,
     pub _sub_emitter_pad1: u32,
     pub _sub_emitter_pad2: u32,
+
+    pub emitter_transform: [f32; 16],
 }
 
 #[derive(Resource, Default)]
@@ -353,6 +355,7 @@ fn build_base_uniforms(
     es: &EmissionShapeUniforms,
     collision: &CollisionUniforms,
     sub_emitter_uniforms: (u32, f32, u32, u32),
+    spawn_transform: Mat4,
 ) -> EmitterUniforms {
     let turbulence = &emitter.turbulence;
 
@@ -464,6 +467,8 @@ fn build_base_uniforms(
         _sub_emitter_pad0: 0,
         _sub_emitter_pad1: 0,
         _sub_emitter_pad2: 0,
+
+        emitter_transform: spawn_transform.to_cols_array(),
     }
 }
 
@@ -569,6 +574,17 @@ pub fn extract_particle_systems(
             None => (SUB_EMITTER_MODE_DISABLED, 1.0, 1, 0),
         };
 
+        let use_local_coords = emitter.draw_pass.use_local_coords;
+        let world_matrix = global_transform.to_matrix();
+
+        // local mode: spawn in local space (identity), render via mesh transform (world)
+        // global mode: spawn in world space (world), render without transform (identity)
+        let (spawn_transform, render_transform) = if use_local_coords {
+            (Mat4::IDENTITY, world_matrix)
+        } else {
+            (world_matrix, Mat4::IDENTITY)
+        };
+
         let base_uniforms = build_base_uniforms(
             emitter,
             runtime,
@@ -576,6 +592,7 @@ pub fn extract_particle_systems(
             &es,
             &collision,
             sub_emitter_uniforms,
+            spawn_transform,
         );
 
         let is_sub_emitter_target = emission_buffer_map
@@ -650,7 +667,7 @@ pub fn extract_particle_systems(
                 draw_order,
                 camera_position: camera_position.into(),
                 camera_forward: camera_forward.into(),
-                emitter_transform: global_transform.to_matrix(),
+                emitter_transform: render_transform,
                 gradient_texture_handle,
                 color_over_lifetime_texture_handle,
                 scale_over_lifetime_texture_handle,

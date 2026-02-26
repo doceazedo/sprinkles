@@ -114,6 +114,7 @@ const RESPAWN_FIELD_PATHS: &[&str] = &[
     "draw_pass.material.alpha_mode",
     "draw_pass.transform_align",
     "draw_pass.shadow_caster",
+    "draw_pass.use_local_coords",
     "emission.particles_amount",
 ];
 

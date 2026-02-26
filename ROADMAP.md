@@ -15,7 +15,6 @@ and [ParticleProcessMaterial](https://docs.godotengine.org/en/stable/classes/cla
 implemented in Sprinkles.
 
 - **EmitterData**
-    - use_local_coords
     - **EmitterTime**
         - speed_scale
         - preprocess

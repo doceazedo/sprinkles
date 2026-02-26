@@ -23,8 +23,10 @@ pub struct ParticleEmitterUniforms {
     pub max_particles: u32,
     /// Particle behavior flags (see [`ParticleFlags`](crate::ParticleFlags)).
     pub particle_flags: u32,
+    /// Whether particles are simulated in local coordinates (1) or world coordinates (0).
+    pub use_local_coords: u32,
     #[doc(hidden)]
-    pub _pad: [u32; 2],
+    pub _pad: u32,
 }
 
 /// A material extension that binds particle data buffers for GPU particle rendering.

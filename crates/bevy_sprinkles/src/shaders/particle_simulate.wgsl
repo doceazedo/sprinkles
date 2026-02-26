@@ -132,6 +132,8 @@ struct EmitterParams {
     _sub_emitter_pad0: u32,
     _sub_emitter_pad1: u32,
     _sub_emitter_pad2: u32,
+
+    emitter_transform: mat4x4<f32>,
 }
 
 struct Collider {
@@ -919,13 +921,25 @@ fn spawn_particle(idx: u32) -> Particle {
     // per-particle seed: base_seed + 1 + index + (cycle * amount)
     let seed = hash(params.random_seed + 1u + idx + params.cycle * params.amount);
 
-    let emission_pos = get_emission_offset(seed);
+    let local_emission_pos = get_emission_offset(seed);
     let initial_scale = get_initial_scale(seed + 20u);
     // for constant curve, use initial scale directly; for curves, start at eased t=0
     let scale = get_scale_at_lifetime(initial_scale, 0.0, 1.0);
-    p.position = vec4(emission_pos, scale);
 
-    var vel = get_emission_velocity(seed + 10u);
+    var local_vel = get_emission_velocity(seed + 10u);
+
+    // transform emission position and velocity by emitter_transform
+    // when use_local_coords is true, emitter_transform is identity (no-op)
+    // when use_local_coords is false, emitter_transform maps to world space
+    let emission_pos = (params.emitter_transform * vec4(local_emission_pos, 1.0)).xyz;
+    let basis = mat3x3(
+        params.emitter_transform[0].xyz,
+        params.emitter_transform[1].xyz,
+        params.emitter_transform[2].xyz
+    );
+    var vel = basis * local_vel;
+
+    p.position = vec4(emission_pos, scale);
     let lifetime = params.lifetime * (1.0 - hash_to_float(seed + 4u) * params.lifetime_randomness);
 
     // include radial velocity at spawn for correct initial alignment

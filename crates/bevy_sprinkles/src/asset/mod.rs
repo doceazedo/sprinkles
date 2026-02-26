@@ -348,6 +348,15 @@ pub struct EmitterDrawPass {
     /// alignment is applied.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub transform_align: Option<TransformAlign>,
+    /// Whether particles use local coordinates and follow the emitter's transform.
+    ///
+    /// When `false` (default), particles are emitted into world space and remain
+    /// at their world position even when the emitter moves. When `true`, particles
+    /// are simulated in the emitter's local space and follow the emitter.
+    ///
+    /// Defaults to `false`.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub use_local_coords: bool,
 }
 
 fn default_shadow_caster() -> bool {
@@ -362,6 +371,7 @@ impl Default for EmitterDrawPass {
             material: DrawPassMaterial::default(),
             shadow_caster: true,
             transform_align: None,
+            use_local_coords: false,
         }
     }
 }

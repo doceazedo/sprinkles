@@ -12,7 +12,8 @@ struct ParticleEmitterUniforms {
     emitter_transform: mat4x4<f32>,
     max_particles: u32,
     particle_flags: u32,
-    _pad: vec2<u32>,
+    use_local_coords: u32,
+    _pad: u32,
 }
 
 struct CurveUniform {

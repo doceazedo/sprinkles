@@ -61,6 +61,11 @@ pub fn draw_pass_section(asset_server: &AssetServer) -> impl Bundle {
                         .bool()
                         .into(),
                 ],
+                vec![
+                    InspectorFieldProps::new("draw_pass.use_local_coords")
+                        .bool()
+                        .into(),
+                ],
             ],
         ),
         asset_server,

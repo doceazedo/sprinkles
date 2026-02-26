@@ -72,6 +72,7 @@ fn vertex(vertex: Vertex) -> VertexOutput {
 
     let particle_position = particle.position.xyz;
     let particle_scale = select(0.0, particle.position.w, is_active);
+    let is_local = emitter_uniforms.use_local_coords != 0u;
 
     var rotated_position = vertex.position;
 #ifdef VERTEX_NORMALS
@@ -127,13 +128,21 @@ fn vertex(vertex: Vertex) -> VertexOutput {
         let cam_up = normalize(view.world_from_view[1].xyz);
         let cam_forward = normalize(view.world_from_view[2].xyz);
 
-        let particle_world_pos = (world_from_local * vec4(particle_position, 1.0)).xyz;
-
-        let scale = vec3(particle_scale) * vec3(
-            length(world_from_local[0].xyz),
-            length(world_from_local[1].xyz),
-            length(world_from_local[2].xyz),
-        );
+        // in local mode, transform particle position to world via mesh transform;
+        // in global mode, particle position is already in world space
+        var particle_world_pos: vec3<f32>;
+        var scale: vec3<f32>;
+        if is_local {
+            particle_world_pos = (world_from_local * vec4(particle_position, 1.0)).xyz;
+            scale = vec3(particle_scale) * vec3(
+                length(world_from_local[0].xyz),
+                length(world_from_local[1].xyz),
+                length(world_from_local[2].xyz),
+            );
+        } else {
+            particle_world_pos = particle_position;
+            scale = vec3(particle_scale);
+        }
 
         if transform_align == TRANSFORM_ALIGN_BILLBOARD_Y_TO_VELOCITY {
             let v = particle.alignment_dir.xyz;
@@ -198,14 +207,24 @@ fn vertex(vertex: Vertex) -> VertexOutput {
 #endif
         }
     } else {
-        let scaled_position = rotated_position * particle_scale;
-        let local_position = scaled_position + particle_position;
+        // non-billboard rendering
+        let offset = rotated_position * particle_scale;
 
-        out.world_position = mesh_functions::mesh_position_local_to_world(world_from_local, vec4(local_position, 1.0));
+        if is_local {
+            let local_position = offset + particle_position;
+            out.world_position = mesh_functions::mesh_position_local_to_world(world_from_local, vec4(local_position, 1.0));
+        } else {
+            out.world_position = vec4(particle_position + offset, 1.0);
+        }
+
         out.position = position_world_to_clip(out.world_position.xyz);
 
 #ifdef VERTEX_NORMALS
-        out.world_normal = mesh_functions::mesh_normal_local_to_world(rotated_normal, vertex.instance_index);
+        if is_local {
+            out.world_normal = mesh_functions::mesh_normal_local_to_world(rotated_normal, vertex.instance_index);
+        } else {
+            out.world_normal = rotated_normal;
+        }
 #endif
     }
 
