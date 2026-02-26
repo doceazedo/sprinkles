@@ -208,12 +208,20 @@ fn vertex(vertex: Vertex) -> VertexOutput {
         }
     } else {
         // non-billboard rendering
-        let offset = rotated_position * particle_scale;
+        // extract emitter rotation from mesh transform and apply to mesh vertices
+        // particle positions are already in world space; only the mesh needs rotating
+        let emitter_rotation = mat3x3(
+            normalize(world_from_local[0].xyz),
+            normalize(world_from_local[1].xyz),
+            normalize(world_from_local[2].xyz)
+        );
 
         if is_local {
+            let offset = rotated_position * particle_scale;
             let local_position = offset + particle_position;
             out.world_position = mesh_functions::mesh_position_local_to_world(world_from_local, vec4(local_position, 1.0));
         } else {
+            let offset = emitter_rotation * (rotated_position * particle_scale);
             out.world_position = vec4(particle_position + offset, 1.0);
         }
 
@@ -223,7 +231,7 @@ fn vertex(vertex: Vertex) -> VertexOutput {
         if is_local {
             out.world_normal = mesh_functions::mesh_normal_local_to_world(rotated_normal, vertex.instance_index);
         } else {
-            out.world_normal = rotated_normal;
+            out.world_normal = emitter_rotation * rotated_normal;
         }
 #endif
     }

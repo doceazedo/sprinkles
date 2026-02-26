@@ -80,8 +80,8 @@ pub struct AnimatedVelocityUniform {
 #[derive(Clone, Copy, Default, Pod, Zeroable, ShaderType)]
 #[repr(C)]
 pub struct ColliderUniform {
-    pub transform: [f32; 16],
-    pub inverse_transform: [f32; 16],
+    pub transform: [[f32; 4]; 4],
+    pub inverse_transform: [[f32; 4]; 4],
     pub extents: [f32; 3],
     pub collider_type: u32,
 }
@@ -193,7 +193,7 @@ pub struct EmitterUniforms {
     pub _sub_emitter_pad1: u32,
     pub _sub_emitter_pad2: u32,
 
-    pub emitter_transform: [f32; 16],
+    pub emitter_transform: [[f32; 4]; 4],
 }
 
 #[derive(Resource, Default)]
@@ -468,7 +468,7 @@ fn build_base_uniforms(
         _sub_emitter_pad1: 0,
         _sub_emitter_pad2: 0,
 
-        emitter_transform: spawn_transform.to_cols_array(),
+        emitter_transform: spawn_transform.to_cols_array_2d(),
     }
 }
 
@@ -709,8 +709,8 @@ pub fn extract_colliders(
         };
 
         colliders.push(ColliderUniform {
-            transform: transform.to_cols_array(),
-            inverse_transform: inverse.to_cols_array(),
+            transform: transform.to_cols_array_2d(),
+            inverse_transform: inverse.to_cols_array_2d(),
             extents,
             collider_type,
         });
