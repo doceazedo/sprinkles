@@ -243,7 +243,7 @@ fn fragment(
     @builtin(front_facing) is_front: bool,
 ) {
 #ifdef VERTEX_UVS_B
-    let particle_index = u32(in.uv_b.x);
+    let particle_index = u32(round(in.uv_b.x));
     let particle = sorted_particles[particle_index];
 #else
     let particle = sorted_particles[0u];
@@ -268,7 +268,7 @@ fn fragment(
     @builtin(front_facing) is_front: bool,
 ) -> FragmentOutput {
 #ifdef VERTEX_UVS_B
-    let particle_index = u32(in.uv_b.x);
+    let particle_index = u32(round(in.uv_b.x));
     let particle = sorted_particles[particle_index];
 #else
     let particle = sorted_particles[0u];
@@ -298,7 +298,7 @@ fn fragment(
     @builtin(front_facing) is_front: bool,
 ) -> FragmentOutput {
 #ifdef VERTEX_UVS_B
-    let particle_index = u32(in.uv_b.x);
+    let particle_index = u32(round(in.uv_b.x));
     let particle = sorted_particles[particle_index];
 #else
     let particle = sorted_particles[0u];

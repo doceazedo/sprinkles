@@ -13,6 +13,8 @@
             draw_pass: (
                 mesh: Sphere(
                     radius: 1.25,
+                    segments: 32,
+                    rings: 16,
                 ),
                 material: Standard((
                     base_color: (1.0, 1.0, 1.0, 1.0),
@@ -393,6 +395,7 @@
         ),
         (
             name: "Smoke",
+            position: (0.0, 0.1, 0.0),
             time: (
                 lifetime: 1.5,
                 lifetime_randomness: 0.3,
@@ -784,10 +787,6 @@
             particle_flags: "",
         ),
     ],
-    authors: (
-        inspired_by: "Brackeys",
-        submitted_by: "DoceAzedo",
-    ),
     colliders: [
         (
             name: "Floor",
@@ -797,4 +796,8 @@
             position: (0.0, -2.1, -0.1),
         ),
     ],
+    authors: (
+        inspired_by: "Brackeys",
+        submitted_by: "DoceAzedo",
+    ),
 )
