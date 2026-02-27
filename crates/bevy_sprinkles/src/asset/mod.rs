@@ -221,6 +221,52 @@ impl EmitterTime {
     }
 }
 
+/// The initial transform applied when spawning a particle system, emitter, or collider.
+///
+/// Used only during spawning if no [`Transform`] component is already present on the entity. To change the transform at runtime, modify the entity's [`Transform`] directly.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub struct InitialTransform {
+    /// Position of the entity.
+    #[serde(default, skip_serializing_if = "is_zero_vec3")]
+    pub translation: Vec3,
+    /// Rotation of the entity.
+    ///
+    /// Expects `EulerRot::ZYX` where X = roll, Y = pitch, and Z = yaw.
+    #[serde(default, skip_serializing_if = "is_zero_vec3")]
+    pub rotation: Vec3,
+    /// Scale factors.
+    #[serde(default = "default_one_vec3", skip_serializing_if = "is_one_vec3")]
+    pub scale: Vec3,
+}
+
+impl Default for InitialTransform {
+    fn default() -> Self {
+        Self {
+            translation: Vec3::ZERO,
+            rotation: Vec3::ZERO,
+            scale: Vec3::ONE,
+        }
+    }
+}
+
+impl InitialTransform {
+    pub(crate) fn should_skip(t: &Self) -> bool {
+        t.translation == Vec3::ZERO && t.rotation == Vec3::ZERO && t.scale == Vec3::ONE
+    }
+
+    /// Converts this initial transform into a Bevy [`Transform`].
+    pub fn to_transform(&self) -> Transform {
+        let roll = self.rotation.x.to_radians();
+        let pitch = self.rotation.y.to_radians();
+        let yaw = self.rotation.z.to_radians();
+        Transform {
+            translation: self.translation,
+            rotation: Quat::from_euler(EulerRot::ZYX, yaw, pitch, roll),
+            scale: self.scale,
+        }
+    }
+}
+
 /// Complete configuration for a single particle emitter.
 ///
 /// An emitter is the source that creates particles. It controls how, where, and when
@@ -236,9 +282,12 @@ pub struct EmitterData {
     #[serde(default = "default_enabled", skip_serializing_if = "is_true")]
     pub enabled: bool,
 
-    /// Position offset relative to the particle system entity.
-    #[serde(default, skip_serializing_if = "is_zero_vec3")]
-    pub position: Vec3,
+    /// Initial transform applied when spawning this emitter.
+    ///
+    /// Only used during spawning if no [`Transform`] is already present.
+    /// To change the transform at runtime, modify the emitter entity's [`Transform`] directly.
+    #[serde(default, skip_serializing_if = "InitialTransform::should_skip")]
+    pub initial_transform: InitialTransform,
 
     /// Timing and lifecycle settings (lifetime, delay, one-shot, etc.).
     #[serde(default)]
@@ -299,7 +348,7 @@ impl Default for EmitterData {
         Self {
             name: "Emitter".to_string(),
             enabled: true,
-            position: Vec3::ZERO,
+            initial_transform: InitialTransform::default(),
             time: EmitterTime::default(),
             draw_pass: EmitterDrawPass::default(),
             emission: EmitterEmission::default(),
@@ -1112,9 +1161,12 @@ pub struct ColliderData {
     pub enabled: bool,
     /// The collision shape.
     pub shape: ParticlesColliderShape3D,
-    /// Position offset relative to the particle system entity.
-    #[serde(default, skip_serializing_if = "is_zero_vec3")]
-    pub position: Vec3,
+    /// Initial transform applied when spawning this collider.
+    ///
+    /// Only used during spawning if no [`Transform`] is already present.
+    /// To change the transform at runtime, modify the collider entity's [`Transform`] directly.
+    #[serde(default, skip_serializing_if = "InitialTransform::should_skip")]
+    pub initial_transform: InitialTransform,
 }
 
 impl Default for ColliderData {
@@ -1123,7 +1175,7 @@ impl Default for ColliderData {
             name: "Collider".to_string(),
             enabled: true,
             shape: ParticlesColliderShape3D::default(),
-            position: Vec3::ZERO,
+            initial_transform: InitialTransform::default(),
         }
     }
 }
@@ -1158,6 +1210,12 @@ pub struct ParticleSystemAsset {
     pub name: String,
     /// Whether this is a 3D or 2D particle system.
     pub dimension: ParticleSystemDimension,
+    /// Initial transform applied when spawning this particle system.
+    ///
+    /// Only used during spawning if no [`Transform`] is already present on the entity.
+    /// To change the transform at runtime, modify the entity's [`Transform`] directly.
+    #[serde(default, skip_serializing_if = "InitialTransform::should_skip")]
+    pub initial_transform: InitialTransform,
     /// The list of emitters that make up this particle system.
     pub emitters: Vec<EmitterData>,
     /// Optional colliders that particles can interact with.
@@ -1178,6 +1236,7 @@ impl ParticleSystemAsset {
     pub fn new(
         name: String,
         dimension: ParticleSystemDimension,
+        initial_transform: InitialTransform,
         emitters: Vec<EmitterData>,
         colliders: Vec<ColliderData>,
         despawn_on_finish: bool,
@@ -1187,6 +1246,7 @@ impl ParticleSystemAsset {
             sprinkles_version: current_format_version().to_string(),
             name,
             dimension,
+            initial_transform,
             emitters,
             colliders,
             despawn_on_finish,

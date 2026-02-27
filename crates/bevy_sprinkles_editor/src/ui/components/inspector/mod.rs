@@ -191,7 +191,6 @@ fn setup_inspector_panel(
                             ))
                             .with_children(|emitter_content| {
                                 emitter_content.spawn(time::time_section(&asset_server));
-                                emitter_content.spawn(transform::transform_section(&asset_server));
                                 emitter_content.spawn(draw_pass::draw_pass_section(&asset_server));
                                 emitter_content.spawn(emission::emission_section(&asset_server));
                                 emitter_content.spawn(scale::scale_section(&asset_server));
@@ -208,6 +207,7 @@ fn setup_inspector_panel(
                                     .spawn(sub_emitter::sub_emitter_section(&asset_server));
                                 emitter_content
                                     .spawn(particle_flags::particle_flags_section(&asset_server));
+                                emitter_content.spawn(transform::transform_section(&asset_server));
                             });
 
                         content
@@ -244,6 +244,8 @@ fn setup_inspector_panel(
                                 project_content.spawn(project_properties::project_runtime_section(
                                     &asset_server,
                                 ));
+                                project_content
+                                    .spawn(transform::asset_transform_section(&asset_server));
                             });
 
                         content
@@ -382,6 +384,15 @@ impl InspectorSection {
         Self {
             title: title.into(),
             rows,
+            initialized: false,
+        }
+    }
+
+    /// Creates a section where each field occupies its own row.
+    pub fn from_fields(title: impl Into<String>, fields: Vec<InspectorItem>) -> Self {
+        Self {
+            title: title.into(),
+            rows: fields.into_iter().map(|f| vec![f]).collect(),
             initialized: false,
         }
     }

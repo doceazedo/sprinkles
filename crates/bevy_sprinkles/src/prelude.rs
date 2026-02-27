@@ -5,10 +5,10 @@ pub use crate::asset::{
     DrawPassMaterial, EmissionShape, EmitterAccelerations, EmitterCollision, EmitterCollisionMode,
     EmitterColors, EmitterData, EmitterDrawPass, EmitterEmission, EmitterScale, EmitterTime,
     EmitterTurbulence, EmitterVelocities, Gradient as ParticleGradient, GradientInterpolation,
-    GradientStop, ParticleFlags, ParticleMesh, ParticleSystemAsset, ParticleSystemAuthors,
-    ParticleSystemDimension, ParticlesColliderShape3D, QuadOrientation, Range as ParticleRange,
-    SerializableAlphaMode, SerializableFace, SolidOrGradientColor, StandardParticleMaterial,
-    SubEmitterConfig, SubEmitterMode, TransformAlign,
+    GradientStop, InitialTransform, ParticleFlags, ParticleMesh, ParticleSystemAsset,
+    ParticleSystemAuthors, ParticleSystemDimension, ParticlesColliderShape3D, QuadOrientation,
+    Range as ParticleRange, SerializableAlphaMode, SerializableFace, SolidOrGradientColor,
+    StandardParticleMaterial, SubEmitterConfig, SubEmitterMode, TransformAlign,
 };
 #[cfg(feature = "preset-textures")]
 pub use crate::textures::preset::PresetTexture;

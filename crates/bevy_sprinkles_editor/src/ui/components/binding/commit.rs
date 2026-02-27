@@ -62,11 +62,9 @@ impl CommitContext<'_, '_> {
 
     fn mark_change(&mut self, binding: &FieldBinding, fixed_seed: Option<u32>) {
         match binding.target {
-            BindingTarget::Asset => {
-                self.dirty_state.has_unsaved_changes = true;
-            }
             BindingTarget::EditorSettings => {
                 save_editor_data(&self.editor_data);
+                return;
             }
             BindingTarget::Inspected => {
                 mark_dirty_and_restart(
@@ -74,10 +72,13 @@ impl CommitContext<'_, '_> {
                     &mut self.emitter_runtimes,
                     fixed_seed,
                 );
-                if requires_respawn_binding(binding) {
-                    self.commands.trigger(RespawnEmittersEvent);
-                }
             }
+            BindingTarget::Asset => {
+                self.dirty_state.has_unsaved_changes = true;
+            }
+        }
+        if requires_respawn_binding(binding) {
+            self.commands.trigger(RespawnEmittersEvent);
         }
     }
 
@@ -116,6 +117,9 @@ const RESPAWN_FIELD_PATHS: &[&str] = &[
     "draw_pass.shadow_caster",
     "draw_pass.use_local_coords",
     "emission.particles_amount",
+    "initial_transform.translation",
+    "initial_transform.rotation",
+    "initial_transform.scale",
 ];
 
 fn requires_respawn(path: &str) -> bool {

@@ -6,7 +6,7 @@ use super::curve_edit::{CurveEditProps, curve_edit};
 use super::gradient_edit::{GradientEditProps, gradient_edit};
 use super::text_edit::{TextEditPrefix, TextEditProps, text_edit};
 use super::vector_edit::{VectorEditProps, VectorSuffixes, vector_edit};
-use crate::ui::components::binding::FieldBinding;
+use crate::ui::components::binding::{BindingTarget, FieldBinding};
 use crate::ui::components::inspector::{ComboBoxOption, FieldKind, path_to_label};
 
 pub fn plugin(app: &mut App) {
@@ -16,6 +16,7 @@ pub fn plugin(app: &mut App) {
 pub struct InspectorFieldProps {
     path: String,
     kind: FieldKind,
+    target: BindingTarget,
     label: Option<String>,
     icon: Option<String>,
     suffix: Option<String>,
@@ -30,6 +31,7 @@ impl InspectorFieldProps {
         Self {
             path: path.into(),
             kind: FieldKind::F32,
+            target: BindingTarget::Inspected,
             label: None,
             icon: None,
             suffix: None,
@@ -38,6 +40,11 @@ impl InspectorFieldProps {
             max: None,
             combobox_options: None,
         }
+    }
+
+    pub fn with_target(mut self, target: BindingTarget) -> Self {
+        self.target = target;
+        self
     }
 
     pub fn percent(mut self) -> Self {
@@ -183,7 +190,13 @@ pub fn spawn_inspector_field(
     props: InspectorFieldProps,
     asset_server: &AssetServer,
 ) {
-    let field = FieldBinding::emitter(&props.path, props.kind.clone());
+    let field = match props.target {
+        BindingTarget::Asset => FieldBinding::asset(&props.path, props.kind.clone()),
+        BindingTarget::EditorSettings => {
+            FieldBinding::editor_settings(&props.path, props.kind.clone())
+        }
+        BindingTarget::Inspected => FieldBinding::emitter(&props.path, props.kind.clone()),
+    };
     let label = props.inferred_label();
 
     if props.kind == FieldKind::Bool {

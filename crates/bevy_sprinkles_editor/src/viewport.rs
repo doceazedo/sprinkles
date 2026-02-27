@@ -323,7 +323,7 @@ pub fn handle_respawn_emitters(
         }
         commands
             .entity(system_entity)
-            .remove::<ParticleSystemRuntime>();
+            .remove::<(ParticleSystemRuntime, Transform)>();
     }
 }
 
@@ -341,7 +341,7 @@ pub fn handle_respawn_colliders(
         }
         commands
             .entity(system_entity)
-            .remove::<ParticleSystemRuntime>();
+            .remove::<(ParticleSystemRuntime, Transform)>();
     }
 }
 

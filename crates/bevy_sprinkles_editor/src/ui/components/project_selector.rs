@@ -802,6 +802,7 @@ fn handle_create_project(
     let asset = ParticleSystemAsset::new(
         name,
         ParticleSystemDimension::D3,
+        Default::default(),
         vec![EmitterData {
             name: "Emitter 1".to_string(),
             ..Default::default()

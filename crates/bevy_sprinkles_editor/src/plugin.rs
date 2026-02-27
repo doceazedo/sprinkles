@@ -139,6 +139,7 @@ fn load_initial_project(
     let asset = ParticleSystemAsset::new(
         "New project".to_string(),
         ParticleSystemDimension::D3,
+        Default::default(),
         vec![EmitterData {
             name: "Emitter 1".to_string(),
             ..Default::default()

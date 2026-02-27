@@ -67,6 +67,7 @@
 //!     let handle = assets.add(ParticleSystemAsset::new(
 //!         "My Effect".into(),
 //!         ParticleSystemDimension::D3,
+//!         Default::default(),
 //!         vec![EmitterData {
 //!             emission: EmitterEmission {
 //!                 particles_amount: 32,
@@ -188,8 +189,8 @@ use mesh::ParticleMeshCache;
 use runtime::check_particle_system_finished;
 use sort::ParticleSortPlugin;
 use spawning::{
-    cleanup_particle_entities, setup_particle_systems, sync_collider_data, sync_emitter_transform,
-    sync_particle_material, sync_particle_mesh, update_particle_time, write_emitter_uniforms,
+    cleanup_particle_entities, setup_particle_systems, sync_collider_data, sync_particle_material,
+    sync_particle_mesh, update_particle_time, write_emitter_uniforms,
 };
 use textures::{
     CurveTextureCache, FallbackCurveTexture, FallbackGradientTexture, GradientTextureCache,
@@ -234,7 +235,6 @@ impl Plugin for SprinklesPlugin {
                 setup_particle_systems,
                 sync_particle_mesh,
                 sync_particle_material,
-                sync_emitter_transform,
                 sync_collider_data,
                 update_particle_time,
                 check_particle_system_finished.after(update_particle_time),

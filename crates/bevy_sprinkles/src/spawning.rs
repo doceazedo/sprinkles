@@ -208,7 +208,10 @@ pub fn setup_particle_systems(
         commands
             .entity(system_entity)
             .insert(ParticleSystemRuntime::default())
-            .insert_if_new((Transform::default(), Visibility::default()));
+            .insert_if_new((
+                asset.initial_transform.to_transform(),
+                Visibility::default(),
+            ));
 
         let mut emitter_entities: Vec<Entity> = Vec::new();
 
@@ -266,7 +269,7 @@ pub fn setup_particle_systems(
                 CurrentMaterialConfig(current_material),
                 ParticleMeshHandle(particle_mesh_handle),
                 ParticleMaterialHandle(material_handle),
-                Transform::from_translation(emitter.position),
+                emitter.initial_transform.to_transform(),
                 Visibility::default(),
             ));
 
@@ -320,7 +323,7 @@ pub fn setup_particle_systems(
                         enabled: collider_data.enabled,
                         shape: collider_data.shape.clone(),
                     },
-                    Transform::from_translation(collider_data.position),
+                    collider_data.initial_transform.to_transform(),
                     Name::new(collider_data.name.clone()),
                 ))
                 .id();
@@ -357,13 +360,13 @@ pub fn cleanup_particle_entities(
 pub fn sync_collider_data(
     particle_systems: Query<&ParticleSystem3D>,
     assets: Res<Assets<ParticleSystemAsset>>,
-    mut collider_query: Query<(&ColliderEntity, &mut ParticlesCollider3D, &mut Transform)>,
+    mut collider_query: Query<(&ColliderEntity, &mut ParticlesCollider3D)>,
 ) {
     if !assets.is_changed() {
         return;
     }
 
-    for (collider, mut collider3d, mut transform) in collider_query.iter_mut() {
+    for (collider, mut collider3d) in collider_query.iter_mut() {
         let Some(collider_data) =
             get_particle_asset(collider.parent_system, &particle_systems, &assets)
                 .and_then(|asset| asset.colliders.get(collider.collider_index))
@@ -373,30 +376,6 @@ pub fn sync_collider_data(
 
         collider3d.enabled = collider_data.enabled;
         collider3d.shape = collider_data.shape.clone();
-        *transform = Transform::from_translation(collider_data.position);
-    }
-}
-
-pub fn sync_emitter_transform(
-    particle_systems: Query<&ParticleSystem3D>,
-    assets: Res<Assets<ParticleSystemAsset>>,
-    mut emitter_query: Query<(&EmitterEntity, &EmitterRuntime, &mut Transform)>,
-) {
-    if !assets.is_changed() {
-        return;
-    }
-
-    for (emitter, runtime, mut transform) in emitter_query.iter_mut() {
-        let Some(emitter_data) = get_emitter_data(
-            emitter.parent_system,
-            runtime.emitter_index,
-            &particle_systems,
-            &assets,
-        ) else {
-            continue;
-        };
-
-        *transform = Transform::from_translation(emitter_data.position);
     }
 }
 

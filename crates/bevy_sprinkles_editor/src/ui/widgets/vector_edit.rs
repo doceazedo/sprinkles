@@ -13,6 +13,7 @@ pub enum VectorSuffixes {
     #[default]
     XYZ,
     XY,
+    RollPitchYaw,
     WHD,
     WD,
     Range,
@@ -23,6 +24,7 @@ impl VectorSuffixes {
         match self {
             Self::XYZ => ["X", "Y", "Z"].get(index).unwrap_or(&""),
             Self::XY => ["X", "Y"].get(index).unwrap_or(&""),
+            Self::RollPitchYaw => ["R", "P", "Y"].get(index).unwrap_or(&""),
             Self::WHD => ["W", "H", "D"].get(index).unwrap_or(&""),
             Self::WD => ["W", "D"].get(index).unwrap_or(&""),
             Self::Range => ["min", "max"].get(index).unwrap_or(&""),
@@ -39,7 +41,7 @@ impl VectorSuffixes {
     pub fn vector_size(&self) -> VectorSize {
         match self {
             Self::Range | Self::XY | Self::WD => VectorSize::Vec2,
-            Self::XYZ | Self::WHD => VectorSize::Vec3,
+            Self::XYZ | Self::RollPitchYaw | Self::WHD => VectorSize::Vec3,
         }
     }
 
