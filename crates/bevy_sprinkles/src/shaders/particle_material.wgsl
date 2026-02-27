@@ -123,26 +123,24 @@ fn vertex(vertex: Vertex) -> VertexOutput {
 
     var world_from_local = mesh_functions::get_world_from_local(vertex.instance_index);
 
+    let emitter_scale = vec3(
+        length(world_from_local[0].xyz),
+        length(world_from_local[1].xyz),
+        length(world_from_local[2].xyz),
+    );
+
     if transform_align == TRANSFORM_ALIGN_BILLBOARD || transform_align == TRANSFORM_ALIGN_BILLBOARD_Y_TO_VELOCITY || transform_align == TRANSFORM_ALIGN_BILLBOARD_FIXED_Y {
         let cam_right = normalize(view.world_from_view[0].xyz);
         let cam_up = normalize(view.world_from_view[1].xyz);
         let cam_forward = normalize(view.world_from_view[2].xyz);
 
-        // in local mode, transform particle position to world via mesh transform;
-        // in global mode, particle position is already in world space
         var particle_world_pos: vec3<f32>;
-        var scale: vec3<f32>;
         if is_local {
             particle_world_pos = (world_from_local * vec4(particle_position, 1.0)).xyz;
-            scale = vec3(particle_scale) * vec3(
-                length(world_from_local[0].xyz),
-                length(world_from_local[1].xyz),
-                length(world_from_local[2].xyz),
-            );
         } else {
             particle_world_pos = particle_position;
-            scale = vec3(particle_scale);
         }
+        let scale = vec3(particle_scale) * emitter_scale;
 
         if transform_align == TRANSFORM_ALIGN_BILLBOARD_Y_TO_VELOCITY {
             let v = particle.alignment_dir.xyz;
@@ -208,8 +206,6 @@ fn vertex(vertex: Vertex) -> VertexOutput {
         }
     } else {
         // non-billboard rendering
-        // extract emitter rotation from mesh transform and apply to mesh vertices
-        // particle positions are already in world space; only the mesh needs rotating
         let emitter_rotation = mat3x3(
             normalize(world_from_local[0].xyz),
             normalize(world_from_local[1].xyz),
@@ -221,7 +217,7 @@ fn vertex(vertex: Vertex) -> VertexOutput {
             let local_position = offset + particle_position;
             out.world_position = mesh_functions::mesh_position_local_to_world(world_from_local, vec4(local_position, 1.0));
         } else {
-            let offset = emitter_rotation * (rotated_position * particle_scale);
+            let offset = emitter_rotation * (rotated_position * particle_scale * emitter_scale);
             out.world_position = vec4(particle_position + offset, 1.0);
         }
 

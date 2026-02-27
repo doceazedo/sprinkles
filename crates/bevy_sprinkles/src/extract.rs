@@ -247,6 +247,16 @@ fn animated_velocity_uniform_from(velocity: &AnimatedVelocity) -> AnimatedVeloci
     }
 }
 
+fn scaled_animated_velocity_uniform_from(
+    velocity: &AnimatedVelocity,
+    scale: f32,
+) -> AnimatedVelocityUniform {
+    let mut u = animated_velocity_uniform_from(velocity);
+    u.min *= scale;
+    u.max *= scale;
+    u
+}
+
 struct CollisionUniforms {
     mode: u32,
     friction: f32,
@@ -359,6 +369,16 @@ fn build_base_uniforms(
 ) -> EmitterUniforms {
     let turbulence = &emitter.turbulence;
 
+    // uniform scale factor from the spawn transform so physics quantities
+    // (gravity, radial velocity, etc.) stay proportional to scaled distances.
+    // for local mode spawn_transform is identity, giving 1.0 (no-op).
+    let transform_scale = {
+        let sx = spawn_transform.x_axis.truncate().length();
+        let sy = spawn_transform.y_axis.truncate().length();
+        let sz = spawn_transform.z_axis.truncate().length();
+        (sx * sy * sz).cbrt().max(f32::EPSILON)
+    };
+
     EmitterUniforms {
         delta_time: 0.0,
         system_phase: 0.0,
@@ -370,7 +390,7 @@ fn build_base_uniforms(
         lifetime_randomness: emitter.time.lifetime_randomness,
         emitting: 0,
 
-        gravity: emitter.accelerations.gravity.into(),
+        gravity: (emitter.accelerations.gravity * transform_scale).into(),
         random_seed: runtime.random_seed,
 
         emission_shape: es.shape,
@@ -430,7 +450,7 @@ fn build_base_uniforms(
         emission_over_lifetime: curve_uniform_from(&emitter.colors.emission_over_lifetime),
 
         turbulence_noise_strength: turbulence.noise_strength,
-        turbulence_noise_scale: turbulence.noise_scale,
+        turbulence_noise_scale: turbulence.noise_scale / transform_scale,
         turbulence_noise_speed_random: turbulence.noise_speed_random,
         turbulence_influence_min: turbulence.influence.min,
 
@@ -439,10 +459,13 @@ fn build_base_uniforms(
 
         turbulence_influence_over_lifetime: curve_uniform_from(&turbulence.influence_over_lifetime),
 
-        radial_velocity: animated_velocity_uniform_from(&emitter.velocities.radial_velocity),
+        radial_velocity: scaled_animated_velocity_uniform_from(
+            &emitter.velocities.radial_velocity,
+            transform_scale,
+        ),
 
         collision_mode: collision.mode,
-        collision_base_size: emitter.collision.base_size,
+        collision_base_size: emitter.collision.base_size * transform_scale,
         collision_use_scale: emitter.collision.use_scale as u32,
         collision_friction: collision.friction,
         collision_bounce: collision.bounce,
