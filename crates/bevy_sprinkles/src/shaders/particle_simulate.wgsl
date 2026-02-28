@@ -274,6 +274,22 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     particles[idx] = p;
 }
 
+// transforms a local-space position to spawn space via emitter_transform
+// (identity for local coords, world matrix for global coords)
+fn transform_point(p: vec3<f32>) -> vec3<f32> {
+    return (params.emitter_transform * vec4(p, 1.0)).xyz;
+}
+
+// transforms a local-space direction to spawn space via emitter_transform
+fn transform_direction(d: vec3<f32>) -> vec3<f32> {
+    let basis = mat3x3(
+        params.emitter_transform[0].xyz,
+        params.emitter_transform[1].xyz,
+        params.emitter_transform[2].xyz
+    );
+    return basis * d;
+}
+
 fn get_emission_offset(seed: u32) -> vec3<f32> {
     var pos = vec3(0.0);
 
@@ -686,6 +702,7 @@ fn get_radial_velocity_curve_multiplier(age: f32, lifetime: f32) -> f32 {
 // computes radial displacement (movement away from or toward velocity_pivot)
 fn get_radial_displacement(
     position: vec3<f32>,
+    pivot: vec3<f32>,
     radial_velocity: f32,
     age: f32,
     lifetime: f32,
@@ -704,8 +721,6 @@ fn get_radial_displacement(
     if (abs(effective_velocity) < 0.0001) {
         return radial_displacement;
     }
-
-    let pivot = (params.emitter_transform * vec4(params.velocity_pivot, 1.0)).xyz;
     let to_particle = position - pivot;
     let distance_to_pivot = length(to_particle);
 
@@ -928,24 +943,18 @@ fn spawn_particle(idx: u32) -> Particle {
 
     var local_vel = get_emission_velocity(seed + 10u);
 
-    // transform emission position and velocity by emitter_transform
-    // when use_local_coords is true, emitter_transform is identity (no-op)
-    // when use_local_coords is false, emitter_transform maps to world space
-    let emission_pos = (params.emitter_transform * vec4(local_emission_pos, 1.0)).xyz;
-    let basis = mat3x3(
-        params.emitter_transform[0].xyz,
-        params.emitter_transform[1].xyz,
-        params.emitter_transform[2].xyz
-    );
-    var vel = basis * local_vel;
+    let emission_pos = transform_point(local_emission_pos);
+    var vel = transform_direction(local_vel);
 
     p.position = vec4(emission_pos, scale);
     let lifetime = params.lifetime * (1.0 - hash_to_float(seed + 4u) * params.lifetime_randomness);
 
     // include radial velocity at spawn for correct initial alignment
     let initial_radial_velocity = get_initial_radial_velocity(seed + 60u);
+    let pivot = transform_point(params.velocity_pivot);
     var radial_displacement = get_radial_displacement(
         emission_pos,
+        pivot,
         initial_radial_velocity,
         0.0,  // age = 0 at spawn
         lifetime,
@@ -1033,6 +1042,7 @@ fn update_particle(p_in: Particle) -> Particle {
 
     let seed = bitcast<u32>(p.custom.z);
     let initial_radial_velocity = get_initial_radial_velocity(seed + 60u);
+    let pivot = transform_point(params.velocity_pivot);
 
     // stored velocity includes previous radial displacement, extract pure physics velocity
     let stored_velocity = p.velocity.xyz;
@@ -1045,6 +1055,7 @@ fn update_particle(p_in: Particle) -> Particle {
 
         var prev_radial = get_radial_displacement(
             prev_position,
+            pivot,
             initial_radial_velocity,
             prev_age,
             lifetime,
@@ -1066,6 +1077,7 @@ fn update_particle(p_in: Particle) -> Particle {
 
     var radial_displacement = get_radial_displacement(
         p.position.xyz,
+        pivot,
         initial_radial_velocity,
         age,
         lifetime,
