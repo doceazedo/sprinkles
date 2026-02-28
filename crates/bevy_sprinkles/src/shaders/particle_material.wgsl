@@ -143,7 +143,16 @@ fn vertex(vertex: Vertex) -> VertexOutput {
         let scale = vec3(particle_scale) * emitter_scale;
 
         if transform_align == TRANSFORM_ALIGN_BILLBOARD_Y_TO_VELOCITY {
-            let v = particle.alignment_dir.xyz;
+            var v = particle.alignment_dir.xyz;
+            if is_local {
+                let emitter_rotation = mat3x3<f32>(
+                    normalize(world_from_local[0].xyz),
+                    normalize(world_from_local[1].xyz),
+                    normalize(world_from_local[2].xyz)
+                );
+                v = emitter_rotation * v;
+            }
+
             // project velocity onto the screen plane
             var sv = v - cam_forward * dot(cam_forward, v);
             if length(sv) < 0.001 {
