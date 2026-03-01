@@ -80,6 +80,10 @@ pub fn init_particle_compute_pipeline(
                 sampler(SamplerBindingType::Filtering),
                 texture_2d(TextureSampleType::Float { filterable: true }),
                 sampler(SamplerBindingType::Filtering),
+                texture_2d(TextureSampleType::Float { filterable: true }),
+                sampler(SamplerBindingType::Filtering),
+                texture_2d(TextureSampleType::Float { filterable: true }),
+                sampler(SamplerBindingType::Filtering),
                 storage_buffer_read_only::<ColliderArray>(false),
                 storage_buffer_sized(false, None),
                 storage_buffer_sized(false, None),
@@ -289,6 +293,20 @@ pub fn prepare_particle_compute_bind_groups(
         ) else {
             continue;
         };
+        let Some(orbit_velocity_curve_image) = resolve_texture(
+            &emitter_data.orbit_velocity_curve_texture_handle,
+            &gpu_images,
+            fallback_curve_gpu_image,
+        ) else {
+            continue;
+        };
+        let Some(directional_velocity_curve_image) = resolve_texture(
+            &emitter_data.directional_velocity_curve_texture_handle,
+            &gpu_images,
+            fallback_curve_gpu_image,
+        ) else {
+            continue;
+        };
 
         let bind_group_layout = pipeline_cache.get_bind_group_layout(&pipeline.bind_group_layout);
 
@@ -358,6 +376,10 @@ pub fn prepare_particle_compute_bind_groups(
                         &curve_sampler.0,
                         &color_over_lifetime_image.texture_view,
                         &gradient_sampler.0,
+                        &orbit_velocity_curve_image.texture_view,
+                        &curve_sampler.0,
+                        &directional_velocity_curve_image.texture_view,
+                        &curve_sampler.0,
                         colliders_buffer.as_entire_binding(),
                         dst_binding.as_entire_binding(),
                         src_binding.as_entire_binding(),

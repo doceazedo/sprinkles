@@ -185,6 +185,10 @@ pub struct EmitterUniforms {
 
     pub angular_velocity: AnimatedVelocityUniform,
 
+    pub orbit_velocity: AnimatedVelocityUniform,
+
+    pub directional_velocity: AnimatedVelocityUniform,
+
     pub sub_emitter_mode: u32,
     pub sub_emitter_frequency: f32,
     pub sub_emitter_amount: u32,
@@ -237,6 +241,8 @@ pub struct ExtractedEmitterData {
     pub radial_velocity_curve_texture_handle: Option<Handle<Image>>,
     pub angle_over_lifetime_texture_handle: Option<Handle<Image>>,
     pub angular_velocity_curve_texture_handle: Option<Handle<Image>>,
+    pub orbit_velocity_curve_texture_handle: Option<Handle<Image>>,
+    pub directional_velocity_curve_texture_handle: Option<Handle<Image>>,
     pub is_sub_emitter_target: bool,
     pub emission_buffer_handle: Option<Handle<ShaderStorageBuffer>>,
     pub source_buffer_handle: Option<Handle<ShaderStorageBuffer>>,
@@ -496,6 +502,15 @@ fn build_base_uniforms(
 
         angular_velocity: animated_velocity_uniform_from(&emitter.velocities.angular_velocity),
 
+        orbit_velocity: scaled_animated_velocity_uniform_from(
+            &emitter.velocities.orbit_velocity,
+            transform_scale,
+        ),
+
+        directional_velocity: animated_velocity_uniform_from(
+            &emitter.velocities.directional_velocity,
+        ),
+
         sub_emitter_mode: sub_emitter_uniforms.0,
         sub_emitter_frequency: sub_emitter_uniforms.1,
         sub_emitter_amount: sub_emitter_uniforms.2,
@@ -719,6 +734,17 @@ pub fn extract_particle_systems(
             &emitter.velocities.angular_velocity.velocity_over_lifetime,
             &curve_cache,
         );
+        let orbit_velocity_curve_texture_handle = resolve_curve_texture(
+            &emitter.velocities.orbit_velocity.velocity_over_lifetime,
+            &curve_cache,
+        );
+        let directional_velocity_curve_texture_handle = resolve_curve_texture(
+            &emitter
+                .velocities
+                .directional_velocity
+                .velocity_over_lifetime,
+            &curve_cache,
+        );
 
         let emission_buffer_handle = sub_emitter_buf.map(|b| b.buffer.clone());
         let source_buffer_handle = if is_sub_emitter_target {
@@ -750,6 +776,8 @@ pub fn extract_particle_systems(
                 radial_velocity_curve_texture_handle,
                 angle_over_lifetime_texture_handle,
                 angular_velocity_curve_texture_handle,
+                orbit_velocity_curve_texture_handle,
+                directional_velocity_curve_texture_handle,
                 is_sub_emitter_target,
                 emission_buffer_handle,
                 source_buffer_handle,

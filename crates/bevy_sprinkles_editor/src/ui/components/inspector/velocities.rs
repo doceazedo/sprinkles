@@ -21,7 +21,12 @@ use super::{DynamicSectionContent, InspectorSection};
 use crate::ui::components::binding::{EmitterWriter, get_inspecting_emitter};
 use crate::ui::icons::{ICON_CLOSE, ICON_MORE};
 
-const ANIMATED_VELOCITY_FIELDS: &[&str] = &["radial_velocity", "angular_velocity"];
+const ANIMATED_VELOCITY_FIELDS: &[&str] = &[
+    "radial_velocity",
+    "angular_velocity",
+    "orbit_velocity",
+    "directional_velocity",
+];
 
 pub fn plugin(app: &mut App) {
     app.add_systems(

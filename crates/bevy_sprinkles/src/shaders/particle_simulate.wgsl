@@ -123,6 +123,10 @@ struct EmitterParams {
 
     angular_velocity: AnimatedVelocity,
 
+    orbit_velocity: AnimatedVelocity,
+
+    directional_velocity: AnimatedVelocity,
+
     // sub emitter
     sub_emitter_mode: u32,
     sub_emitter_frequency: f32,
@@ -195,7 +199,11 @@ const COLLISION_EPSILON: f32 = 0.001;
 @group(0) @binding(17) var angular_velocity_curve_sampler: sampler;
 @group(0) @binding(18) var color_over_lifetime_texture: texture_2d<f32>;
 @group(0) @binding(19) var color_over_lifetime_sampler: sampler;
-@group(0) @binding(20) var<storage, read> colliders: ColliderArray;
+@group(0) @binding(20) var orbit_velocity_curve_texture: texture_2d<f32>;
+@group(0) @binding(21) var orbit_velocity_curve_sampler: sampler;
+@group(0) @binding(22) var directional_velocity_curve_texture: texture_2d<f32>;
+@group(0) @binding(23) var directional_velocity_curve_sampler: sampler;
+@group(0) @binding(24) var<storage, read> colliders: ColliderArray;
 
 struct SubEmissionBuffer {
     particle_count: atomic<i32>,
@@ -203,9 +211,9 @@ struct SubEmissionBuffer {
     data: array<SubEmissionEntry>,
 }
 
-@group(0) @binding(21) var<storage, read_write> dst_emission_buffer: SubEmissionBuffer;
-@group(0) @binding(22) var<storage, read_write> src_emission_buffer: SubEmissionBuffer;
-@group(0) @binding(23) var<storage, read_write> trail_history: array<TrailHistoryEntry>;
+@group(0) @binding(25) var<storage, read_write> dst_emission_buffer: SubEmissionBuffer;
+@group(0) @binding(26) var<storage, read_write> src_emission_buffer: SubEmissionBuffer;
+@group(0) @binding(27) var<storage, read_write> trail_history: array<TrailHistoryEntry>;
 
 @compute @workgroup_size(64)
 fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
@@ -408,6 +416,10 @@ fn transform_direction(d: vec3<f32>) -> vec3<f32> {
     return basis * d;
 }
 
+fn zero_z_if(v: vec3<f32>, condition: bool) -> vec3<f32> {
+    return select(v, vec3(v.xy, 0.0), condition);
+}
+
 fn get_emission_offset(seed: u32) -> vec3<f32> {
     var pos = vec3(0.0);
 
@@ -472,12 +484,10 @@ fn get_emission_offset(seed: u32) -> vec3<f32> {
         }
     }
 
-    var result = pos * params.emission_scale + params.emission_offset;
-
-    // disable z for 2d mode
-    if ((params.particle_flags & EMITTER_FLAG_DISABLE_Z) != 0u) {
-        result.z = 0.0;
-    }
+    let result = zero_z_if(
+        pos * params.emission_scale + params.emission_offset,
+        (params.particle_flags & EMITTER_FLAG_DISABLE_Z) != 0u,
+    );
 
     return result;
 }
@@ -541,11 +551,7 @@ fn get_emission_velocity(seed: u32) -> vec3<f32> {
     let vel_t = hash_to_float(seed + 2u);
     let speed = mix(params.initial_velocity_min, params.initial_velocity_max, vel_t);
 
-    var result = dir * speed;
-
-    if ((params.particle_flags & EMITTER_FLAG_DISABLE_Z) != 0u) {
-        result.z = 0.0;
-    }
+    let result = zero_z_if(dir * speed, (params.particle_flags & EMITTER_FLAG_DISABLE_Z) != 0u);
 
     return result;
 }
@@ -872,6 +878,115 @@ fn get_radial_displacement(
     return radial_displacement;
 }
 
+fn get_initial_orbit_velocity(seed: u32) -> f32 {
+    let t = hash_to_float(seed);
+    return mix(params.orbit_velocity.min, params.orbit_velocity.max, t);
+}
+
+fn get_orbit_velocity_curve_multiplier(age: f32, lifetime: f32) -> f32 {
+    if (params.orbit_velocity.curve.enabled == 0u) {
+        return 1.0;
+    }
+    let t = clamp(age / lifetime, 0.0, 1.0);
+    return sample_spline_curve(
+        orbit_velocity_curve_texture,
+        orbit_velocity_curve_sampler,
+        params.orbit_velocity.curve,
+        t
+    );
+}
+
+fn get_orbit_displacement(
+    position: vec3<f32>,
+    pivot: vec3<f32>,
+    orbit_velocity: f32,
+    age: f32,
+    lifetime: f32,
+    dt: f32,
+    disable_z: bool,
+) -> vec3<f32> {
+    if (dt < 0.001) {
+        return vec3(0.0);
+    }
+
+    let curve_multiplier = get_orbit_velocity_curve_multiplier(age, lifetime);
+    let effective_velocity = orbit_velocity * curve_multiplier;
+
+    if (abs(effective_velocity) < 0.0001) {
+        return vec3(0.0);
+    }
+
+    let ang = radians(effective_velocity) * dt;
+
+    if (disable_z) {
+        let diff = position.xy - pivot.xy;
+        let cos_a = cos(ang);
+        let sin_a = sin(ang);
+        let rotated = vec2(
+            diff.x * cos_a - diff.y * sin_a,
+            diff.x * sin_a + diff.y * cos_a,
+        );
+        return vec3((rotated - diff) / dt, 0.0);
+    }
+
+    // 3D: accumulate rotation around each axis relative to pivot
+    let local_pos = position - pivot;
+    let c = cos(ang);
+    let s = sin(ang);
+    var displacement = vec3(0.0);
+
+    // rotation around Y axis
+    let xz = vec2(local_pos.x, local_pos.z);
+    let rot_y = vec2(xz.x * c - xz.y * s, xz.x * s + xz.y * c);
+    displacement += vec3(rot_y.x - xz.x, 0.0, rot_y.y - xz.y);
+
+    // rotation around X axis
+    let yz = vec2(local_pos.y, local_pos.z);
+    let rot_x = vec2(yz.x * c - yz.y * s, yz.x * s + yz.y * c);
+    displacement += vec3(0.0, rot_x.x - yz.x, rot_x.y - yz.y);
+
+    // rotation around Z axis
+    let xy = vec2(local_pos.x, local_pos.y);
+    let rot_z = vec2(xy.x * c - xy.y * s, xy.x * s + xy.y * c);
+    displacement += vec3(rot_z.x - xy.x, rot_z.y - xy.y, 0.0);
+
+    return displacement / dt;
+}
+
+fn get_initial_directional_velocity(seed: u32) -> f32 {
+    let t = hash_to_float(seed);
+    return mix(params.directional_velocity.min, params.directional_velocity.max, t);
+}
+
+fn get_directional_velocity_curve_multiplier(age: f32, lifetime: f32) -> f32 {
+    if (params.directional_velocity.curve.enabled == 0u) {
+        return 1.0;
+    }
+    let t = clamp(age / lifetime, 0.0, 1.0);
+    return sample_spline_curve(
+        directional_velocity_curve_texture,
+        directional_velocity_curve_sampler,
+        params.directional_velocity.curve,
+        t
+    );
+}
+
+fn get_directional_displacement(
+    emission_direction: vec3<f32>,
+    directional_velocity: f32,
+    age: f32,
+    lifetime: f32,
+) -> vec3<f32> {
+    let curve_multiplier = get_directional_velocity_curve_multiplier(age, lifetime);
+    let effective_velocity = directional_velocity * curve_multiplier;
+
+    if (abs(effective_velocity) < 0.0001) {
+        return vec3(0.0);
+    }
+
+    return emission_direction * effective_velocity;
+}
+
 // collision detection
 
 struct CollisionResult {
@@ -1070,7 +1185,9 @@ fn spawn_particle(idx: u32) -> Particle {
     // include radial velocity at spawn for correct initial alignment
     let initial_radial_velocity = get_initial_radial_velocity(seed + 60u);
     let pivot = transform_point(params.velocity_pivot);
-    var radial_displacement = get_radial_displacement(
+    let disable_z = (params.particle_flags & EMITTER_FLAG_DISABLE_Z) != 0u;
+
+    let radial_displacement = zero_z_if(get_radial_displacement(
         emission_pos,
         pivot,
         initial_radial_velocity,
@@ -1078,11 +1195,29 @@ fn spawn_particle(idx: u32) -> Particle {
         lifetime,
         params.delta_time,
         seed
+    ), disable_z);
+
+    let initial_orbit_velocity = get_initial_orbit_velocity(seed + 80u);
+    let orbit_displacement = get_orbit_displacement(
+        emission_pos,
+        pivot,
+        initial_orbit_velocity,
+        0.0,
+        lifetime,
+        params.delta_time,
+        disable_z,
     );
-    if ((params.particle_flags & EMITTER_FLAG_DISABLE_Z) != 0u) {
-        radial_displacement.z = 0.0;
-    }
-    vel = vel + radial_displacement;
+
+    let emission_dir = select(normalize(vel), vec3(0.0), length(vel) < 0.0001);
+    let initial_directional_velocity = get_initial_directional_velocity(seed + 90u);
+    let directional_displacement = zero_z_if(get_directional_displacement(
+        emission_dir,
+        initial_directional_velocity,
+        0.0,
+        lifetime,
+    ), disable_z);
+
+    vel = vel + radial_displacement + orbit_displacement + directional_displacement;
 
     p.velocity = vec4(vel, lifetime);
 
@@ -1160,18 +1295,25 @@ fn update_particle(p_in: Particle) -> Particle {
 
     let seed = bitcast<u32>(p.custom.z);
     let initial_radial_velocity = get_initial_radial_velocity(seed + 60u);
+    let initial_orbit_velocity = get_initial_orbit_velocity(seed + 80u);
+    let initial_directional_velocity = get_initial_directional_velocity(seed + 90u);
     let pivot = transform_point(params.velocity_pivot);
+    let disable_z = (params.particle_flags & EMITTER_FLAG_DISABLE_Z) != 0u;
 
-    // stored velocity includes previous radial displacement, extract pure physics velocity
+    // reconstruct emission direction from seed for directional velocity
+    let local_emission_vel = get_emission_velocity(seed + 10u);
+    let emission_vel = transform_direction(local_emission_vel);
+    let emission_dir = select(normalize(emission_vel), vec3(0.0), length(emission_vel) < 0.0001);
+
+    // stored velocity includes previous controlled displacements, extract pure physics velocity
     let stored_velocity = p.velocity.xyz;
 
-    // on first frame, stored velocity is pure physics (no radial yet)
     var physics_velocity = stored_velocity;
     if (age > dt) {
         let prev_position = p.position.xyz - stored_velocity * dt;
         let prev_age = age - dt;
 
-        var prev_radial = get_radial_displacement(
+        let prev_radial = zero_z_if(get_radial_displacement(
             prev_position,
             pivot,
             initial_radial_velocity,
@@ -1179,21 +1321,32 @@ fn update_particle(p_in: Particle) -> Particle {
             lifetime,
             dt,
             seed
+        ), disable_z);
+
+        let prev_orbit = get_orbit_displacement(
+            prev_position,
+            pivot,
+            initial_orbit_velocity,
+            prev_age,
+            lifetime,
+            dt,
+            disable_z,
         );
-        if ((params.particle_flags & EMITTER_FLAG_DISABLE_Z) != 0u) {
-            prev_radial.z = 0.0;
-        }
 
-        physics_velocity = stored_velocity - prev_radial;
+        let prev_directional = zero_z_if(get_directional_displacement(
+            emission_dir,
+            initial_directional_velocity,
+            prev_age,
+            lifetime,
+        ), disable_z);
+
+        physics_velocity = stored_velocity - prev_radial - prev_orbit - prev_directional;
     }
 
-    var gravity = params.gravity;
-    if ((params.particle_flags & EMITTER_FLAG_DISABLE_Z) != 0u) {
-        gravity.z = 0.0;
-    }
+    let gravity = zero_z_if(params.gravity, disable_z);
     physics_velocity = physics_velocity + gravity * dt;
 
-    var radial_displacement = get_radial_displacement(
+    let radial_displacement = zero_z_if(get_radial_displacement(
         p.position.xyz,
         pivot,
         initial_radial_velocity,
@@ -1201,10 +1354,24 @@ fn update_particle(p_in: Particle) -> Particle {
         lifetime,
         dt,
         seed
+    ), disable_z);
+
+    let orbit_displacement = get_orbit_displacement(
+        p.position.xyz,
+        pivot,
+        initial_orbit_velocity,
+        age,
+        lifetime,
+        dt,
+        disable_z,
     );
-    if ((params.particle_flags & EMITTER_FLAG_DISABLE_Z) != 0u) {
-        radial_displacement.z = 0.0;
-    }
+
+    let directional_displacement = zero_z_if(get_directional_displacement(
+        emission_dir,
+        initial_directional_velocity,
+        age,
+        lifetime,
+    ), disable_z);
 
     // turbulence
     if (params.turbulence_enabled != 0u) {
@@ -1218,12 +1385,10 @@ fn update_particle(p_in: Particle) -> Particle {
         }
     }
 
-    if ((params.particle_flags & EMITTER_FLAG_DISABLE_Z) != 0u) {
-        physics_velocity.z = 0.0;
-    }
+    physics_velocity = zero_z_if(physics_velocity, disable_z);
 
     // combine physics velocity with controlled displacements
-    let effective_velocity = physics_velocity + radial_displacement;
+    let effective_velocity = physics_velocity + radial_displacement + orbit_displacement + directional_displacement;
 
     p.velocity = vec4(effective_velocity, lifetime);
 
@@ -1236,11 +1401,7 @@ fn update_particle(p_in: Particle) -> Particle {
         p.alignment_dir.w = angle;
     }
 
-    var new_position = p.position.xyz + effective_velocity * dt;
-
-    if ((params.particle_flags & EMITTER_FLAG_DISABLE_Z) != 0u) {
-        new_position.z = 0.0;
-    }
+    let new_position = zero_z_if(p.position.xyz + effective_velocity * dt, disable_z);
 
     let initial_scale = get_initial_scale(seed + 20u);
     let scale = get_scale_at_lifetime(initial_scale, age, lifetime);
@@ -1281,10 +1442,8 @@ fn update_particle(p_in: Particle) -> Particle {
 
             // add bounce velocity
             col_velocity -= collision.normal * collision_response * params.collision_bounce * should_bounce;
-            if ((params.particle_flags & EMITTER_FLAG_DISABLE_Z) != 0u) {
-                col_position.z = 0.0;
-                col_velocity.z = 0.0;
-            }
+            col_position = zero_z_if(col_position, disable_z);
+            col_velocity = zero_z_if(col_velocity, disable_z);
 
             p.position = vec4(col_position, scale);
             p.velocity = vec4(col_velocity, lifetime);

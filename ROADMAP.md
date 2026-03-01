@@ -39,8 +39,6 @@ implemented in Sprinkles.
         - ~~hue_variation~~[^2]
         - ~~hue_variation_over_lifetime~~[^2]
     - **EmitterVelocities**
-        - orbit_velocity
-        - directional_velocity
         - velocity_limit_over_lifetime
     - **EmitterAccelerations**
         - linear_acceleration

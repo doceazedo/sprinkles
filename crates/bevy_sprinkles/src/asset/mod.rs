@@ -954,6 +954,14 @@ pub struct EmitterVelocities {
     /// or when using billboard rendering.
     #[serde(default)]
     pub angular_velocity: AnimatedVelocity,
+    /// Orbital velocity that makes particles orbit around the [`pivot`](Self::pivot)
+    /// point, in degrees per second.
+    #[serde(default)]
+    pub orbit_velocity: AnimatedVelocity,
+    /// Velocity along each particle's initial emission direction, modulated over
+    /// its lifetime.
+    #[serde(default)]
+    pub directional_velocity: AnimatedVelocity,
     /// The pivot point used to calculate radial and orbital velocity.
     ///
     /// Defaults to [`Vec3::ZERO`].
@@ -975,6 +983,8 @@ impl Default for EmitterVelocities {
             initial_velocity: Range::zero(),
             radial_velocity: AnimatedVelocity::default(),
             angular_velocity: AnimatedVelocity::default(),
+            orbit_velocity: AnimatedVelocity::default(),
+            directional_velocity: AnimatedVelocity::default(),
             pivot: Vec3::ZERO,
             inherit_ratio: 0.0,
         }
