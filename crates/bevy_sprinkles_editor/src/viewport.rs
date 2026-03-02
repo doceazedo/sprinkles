@@ -263,9 +263,9 @@ pub fn spawn_preview_particle_system(
         return;
     };
 
-    if assets.get(handle).is_none() {
+    let Some(asset) = assets.get(handle) else {
         return;
-    }
+    };
 
     if !existing.is_empty() {
         return;
@@ -275,7 +275,7 @@ pub fn spawn_preview_particle_system(
         ParticleSystem3D {
             handle: handle.clone(),
         },
-        Transform::default(),
+        asset.initial_transform.to_transform(),
         Visibility::default(),
         EditorParticlePreview,
         Name::new("Particle Preview"),
