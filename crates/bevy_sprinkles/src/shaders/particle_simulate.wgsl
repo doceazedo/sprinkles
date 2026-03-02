@@ -420,6 +420,40 @@ fn zero_z_if(v: vec3<f32>, condition: bool) -> vec3<f32> {
     return select(v, vec3(v.xy, 0.0), condition);
 }
 
+// computes an initial reference "up" perpendicular to a velocity direction
+fn init_ref_up(dir: vec3<f32>) -> vec3<f32> {
+    var up = vec3(0.0, 0.0, 1.0);
+    if abs(dot(dir, up)) > 0.999 {
+        up = vec3(1.0, 0.0, 0.0);
+    }
+    return normalize(up - dot(up, dir) * dir);
+}
+
+// parallel-transports a reference "up" vector from old_dir to new_dir
+fn transport_ref_up(ref_up: vec3<f32>, old_dir: vec3<f32>, new_dir: vec3<f32>) -> vec3<f32> {
+    let d = dot(old_dir, new_dir);
+
+    // nearly identical directions or opposite: keep current ref_up
+    if d > 0.9999 || d < -0.9999 {
+        return ref_up;
+    }
+
+    // rodrigues' rotation of ref_up around the axis from old_dir to new_dir
+    let axis = cross(old_dir, new_dir);
+    let sin_a = length(axis);
+    let n = axis / sin_a;
+    let cos_a = d;
+    let transported = ref_up * cos_a + cross(n, ref_up) * sin_a + n * dot(n, ref_up) * (1.0 - cos_a);
+
+    // re-orthogonalize against new direction to prevent drift
+    let corrected = transported - dot(transported, new_dir) * new_dir;
+    let len = length(corrected);
+    if len > 0.001 {
+        return corrected / len;
+    }
+    return ref_up;
+}
+
 fn get_emission_offset(seed: u32) -> vec3<f32> {
     var pos = vec3(0.0);
 
@@ -723,7 +757,19 @@ fn sample_spline_curve(
     t: f32
 ) -> f32 {
     let raw = textureSampleLevel(tex, samp, vec2(t, 0.5), 0.0).r;
-    return mix(curve.min_value, curve.max_value, raw);
+    return mix(curve.min_x, curve.max_x, raw);
+}
+
+fn sample_spline_curve_xyz(
+    tex: texture_2d<f32>,
+    samp: sampler,
+    curve: CurveUniform,
+    t: f32
+) -> vec3<f32> {
+    let raw = textureSampleLevel(tex, samp, vec2(t, 0.5), 0.0).rgb;
+    let min_val = vec3(curve.min_x, curve.min_y, curve.min_z);
+    let max_val = vec3(curve.max_x, curve.max_y, curve.max_z);
+    return mix(min_val, max_val, raw);
 }
 
 fn get_turbulence_influence_at_lifetime(base_influence: f32, age: f32, lifetime: f32) -> f32 {
@@ -883,12 +929,12 @@ fn get_initial_orbit_velocity(seed: u32) -> f32 {
     return mix(params.orbit_velocity.min, params.orbit_velocity.max, t);
 }
 
-fn get_orbit_velocity_curve_multiplier(age: f32, lifetime: f32) -> f32 {
+fn get_orbit_velocity_curve_multiplier(age: f32, lifetime: f32) -> vec3<f32> {
     if (params.orbit_velocity.curve.enabled == 0u) {
-        return 1.0;
+        return vec3(1.0);
     }
     let t = clamp(age / lifetime, 0.0, 1.0);
-    return sample_spline_curve(
+    return sample_spline_curve_xyz(
         orbit_velocity_curve_texture,
         orbit_velocity_curve_sampler,
         params.orbit_velocity.curve,
@@ -912,16 +958,16 @@ fn get_orbit_displacement(
     let curve_multiplier = get_orbit_velocity_curve_multiplier(age, lifetime);
     let effective_velocity = orbit_velocity * curve_multiplier;
 
-    if (abs(effective_velocity) < 0.0001) {
+    if (all(abs(effective_velocity) < vec3(0.0001))) {
         return vec3(0.0);
     }
 
-    let ang = radians(effective_velocity) * dt;
+    let ang = effective_velocity * 2.0 * PI * dt;
 
     if (disable_z) {
         let diff = position.xy - pivot.xy;
-        let cos_a = cos(ang);
-        let sin_a = sin(ang);
+        let cos_a = cos(ang.x);
+        let sin_a = sin(ang.x);
         let rotated = vec2(
             diff.x * cos_a - diff.y * sin_a,
             diff.x * sin_a + diff.y * cos_a,
@@ -929,25 +975,29 @@ fn get_orbit_displacement(
         return vec3((rotated - diff) / dt, 0.0);
     }
 
-    // 3D: accumulate rotation around each axis relative to pivot
+    // 3D: per-axis rotation relative to pivot
     let local_pos = position - pivot;
-    let c = cos(ang);
-    let s = sin(ang);
     var displacement = vec3(0.0);
 
     // rotation around Y axis
+    let c_y = cos(ang.y);
+    let s_y = sin(ang.y);
     let xz = vec2(local_pos.x, local_pos.z);
-    let rot_y = vec2(xz.x * c - xz.y * s, xz.x * s + xz.y * c);
+    let rot_y = vec2(xz.x * c_y - xz.y * s_y, xz.x * s_y + xz.y * c_y);
     displacement += vec3(rot_y.x - xz.x, 0.0, rot_y.y - xz.y);
 
     // rotation around X axis
+    let c_x = cos(ang.x);
+    let s_x = sin(ang.x);
     let yz = vec2(local_pos.y, local_pos.z);
-    let rot_x = vec2(yz.x * c - yz.y * s, yz.x * s + yz.y * c);
+    let rot_x = vec2(yz.x * c_x - yz.y * s_x, yz.x * s_x + yz.y * c_x);
     displacement += vec3(0.0, rot_x.x - yz.x, rot_x.y - yz.y);
 
     // rotation around Z axis
+    let c_z = cos(ang.z);
+    let s_z = sin(ang.z);
     let xy = vec2(local_pos.x, local_pos.y);
-    let rot_z = vec2(xy.x * c - xy.y * s, xy.x * s + xy.y * c);
+    let rot_z = vec2(xy.x * c_z - xy.y * s_z, xy.x * s_z + xy.y * c_z);
     displacement += vec3(rot_z.x - xy.x, rot_z.y - xy.y, 0.0);
 
     return displacement / dt;
@@ -1217,7 +1267,9 @@ fn spawn_particle(idx: u32) -> Particle {
         lifetime,
     ), disable_z);
 
-    vel = vel + radial_displacement + orbit_displacement + directional_displacement;
+    // compute full velocity for initial alignment, but store only emission velocity
+    // so the first update frame doesn't double-count controlled displacements
+    let full_vel = vel + radial_displacement + orbit_displacement + directional_displacement;
 
     p.velocity = vec4(vel, lifetime);
 
@@ -1244,11 +1296,14 @@ fn spawn_particle(idx: u32) -> Particle {
 
     let angle = compute_angle(seed + 70u, 0.0, lifetime);
 
-    // initialize alignment direction from velocity, w stores angle in radians
-    if length(vel) > 0.0 {
-        p.alignment_dir = vec4(normalize(vel), angle);
+    // initialize alignment direction from full velocity, w stores angle in radians
+    if length(full_vel) > 0.0 {
+        let init_dir = normalize(full_vel);
+        p.alignment_dir = vec4(init_dir, angle);
+        p.ref_up = vec4(init_ref_up(init_dir), 0.0);
     } else {
         p.alignment_dir = vec4(0.0, 1.0, 0.0, angle);
+        p.ref_up = vec4(0.0, 0.0, 1.0, 0.0);
     }
 
     // sub emitter: at start trigger
@@ -1394,9 +1449,12 @@ fn update_particle(p_in: Particle) -> Particle {
 
     let angle = compute_angle(seed + 70u, age, lifetime);
 
-    // update alignment direction from velocity, preserve existing direction if zero
+    // update alignment direction and parallel-transport ref_up
     if length(effective_velocity) > 0.0 {
-        p.alignment_dir = vec4(normalize(effective_velocity), angle);
+        let new_dir = normalize(effective_velocity);
+        let old_dir = normalize(p.alignment_dir.xyz);
+        p.ref_up = vec4(transport_ref_up(p.ref_up.xyz, old_dir, new_dir), 0.0);
+        p.alignment_dir = vec4(new_dir, angle);
     } else {
         p.alignment_dir.w = angle;
     }
@@ -1448,9 +1506,12 @@ fn update_particle(p_in: Particle) -> Particle {
             p.position = vec4(col_position, scale);
             p.velocity = vec4(col_velocity, lifetime);
 
-            // update alignment direction from velocity
+            // update alignment direction and transport ref_up after collision
             if length(col_velocity) > 0.0 {
-                p.alignment_dir = vec4(normalize(col_velocity), p.alignment_dir.w);
+                let col_dir = normalize(col_velocity);
+                let old_dir = normalize(p.alignment_dir.xyz);
+                p.ref_up = vec4(transport_ref_up(p.ref_up.xyz, old_dir, col_dir), 0.0);
+                p.alignment_dir = vec4(col_dir, p.alignment_dir.w);
             }
         }
     }

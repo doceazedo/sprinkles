@@ -127,16 +127,33 @@ fn is_empty_string(s: &Option<String>) -> bool {
 /// Curve textures are used to animate particle properties (scale, alpha, velocity, etc.)
 /// over each particle's lifetime. The curve maps a normalized lifetime position `[0.0, 1.0]`
 /// to an output value, which is then scaled by the [`range`](Self::range).
+///
+/// Each curve can optionally store separate control points for up to three channels
+/// (X/Y/Z). When `points_y` or `points_z` is `None`, those channels fall back to the
+/// primary `points` (X channel). This allows a single `CurveTexture` to represent both
+/// scalar curves and per-axis curves without a separate type.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Reflect)]
 pub struct CurveTexture {
     /// Optional display name for this curve (e.g., "Constant", "Fade Out").
     #[serde(default, skip_serializing_if = "is_empty_string")]
     pub name: Option<String>,
-    /// The control points that define the curve shape.
+    /// The control points for the X (primary) channel.
     pub points: Vec<CurvePoint>,
-    /// The output range that the curve values are mapped to. Defaults to `0.0..1.0`.
+    /// Optional control points for the Y channel. Falls back to `points` when `None`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub points_y: Option<Vec<CurvePoint>>,
+    /// Optional control points for the Z channel. Falls back to `points` when `None`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub points_z: Option<Vec<CurvePoint>>,
+    /// The output range for the X (primary) channel. Defaults to `0.0..1.0`.
     #[serde(default)]
     pub range: Range,
+    /// Optional output range for the Y channel. Falls back to `range` when `None`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub range_y: Option<Range>,
+    /// Optional output range for the Z channel. Falls back to `range` when `None`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub range_z: Option<Range>,
 }
 
 impl Default for CurveTexture {
@@ -144,18 +161,43 @@ impl Default for CurveTexture {
         Self {
             name: Some("Constant".to_string()),
             points: vec![CurvePoint::new(0.0, 1.0), CurvePoint::new(1.0, 1.0)],
+            points_y: None,
+            points_z: None,
             range: Range::new(0.0, 1.0),
+            range_y: None,
+            range_z: None,
         }
     }
 }
 
 impl CurveTexture {
-    /// Creates a new curve from the given control points with a default range.
+    /// Creates a new single-channel curve from the given control points with a default range.
     pub fn new(points: Vec<CurvePoint>) -> Self {
         Self {
             name: None,
             points,
+            points_y: None,
+            points_z: None,
             range: Range::default(),
+            range_y: None,
+            range_z: None,
+        }
+    }
+
+    /// Creates a new three-channel curve with separate control points per axis.
+    pub fn new_xyz(
+        points_x: Vec<CurvePoint>,
+        points_y: Vec<CurvePoint>,
+        points_z: Vec<CurvePoint>,
+    ) -> Self {
+        Self {
+            name: None,
+            points: points_x,
+            points_y: Some(points_y),
+            points_z: Some(points_z),
+            range: Range::default(),
+            range_y: None,
+            range_z: None,
         }
     }
 
@@ -165,83 +207,178 @@ impl CurveTexture {
         self
     }
 
-    /// Sets the output range for this curve.
+    /// Sets the output range for the X (primary) channel.
     pub fn with_range(mut self, range: Range) -> Self {
         self.range = range;
         self
     }
 
+    /// Sets the output range for the Y channel.
+    pub fn with_range_y(mut self, range: Range) -> Self {
+        self.range_y = Some(range);
+        self
+    }
+
+    /// Sets the output range for the Z channel.
+    pub fn with_range_z(mut self, range: Range) -> Self {
+        self.range_z = Some(range);
+        self
+    }
+
+    /// Returns the effective range for the Y channel, falling back to `range` when unset.
+    pub fn effective_range_y(&self) -> &Range {
+        self.range_y.as_ref().unwrap_or(&self.range)
+    }
+
+    /// Returns the effective range for the Z channel, falling back to `range` when unset.
+    pub fn effective_range_z(&self) -> &Range {
+        self.range_z.as_ref().unwrap_or(&self.range)
+    }
+
     /// Computes a hash key for texture caching.
     pub fn cache_key(&self) -> u64 {
         let mut hasher = std::collections::hash_map::DefaultHasher::new();
-        for point in &self.points {
-            point.position.to_bits().hash(&mut hasher);
-            (point.value as f32).to_bits().hash(&mut hasher);
-            std::mem::discriminant(&point.mode).hash(&mut hasher);
-            (point.tension as f32).to_bits().hash(&mut hasher);
-        }
+        hash_points(&self.points, &mut hasher);
         self.range.min.to_bits().hash(&mut hasher);
         self.range.max.to_bits().hash(&mut hasher);
+        if let Some(points_y) = &self.points_y {
+            1u8.hash(&mut hasher);
+            hash_points(points_y, &mut hasher);
+            let range_y = self.effective_range_y();
+            range_y.min.to_bits().hash(&mut hasher);
+            range_y.max.to_bits().hash(&mut hasher);
+        } else {
+            0u8.hash(&mut hasher);
+        }
+        if let Some(points_z) = &self.points_z {
+            1u8.hash(&mut hasher);
+            hash_points(points_z, &mut hasher);
+            let range_z = self.effective_range_z();
+            range_z.min.to_bits().hash(&mut hasher);
+            range_z.max.to_bits().hash(&mut hasher);
+        } else {
+            0u8.hash(&mut hasher);
+        }
         hasher.finish()
     }
 
-    /// Returns `true` if all control points have the same value, meaning the curve is flat.
+    /// Returns `true` if all channels are flat and would produce the same output,
+    /// meaning the curve can be safely skipped without affecting the result.
     pub fn is_constant(&self) -> bool {
-        if self.points.len() < 2 {
-            return true;
+        if !points_are_constant(&self.points) {
+            return false;
         }
-        let first_value = self.points[0].value;
-        self.points
-            .iter()
-            .all(|p| (p.value - first_value).abs() < f64::EPSILON)
+        let x_value = self.points.first().map(|p| p.value).unwrap_or(1.0);
+
+        if let Some(points_y) = &self.points_y {
+            if !points_are_constant(points_y) {
+                return false;
+            }
+            let y_value = points_y.first().map(|p| p.value).unwrap_or(1.0);
+            if (y_value - x_value).abs() > f64::EPSILON {
+                return false;
+            }
+        }
+        if let Some(points_z) = &self.points_z {
+            if !points_are_constant(points_z) {
+                return false;
+            }
+            let z_value = points_z.first().map(|p| p.value).unwrap_or(1.0);
+            if (z_value - x_value).abs() > f64::EPSILON {
+                return false;
+            }
+        }
+
+        if self.range_y.as_ref().is_some_and(|r| r != &self.range) {
+            return false;
+        }
+        if self.range_z.as_ref().is_some_and(|r| r != &self.range) {
+            return false;
+        }
+
+        true
     }
 
-    /// Samples the curve at position `t` (clamped to `[0.0, 1.0]`), returning the interpolated value.
+    /// Samples the X (primary) channel at position `t` (clamped to `[0.0, 1.0]`).
     pub fn sample(&self, t: f32) -> f32 {
-        if self.points.is_empty() {
-            return 1.0;
-        }
-        if self.points.len() == 1 {
-            return self.points[0].value as f32;
-        }
-
-        let t = t.clamp(0.0, 1.0);
-
-        let mut left_idx = 0;
-        let mut right_idx = self.points.len() - 1;
-
-        for (i, point) in self.points.iter().enumerate() {
-            if point.position <= t {
-                left_idx = i;
-            }
-        }
-        for (i, point) in self.points.iter().enumerate() {
-            if point.position >= t {
-                right_idx = i;
-                break;
-            }
-        }
-
-        let left = &self.points[left_idx];
-        let right = &self.points[right_idx];
-
-        if left_idx == right_idx {
-            return left.value as f32;
-        }
-
-        let segment_range = right.position - left.position;
-        if segment_range <= 0.0 {
-            return left.value as f32;
-        }
-
-        let local_t = (t - left.position) / segment_range;
-
-        let slope_sign = (right.value - left.value).signum() as f32;
-        let effective_tension = right.tension as f32 * slope_sign;
-        let curved_t = apply_curve(local_t, right.mode, right.easing, effective_tension);
-
-        (left.value + (right.value - left.value) * curved_t as f64) as f32
+        sample_points(&self.points, t)
     }
+
+    /// Samples a specific channel at position `t`. Channel 0 is X, 1 is Y, 2 is Z.
+    /// Y and Z fall back to the X channel when unset.
+    pub fn sample_channel(&self, channel: usize, t: f32) -> f32 {
+        let points = match channel {
+            1 => self.points_y.as_deref().unwrap_or(&self.points),
+            2 => self.points_z.as_deref().unwrap_or(&self.points),
+            _ => &self.points,
+        };
+        sample_points(points, t)
+    }
+}
+
+fn hash_points(points: &[CurvePoint], hasher: &mut impl Hasher) {
+    for point in points {
+        point.position.to_bits().hash(hasher);
+        (point.value as f32).to_bits().hash(hasher);
+        std::mem::discriminant(&point.mode).hash(hasher);
+        (point.tension as f32).to_bits().hash(hasher);
+    }
+}
+
+fn points_are_constant(points: &[CurvePoint]) -> bool {
+    if points.len() < 2 {
+        return true;
+    }
+    let first_value = points[0].value;
+    points
+        .iter()
+        .all(|p| (p.value - first_value).abs() < f64::EPSILON)
+}
+
+fn sample_points(points: &[CurvePoint], t: f32) -> f32 {
+    if points.is_empty() {
+        return 1.0;
+    }
+    if points.len() == 1 {
+        return points[0].value as f32;
+    }
+
+    let t = t.clamp(0.0, 1.0);
+
+    let mut left_idx = 0;
+    let mut right_idx = points.len() - 1;
+
+    for (i, point) in points.iter().enumerate() {
+        if point.position <= t {
+            left_idx = i;
+        }
+    }
+    for (i, point) in points.iter().enumerate() {
+        if point.position >= t {
+            right_idx = i;
+            break;
+        }
+    }
+
+    let left = &points[left_idx];
+    let right = &points[right_idx];
+
+    if left_idx == right_idx {
+        return left.value as f32;
+    }
+
+    let segment_range = right.position - left.position;
+    if segment_range <= 0.0 {
+        return left.value as f32;
+    }
+
+    let local_t = (t - left.position) / segment_range;
+
+    let slope_sign = (right.value - left.value).signum() as f32;
+    let effective_tension = right.tension as f32 * slope_sign;
+    let curved_t = apply_curve(local_t, right.mode, right.easing, effective_tension);
+
+    (left.value + (right.value - left.value) * curved_t as f64) as f32
 }
 
 fn apply_curve(t: f32, mode: CurveMode, easing: CurveEasing, tension: f32) -> f32 {

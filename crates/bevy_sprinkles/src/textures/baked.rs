@@ -194,11 +194,12 @@ fn bake_curve_texture(curve: &CurveTexture) -> Image {
         } else {
             0.0
         };
-        let value = curve.sample(t);
-        let byte = (value.clamp(0.0, 1.0) * 255.0) as u8;
-        data.push(byte); // R
-        data.push(byte); // G
-        data.push(byte); // B
+        let x = curve.sample(t);
+        let y = curve.sample_channel(1, t);
+        let z = curve.sample_channel(2, t);
+        data.push((x.clamp(0.0, 1.0) * 255.0) as u8); // R
+        data.push((y.clamp(0.0, 1.0) * 255.0) as u8); // G
+        data.push((z.clamp(0.0, 1.0) * 255.0) as u8); // B
         data.push(255); // A
     }
 
@@ -236,6 +237,23 @@ pub fn prepare_curve_textures(
             cache.prepare_optional(&emitter.colors.alpha_over_lifetime, &mut images);
             cache.prepare_optional(&emitter.colors.emission_over_lifetime, &mut images);
             cache.prepare_optional(&emitter.turbulence.influence_over_lifetime, &mut images);
+            cache.prepare_optional(&emitter.angle.angle_over_lifetime, &mut images);
+            cache.prepare_optional(
+                &emitter.velocities.radial_velocity.velocity_over_lifetime,
+                &mut images,
+            );
+            cache.prepare_optional(
+                &emitter.velocities.angular_velocity.velocity_over_lifetime,
+                &mut images,
+            );
+            cache.prepare_optional(
+                &emitter.velocities.orbit_velocity.velocity_over_lifetime,
+                &mut images,
+            );
+            cache.prepare_optional(
+                &emitter.velocities.directional_velocity.velocity_over_lifetime,
+                &mut images,
+            );
         }
     }
 }

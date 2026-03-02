@@ -38,23 +38,42 @@ const STANDARD_MATERIAL_FLAGS_UNLIT_BIT: u32 = 1u << 5u;
 @group(#{MATERIAL_BIND_GROUP}) @binding(100) var<storage, read> sorted_particles: array<Particle>;
 @group(#{MATERIAL_BIND_GROUP}) @binding(101) var<storage, read> emitter_uniforms: ParticleEmitterUniforms;
 
-// computes a rotation matrix that aligns Y axis to a direction
+// computes a shortest-arc rotation matrix that aligns the Y axis to a direction
 fn align_y_to_direction(dir: vec3<f32>) -> mat3x3<f32> {
-    let y_axis = normalize(dir);
+    let to = normalize(dir);
+    let d = to.y; // dot((0,1,0), to)
 
-    var z_ref = vec3(0.0, 0.0, 1.0);
-    var x_axis = cross(y_axis, z_ref);
-    let x_len = length(x_axis);
-
-    // if Y is nearly parallel to Z, use world X as reference instead
-    if x_len < 0.001 {
-        x_axis = normalize(cross(y_axis, vec3(1.0, 0.0, 0.0)));
-    } else {
-        x_axis = x_axis / x_len;
+    // near-opposite: 180° rotation around X
+    if d < -0.9999 {
+        return mat3x3<f32>(
+            vec3(1.0, 0.0, 0.0),
+            vec3(0.0, -1.0, 0.0),
+            vec3(0.0, 0.0, -1.0),
+        );
     }
 
-    let z_axis = cross(x_axis, y_axis);
+    // shortest-arc quaternion from (0,1,0) to `to`, simplified to matrix form
+    let k = 1.0 / (1.0 + d);
+    return mat3x3<f32>(
+        vec3(1.0 - to.x * to.x * k, -to.x, -to.x * to.z * k),
+        to,
+        vec3(-to.x * to.z * k, -to.z, 1.0 - to.z * to.z * k),
+    );
+}
 
+// aligns Y axis to a direction using a parallel-transported reference "up" vector
+fn align_y_with_ref(dir: vec3<f32>, ref_up: vec3<f32>) -> mat3x3<f32> {
+    let y_axis = normalize(dir);
+    var x_axis = cross(y_axis, ref_up);
+    let x_len = length(x_axis);
+
+    // fallback to shortest-arc if ref_up is degenerate
+    if x_len < 0.001 {
+        return align_y_to_direction(dir);
+    }
+
+    x_axis = x_axis / x_len;
+    let z_axis = cross(x_axis, y_axis);
     return mat3x3<f32>(x_axis, y_axis, z_axis);
 }
 
@@ -202,7 +221,7 @@ fn vertex(vertex: Vertex) -> VertexOutput {
         let alignment_dir = particle.alignment_dir.xyz;
         let dir_length = length(alignment_dir);
         if dir_length > 0.0 {
-            let rotation_matrix = align_y_to_direction(alignment_dir);
+            let rotation_matrix = align_y_with_ref(alignment_dir, particle.ref_up.xyz);
             rotated_position = rotation_matrix * vertex.position;
 #ifdef VERTEX_NORMALS
             rotated_normal = rotation_matrix * vertex.normal;

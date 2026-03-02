@@ -47,8 +47,10 @@ pub struct ParticleData {
     pub color: [f32; 4],
     /// X = age, Y = phase, Z = seed, W = flags (bit-packed).
     pub custom: [f32; 4],
-    /// XYZ direction for velocity-aligned transforms, W unused.
+    /// XYZ direction for velocity-aligned transforms, W = angle (radians).
     pub alignment_dir: [f32; 4],
+    /// XYZ reference "up" direction for parallel-transported velocity alignment.
+    pub ref_up: [f32; 4],
 }
 
 impl ParticleData {

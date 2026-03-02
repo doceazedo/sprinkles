@@ -6,6 +6,7 @@ struct Particle {
     color: vec4<f32>,
     custom: vec4<f32>,         // age, spawn_index, seed, flags
     alignment_dir: vec4<f32>,  // xyz direction for ALIGN_Y_TO_VELOCITY, w = angle (radians)
+    ref_up: vec4<f32>,         // xyz reference up for parallel-transported alignment
 }
 
 const TRAIL_THICKNESS_CURVE_SAMPLES: u32 = 16u;
@@ -22,8 +23,12 @@ struct ParticleEmitterUniforms {
 
 struct CurveUniform {
     enabled: u32,
-    min_value: f32,
-    max_value: f32,
+    min_x: f32,
+    max_x: f32,
+    min_y: f32,
+    max_y: f32,
+    min_z: f32,
+    max_z: f32,
     _pad: u32,
 }
 

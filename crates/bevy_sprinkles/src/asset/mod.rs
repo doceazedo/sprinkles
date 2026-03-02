@@ -955,7 +955,7 @@ pub struct EmitterVelocities {
     #[serde(default)]
     pub angular_velocity: AnimatedVelocity,
     /// Orbital velocity that makes particles orbit around the [`pivot`](Self::pivot)
-    /// point, in degrees per second.
+    /// point, in revolutions per second.
     #[serde(default)]
     pub orbit_velocity: AnimatedVelocity,
     /// Velocity along each particle's initial emission direction, modulated over

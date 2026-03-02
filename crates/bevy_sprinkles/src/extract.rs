@@ -44,8 +44,12 @@ pub const SUB_EMITTER_MODE_AT_START: u32 = 4;
 #[repr(C)]
 pub struct CurveUniform {
     pub enabled: u32,
-    pub min_value: f32,
-    pub max_value: f32,
+    pub min_x: f32,
+    pub max_x: f32,
+    pub min_y: f32,
+    pub max_y: f32,
+    pub min_z: f32,
+    pub max_z: f32,
     pub _pad: u32,
 }
 
@@ -53,17 +57,27 @@ impl CurveUniform {
     pub fn disabled() -> Self {
         Self {
             enabled: 0,
-            min_value: 0.0,
-            max_value: 1.0,
+            min_x: 0.0,
+            max_x: 1.0,
+            min_y: 0.0,
+            max_y: 1.0,
+            min_z: 0.0,
+            max_z: 1.0,
             _pad: 0,
         }
     }
 
-    pub fn enabled(min_value: f32, max_value: f32) -> Self {
+    pub fn enabled_from(curve: &CurveTexture) -> Self {
+        let range_y = curve.effective_range_y();
+        let range_z = curve.effective_range_z();
         Self {
             enabled: 1,
-            min_value,
-            max_value,
+            min_x: curve.range.min,
+            max_x: curve.range.max,
+            min_y: range_y.min,
+            max_y: range_y.max,
+            min_z: range_z.min,
+            max_z: range_z.max,
             _pad: 0,
         }
     }
@@ -252,7 +266,7 @@ pub struct ExtractedEmitterData {
 
 fn curve_uniform_from(curve: &Option<CurveTexture>) -> CurveUniform {
     match curve {
-        Some(c) if !c.is_constant() => CurveUniform::enabled(c.range.min, c.range.max),
+        Some(c) if !c.is_constant() => CurveUniform::enabled_from(c),
         _ => CurveUniform::disabled(),
     }
 }
