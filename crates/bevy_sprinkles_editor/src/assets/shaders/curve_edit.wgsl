@@ -3,15 +3,21 @@
 
 const CURVE_WIDTH: f32 = 2.0;
 const GRID_CURVE_WIDTH: f32 = 1.0;
-const GRID_COLOR: vec4<f32> = vec4<f32>(0.3, 0.3, 0.3, 0.5);
-const CURVE_COLOR: vec4<f32> = vec4<f32>(0.076, 0.215, 0.854, 0.8);
-const FILL_COLOR: vec4<f32> = vec4<f32>(0.076, 0.215, 0.854, 0.2);
+
+const COLOR_GRID: vec3<f32> = vec3<f32>(77.0, 77.0, 77.0);
+const GRID_ALPHA: f32 = 0.5;
+
+fn rgb(color: vec3<f32>, alpha: f32) -> vec4<f32> {
+    return vec4<f32>(color / 255.0, alpha);
+}
 
 struct CurveUniforms {
     border_radius: f32,
     point_count: u32,
     range_min: f32,
     range_max: f32,
+    curve_color: vec4<f32>,
+    fill_color: vec4<f32>,
     positions_low: vec4<f32>,
     positions_high: vec4<f32>,
     values_low: vec4<f32>,
@@ -244,8 +250,9 @@ fn fragment(in: UiVertexOutput) -> @location(0) vec4<f32> {
     let grid_line_x = min(grid_x, 1.0 - grid_x) * in.size.x / grid_divisions;
     let grid_line_y = min(grid_y, 1.0 - grid_y) * in.size.y / grid_divisions;
 
+    let grid_color = rgb(COLOR_GRID, GRID_ALPHA);
     if grid_line_x < GRID_CURVE_WIDTH || grid_line_y < GRID_CURVE_WIDTH {
-        color = mix(color, GRID_COLOR, GRID_COLOR.a);
+        color = mix(color, grid_color, grid_color.a);
     }
 
     // draw zero line
@@ -272,16 +279,19 @@ fn fragment(in: UiVertexOutput) -> @location(0) vec4<f32> {
         prev_pos = curr_pos;
     }
 
+    let curve_color = uniforms.curve_color;
+    let fill_color = uniforms.fill_color;
+
     // fill below curve
     let curve_y = (1.0 - normalize_value(sample_curve(in.uv.x))) * in.size.y;
     if px.y > curve_y {
-        color = mix(color, FILL_COLOR, FILL_COLOR.a);
+        color = mix(color, fill_color, fill_color.a);
     }
 
     // draw curve with anti-aliasing
     if min_dist < CURVE_WIDTH {
         let line_alpha = 1.0 - smoothstep(CURVE_WIDTH * 0.5, CURVE_WIDTH, min_dist);
-        color = mix(color, CURVE_COLOR, line_alpha);
+        color = mix(color, curve_color, line_alpha);
     }
 
     let edge_alpha = 1.0 - smoothstep(-1.0, 1.0, d);

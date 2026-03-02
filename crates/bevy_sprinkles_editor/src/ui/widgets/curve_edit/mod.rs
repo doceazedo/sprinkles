@@ -1,6 +1,7 @@
 mod materials;
 mod presets;
 
+use bevy::color::palettes::tailwind;
 use bevy::input_focus::InputFocus;
 use bevy::picking::events::{Press, Release};
 use bevy::picking::hover::Hovered;
@@ -10,7 +11,7 @@ use bevy::prelude::*;
 use bevy::reflect::Typed;
 use bevy::ui::UiGlobalTransform;
 use bevy::window::SystemCursorIcon;
-use bevy_sprinkles::prelude::{CurveEasing, CurveMode, CurvePoint, CurveTexture};
+use bevy_sprinkles::prelude::{Curve, CurveEasing, CurveMode, CurvePoint, CurveTexture};
 use inflector::Inflector;
 
 use materials::{CurveMaterial, MAX_POINTS};
@@ -18,12 +19,17 @@ use presets::CURVE_PRESETS;
 
 use crate::ui::icons::{ICON_ARROW_LEFT_RIGHT, ICON_FCURVE, ICON_MORE};
 use crate::ui::tokens::{
-    BACKGROUND_COLOR, BORDER_COLOR, FONT_PATH, PRIMARY_COLOR, TEXT_MUTED_COLOR, TEXT_SIZE_SM,
+    BACKGROUND_COLOR, BORDER_COLOR, CORNER_RADIUS_LG, FONT_PATH, PRIMARY_COLOR, TEXT_MUTED_COLOR,
+    TEXT_SIZE_SM,
 };
 use crate::ui::widgets::button::{
     ButtonClickEvent, ButtonProps, ButtonVariant, IconButtonProps, button, icon_button,
+    set_button_variant,
 };
-use crate::ui::widgets::combobox::{ComboBoxChangeEvent, ComboBoxOptionData, combobox_with_label};
+use crate::ui::widgets::combobox::{
+    ComboBoxChangeEvent, ComboBoxConfig, ComboBoxOptionData, combobox_with_label,
+    combobox_with_selected,
+};
 use crate::ui::widgets::cursor::{ActiveCursor, HoverCursor};
 use crate::ui::widgets::popover::{
     EditorPopover, PopoverHeaderProps, PopoverPlacement, PopoverProps, PopoverTracker,
@@ -37,17 +43,57 @@ use crate::ui::widgets::vector_edit::{
 use bevy_ui_text_input::TextInputQueue;
 use bevy_ui_text_input::actions::{TextInputAction, TextInputEdit};
 
+#[derive(Clone, Copy, PartialEq, Default)]
+pub(crate) enum CurveAxis {
+    #[default]
+    X,
+    Y,
+    Z,
+}
+
+impl CurveAxis {
+    const ALL: [CurveAxis; 3] = [CurveAxis::X, CurveAxis::Y, CurveAxis::Z];
+
+    fn label(self) -> &'static str {
+        match self {
+            CurveAxis::X => "X",
+            CurveAxis::Y => "Y",
+            CurveAxis::Z => "Z",
+        }
+    }
+
+    fn channel_index(self) -> usize {
+        match self {
+            CurveAxis::X => 0,
+            CurveAxis::Y => 1,
+            CurveAxis::Z => 2,
+        }
+    }
+
+    fn color(self) -> Srgba {
+        match self {
+            CurveAxis::X => tailwind::RED_600,
+            CurveAxis::Y => tailwind::GREEN_600,
+            CurveAxis::Z => tailwind::SKY_600,
+        }
+    }
+}
+
 const CANVAS_SIZE: f32 = 232.0;
 const CONTENT_PADDING: f32 = 12.0;
 const POINT_HANDLE_SIZE: f32 = 12.0;
 const TENSION_HANDLE_SIZE: f32 = 10.0;
 const HANDLE_BORDER: f32 = 1.0;
 const DRAG_SNAP_STEP: f64 = 0.01;
+const CURVE_ALPHA: f32 = 0.8;
+const FILL_ALPHA: f32 = 0.2;
 
 pub fn plugin(app: &mut App) {
     app.add_plugins(UiMaterialPlugin::<CurveMaterial>::default())
         .add_observer(handle_trigger_click)
         .add_observer(handle_preset_change)
+        .add_observer(handle_axes_mode_change)
+        .add_observer(handle_axis_tab_click)
         .add_observer(handle_flip_click)
         .add_observer(handle_point_mode_change)
         .add_systems(
@@ -64,6 +110,10 @@ pub fn plugin(app: &mut App) {
                 handle_canvas_right_click,
                 handle_point_right_click,
                 handle_tension_right_click,
+                sync_axis_tabs_visibility,
+                sync_axis_tab_styles,
+                sync_axis_tab_text_alignment,
+                sync_axes_combobox_to_state,
             ),
         );
 }
@@ -71,22 +121,18 @@ pub fn plugin(app: &mut App) {
 #[derive(Component)]
 pub struct EditorCurveEdit;
 
-#[derive(Component, Clone)]
+#[derive(Component, Clone, Default)]
 pub struct CurveEditState {
     pub curve: CurveTexture,
-}
-
-impl Default for CurveEditState {
-    fn default() -> Self {
-        Self {
-            curve: CurveTexture::default(),
-        }
-    }
+    pub(crate) active_axis: CurveAxis,
 }
 
 impl CurveEditState {
     pub fn from_curve(curve: CurveTexture) -> Self {
-        Self { curve }
+        Self {
+            curve,
+            active_axis: CurveAxis::default(),
+        }
     }
 
     pub fn set_curve(&mut self, curve: CurveTexture) {
@@ -98,7 +144,46 @@ impl CurveEditState {
     }
 
     pub fn label(&self) -> &str {
+        if self.is_per_axis() {
+            return "Per axis curves";
+        }
         self.curve.name.as_deref().unwrap_or("Curve")
+    }
+
+    pub fn is_per_axis(&self) -> bool {
+        self.curve.y.is_some() || self.curve.z.is_some()
+    }
+
+    pub fn accent_color(&self) -> Srgba {
+        if self.is_per_axis() {
+            self.active_axis.color()
+        } else {
+            PRIMARY_COLOR
+        }
+    }
+
+    pub fn curve_color(&self) -> Srgba {
+        self.accent_color().with_alpha(CURVE_ALPHA)
+    }
+
+    pub fn fill_color(&self) -> Srgba {
+        self.accent_color().with_alpha(FILL_ALPHA)
+    }
+
+    pub fn active_curve(&self) -> &Curve {
+        match self.active_axis {
+            CurveAxis::Y => self.curve.y.as_ref().unwrap_or(&self.curve.x),
+            CurveAxis::Z => self.curve.z.as_ref().unwrap_or(&self.curve.x),
+            CurveAxis::X => &self.curve.x,
+        }
+    }
+
+    pub fn active_curve_mut(&mut self) -> &mut Curve {
+        match self.active_axis {
+            CurveAxis::Y if self.curve.y.is_some() => self.curve.y.as_mut().unwrap(),
+            CurveAxis::Z if self.curve.z.is_some() => self.curve.z.as_mut().unwrap(),
+            _ => &mut self.curve.x,
+        }
     }
 }
 
@@ -175,6 +260,8 @@ struct CurveEditContent(Entity);
 struct CurveCanvas {
     curve_edit: Entity,
     point_count: usize,
+    active_axis: CurveAxis,
+    is_per_axis: bool,
 }
 
 #[derive(Component)]
@@ -185,6 +272,18 @@ struct PresetComboBox(Entity);
 
 #[derive(Component)]
 struct FlipButton(Entity);
+
+#[derive(Component)]
+struct AxesComboBox(Entity);
+
+#[derive(Component)]
+struct AxisTabs(Entity);
+
+#[derive(Component)]
+struct AxisTabButton {
+    curve_edit: Entity,
+    axis: CurveAxis,
+}
 
 #[derive(Component)]
 struct RangeEdit(Entity);
@@ -246,34 +345,35 @@ impl CurveControl for PointHandle {
     }
 
     fn update_state(&self, state: &mut CurveEditState, normalized: Vec2, _delta: Option<Vec2>) {
-        if self.index >= state.curve.x.points.len() {
+        let curve = state.active_curve_mut();
+        if self.index >= curve.points.len() {
             return;
         }
 
         let new_pos = (normalized.x + 0.5).clamp(0.0, 1.0);
         let snapped_pos = (new_pos as f64 / DRAG_SNAP_STEP).round() * DRAG_SNAP_STEP;
         let prev_pos = if self.index > 0 {
-            state.curve.x.points[self.index - 1].position + 0.001
+            curve.points[self.index - 1].position + 0.001
         } else {
             0.0
         };
-        let next_pos = if self.index < state.curve.x.points.len() - 1 {
-            state.curve.x.points[self.index + 1].position - 0.001
+        let next_pos = if self.index < curve.points.len() - 1 {
+            curve.points[self.index + 1].position - 0.001
         } else {
             1.0
         };
         let clamped_pos = (snapped_pos as f32).clamp(prev_pos, next_pos);
 
-        let range_min = state.curve.x.range.min as f64;
-        let range_max = state.curve.x.range.max as f64;
-        let range_span = state.curve.x.range.span() as f64;
+        let range_min = curve.range.min as f64;
+        let range_max = curve.range.max as f64;
+        let range_span = curve.range.span() as f64;
         let normalized_value = 0.5 - normalized.y;
         let raw_value =
             (range_min + normalized_value as f64 * range_span).clamp(range_min, range_max);
         let snapped_value = (raw_value / DRAG_SNAP_STEP).round() * DRAG_SNAP_STEP;
 
-        state.curve.x.points[self.index].position = clamped_pos;
-        state.curve.x.points[self.index].value = snapped_value;
+        curve.points[self.index].position = clamped_pos;
+        curve.points[self.index].value = snapped_value;
 
         state.mark_custom();
     }
@@ -293,7 +393,8 @@ impl CurveControl for TensionHandle {
     }
 
     fn update_state(&self, state: &mut CurveEditState, _normalized: Vec2, delta: Option<Vec2>) {
-        if self.index == 0 || self.index >= state.curve.x.points.len() {
+        let curve = state.active_curve_mut();
+        if self.index == 0 || self.index >= curve.points.len() {
             return;
         }
 
@@ -301,7 +402,7 @@ impl CurveControl for TensionHandle {
             return;
         };
 
-        let p1 = &state.curve.x.points[self.index];
+        let p1 = &curve.points[self.index];
         let mode = p1.mode;
         let current_tension = p1.tension;
 
@@ -312,13 +413,13 @@ impl CurveControl for TensionHandle {
                 let tension_delta = -delta.y as f64 * TENSION_SENSITIVITY;
                 let raw_tension = (current_tension + tension_delta).clamp(-1.0, 1.0);
                 let snapped_tension = (raw_tension / DRAG_SNAP_STEP).round() * DRAG_SNAP_STEP;
-                state.curve.x.points[self.index].tension = snapped_tension;
+                curve.points[self.index].tension = snapped_tension;
             }
             CurveMode::Stairs | CurveMode::SmoothStairs => {
                 let tension_delta = -delta.y as f64 * TENSION_SENSITIVITY;
                 let raw_tension = (current_tension + tension_delta).clamp(0.0, 1.0);
                 let snapped_tension = (raw_tension / DRAG_SNAP_STEP).round() * DRAG_SNAP_STEP;
-                state.curve.x.points[self.index].tension = snapped_tension;
+                curve.points[self.index].tension = snapped_tension;
             }
             CurveMode::Hold => {}
         }
@@ -532,6 +633,7 @@ fn handle_trigger_click(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     triggers: Query<&CurveEditTrigger>,
+    states: Query<&CurveEditState>,
     mut trackers: Query<&mut PopoverTracker>,
     existing_popovers: Query<(Entity, &CurveEditPopover)>,
     all_popovers: Query<Entity, With<EditorPopover>>,
@@ -568,10 +670,20 @@ fn handle_trigger_click(
 
     activate_trigger(trigger.entity, &mut button_styles);
 
+    let Ok(state) = states.get(curve_edit_entity) else {
+        return;
+    };
+
     let presets: Vec<_> = CURVE_PRESETS
         .iter()
         .map(|p| ComboBoxOptionData::new(p.name))
         .collect();
+
+    let axes_options = vec![
+        ComboBoxOptionData::new("All axes"),
+        ComboBoxOptionData::new("Per axis"),
+    ];
+    let axes_selected = if state.is_per_axis() { 1 } else { 0 };
 
     let popover_entity = commands
         .spawn((
@@ -589,6 +701,9 @@ fn handle_trigger_click(
         .id();
 
     tracker.open(popover_entity, trigger.entity);
+
+    let is_per_axis = state.is_per_axis();
+    let active_axis = state.active_axis;
 
     commands
         .entity(popover_entity)
@@ -614,6 +729,10 @@ fn handle_trigger_click(
                         PresetComboBox(curve_edit_entity),
                         combobox_with_label(presets, "Presets"),
                     ));
+                    row.spawn((
+                        AxesComboBox(curve_edit_entity),
+                        combobox_with_selected(axes_options, axes_selected),
+                    ));
                     row.spawn((Node {
                         flex_shrink: 0.0,
                         ..default()
@@ -626,6 +745,59 @@ fn handle_trigger_click(
                                 &asset_server,
                             ),
                         ));
+                });
+
+            parent
+                .spawn((
+                    AxisTabs(curve_edit_entity),
+                    Node {
+                        display: if is_per_axis {
+                            Display::Flex
+                        } else {
+                            Display::None
+                        },
+                        column_gap: px(3),
+                        padding: UiRect::new(
+                            px(CONTENT_PADDING),
+                            px(CONTENT_PADDING),
+                            px(CONTENT_PADDING),
+                            px(0),
+                        ),
+                        ..default()
+                    },
+                ))
+                .with_children(|tabs| {
+                    tabs.spawn((
+                        Node {
+                            width: percent(100.0),
+                            column_gap: px(3),
+                            padding: UiRect::all(px(3)),
+                            border: UiRect::all(px(1)),
+                            border_radius: BorderRadius::all(CORNER_RADIUS_LG),
+                            ..default()
+                        },
+                        BorderColor::all(BORDER_COLOR),
+                    ))
+                    .with_children(|inner| {
+                        for axis in CurveAxis::ALL {
+                            let variant = if axis == active_axis {
+                                ButtonVariant::Active
+                            } else {
+                                ButtonVariant::Ghost
+                            };
+                            let mut btn = inner.spawn((
+                                AxisTabButton {
+                                    curve_edit: curve_edit_entity,
+                                    axis,
+                                },
+                                button(ButtonProps::new(axis.label()).with_variant(variant)),
+                            ));
+                            btn.entry::<Node>().and_modify(|mut node| {
+                                node.flex_grow = 1.0;
+                                node.flex_basis = px(0.0);
+                            });
+                        }
+                    });
                 });
 
             parent.spawn((CurveEditContent(curve_edit_entity), popover_content()));
@@ -644,12 +816,16 @@ fn setup_curve_edit_content(
             continue;
         };
 
+        let channel = state.active_curve();
+
         commands.entity(content_entity).with_children(|parent| {
             let canvas_entity = parent
                 .spawn((
                     CurveCanvas {
                         curve_edit: curve_edit_entity,
-                        point_count: state.curve.x.points.len(),
+                        point_count: channel.points.len(),
+                        active_axis: state.active_axis,
+                        is_per_axis: state.is_per_axis(),
                     },
                     Hovered::default(),
                     Node {
@@ -667,7 +843,11 @@ fn setup_curve_edit_content(
                     canvas_parent.spawn((
                         CurveMaterialNode(curve_edit_entity),
                         Pickable::IGNORE,
-                        MaterialNode(curve_materials.add(CurveMaterial::from_curve(&state.curve))),
+                        MaterialNode(curve_materials.add(CurveMaterial::from_channel(
+                            channel,
+                            state.curve_color(),
+                            state.fill_color(),
+                        ))),
                         Node {
                             position_type: PositionType::Absolute,
                             width: percent(100.0),
@@ -676,17 +856,22 @@ fn setup_curve_edit_content(
                         },
                     ));
 
+                    let handle_color = state.accent_color();
                     spawn_point_handles(
                         canvas_parent,
                         curve_edit_entity,
                         canvas_entity,
-                        &state.curve,
+                        channel,
+                        handle_color,
                     );
                     spawn_tension_handles(
                         canvas_parent,
                         curve_edit_entity,
                         canvas_entity,
+                        channel,
                         &state.curve,
+                        state.active_axis.channel_index(),
+                        handle_color,
                     );
                 });
 
@@ -697,7 +882,7 @@ fn setup_curve_edit_content(
                         .with_label("Range")
                         .with_size(VectorSize::Vec2)
                         .with_suffixes(VectorSuffixes::Range)
-                        .with_default_values(vec![state.curve.x.range.min, state.curve.x.range.max]),
+                        .with_default_values(vec![channel.range.min, channel.range.max]),
                 ),
             ));
         });
@@ -708,13 +893,14 @@ fn spawn_point_handles(
     parent: &mut ChildSpawnerCommands,
     curve_edit_entity: Entity,
     canvas_entity: Entity,
-    curve: &CurveTexture,
+    channel: &Curve,
+    handle_color: Srgba,
 ) {
-    let range_span = curve.x.range.span();
+    let range_span = channel.range.span();
 
-    for (i, point) in curve.x.points.iter().enumerate() {
+    for (i, point) in channel.points.iter().enumerate() {
         let x = point.position;
-        let normalized_value = (point.value as f32 - curve.x.range.min) / range_span;
+        let normalized_value = (point.value as f32 - channel.range.min) / range_span;
         let y = 1.0 - normalized_value;
 
         parent
@@ -725,7 +911,7 @@ fn spawn_point_handles(
                     index: i,
                 },
                 HoverCursor(SystemCursorIcon::Grab),
-                handle_style(x, y, POINT_HANDLE_SIZE),
+                handle_style(x, y, POINT_HANDLE_SIZE, handle_color),
             ))
             .observe(on_control_press::<PointHandle>)
             .observe(on_control_release::<PointHandle>)
@@ -739,21 +925,24 @@ fn spawn_tension_handles(
     parent: &mut ChildSpawnerCommands,
     curve_edit_entity: Entity,
     canvas_entity: Entity,
-    curve: &CurveTexture,
+    channel: &Curve,
+    curve_texture: &CurveTexture,
+    channel_index: usize,
+    handle_color: Srgba,
 ) {
-    let range_span = curve.x.range.span();
+    let range_span = channel.range.span();
 
-    for i in 1..curve.x.points.len() {
-        let p0 = &curve.x.points[i - 1];
-        let p1 = &curve.x.points[i];
+    for i in 1..channel.points.len() {
+        let p0 = &channel.points[i - 1];
+        let p1 = &channel.points[i];
 
         if p1.mode == CurveMode::Hold {
             continue;
         }
 
         let mid_x = (p0.position + p1.position) / 2.0;
-        let curve_value_at_mid = curve.sample(mid_x);
-        let normalized_curve_value = (curve_value_at_mid - curve.x.range.min) / range_span;
+        let curve_value_at_mid = curve_texture.sample_channel(channel_index, mid_x);
+        let normalized_curve_value = (curve_value_at_mid - channel.range.min) / range_span;
         let y = 1.0 - normalized_curve_value;
 
         parent
@@ -764,7 +953,7 @@ fn spawn_tension_handles(
                     index: i,
                 },
                 HoverCursor(SystemCursorIcon::ColResize),
-                handle_style(mid_x, y, TENSION_HANDLE_SIZE),
+                handle_style(mid_x, y, TENSION_HANDLE_SIZE, handle_color),
             ))
             .observe(on_control_press::<TensionHandle>)
             .observe(on_control_release::<TensionHandle>)
@@ -774,7 +963,7 @@ fn spawn_tension_handles(
     }
 }
 
-fn handle_style(x: f32, y: f32, size: f32) -> impl Bundle {
+fn handle_style(x: f32, y: f32, size: f32, color: Srgba) -> impl Bundle {
     (
         Pickable::default(),
         Hovered::default(),
@@ -790,7 +979,7 @@ fn handle_style(x: f32, y: f32, size: f32) -> impl Bundle {
             ..default()
         },
         BackgroundColor(BACKGROUND_COLOR.into()),
-        BorderColor::all(PRIMARY_COLOR),
+        BorderColor::all(color),
     )
 }
 
@@ -811,27 +1000,30 @@ fn update_curve_visuals(
             continue;
         }
 
+        let channel = state.active_curve();
+
         for (mat_node, material_node) in &material_nodes {
             if mat_node.0 != curve_edit_entity {
                 continue;
             }
             if let Some(material) = curve_materials.get_mut(&material_node.0) {
-                *material = CurveMaterial::from_curve(&state.curve);
+                *material =
+                    CurveMaterial::from_channel(channel, state.curve_color(), state.fill_color());
             }
         }
 
-        let range_span = state.curve.x.range.span();
+        let range_span = channel.range.span();
 
         for (handle, mut node) in &mut point_handles {
             if handle.curve_edit != curve_edit_entity {
                 continue;
             }
-            let Some(point) = state.curve.x.points.get(handle.index) else {
+            let Some(point) = channel.points.get(handle.index) else {
                 continue;
             };
 
             let x = point.position;
-            let normalized_value = (point.value as f32 - state.curve.x.range.min) / range_span;
+            let normalized_value = (point.value as f32 - channel.range.min) / range_span;
             let y = 1.0 - normalized_value;
 
             node.left = percent(x * 100.0 - POINT_HANDLE_SIZE / CANVAS_SIZE * 50.0);
@@ -842,16 +1034,18 @@ fn update_curve_visuals(
             if handle.curve_edit != curve_edit_entity {
                 continue;
             }
-            if handle.index == 0 || handle.index >= state.curve.x.points.len() {
+            if handle.index == 0 || handle.index >= channel.points.len() {
                 continue;
             }
 
-            let p0 = &state.curve.x.points[handle.index - 1];
-            let p1 = &state.curve.x.points[handle.index];
+            let p0 = &channel.points[handle.index - 1];
+            let p1 = &channel.points[handle.index];
 
             let mid_x = (p0.position + p1.position) / 2.0;
-            let curve_value_at_mid = state.curve.sample(mid_x);
-            let normalized_curve_value = (curve_value_at_mid - state.curve.x.range.min) / range_span;
+            let curve_value_at_mid = state
+                .curve
+                .sample_channel(state.active_axis.channel_index(), mid_x);
+            let normalized_curve_value = (curve_value_at_mid - channel.range.min) / range_span;
             let y = 1.0 - normalized_curve_value;
 
             node.left = percent(mid_x * 100.0 - TENSION_HANDLE_SIZE / CANVAS_SIZE * 50.0);
@@ -873,12 +1067,17 @@ fn respawn_handles_on_point_change(
                 continue;
             }
 
-            let current_point_count = state.curve.x.points.len();
-            if canvas.point_count == current_point_count {
+            let channel = state.active_curve();
+            let current_point_count = channel.points.len();
+            let axis_changed = canvas.active_axis != state.active_axis;
+            let per_axis_changed = canvas.is_per_axis != state.is_per_axis();
+            if canvas.point_count == current_point_count && !axis_changed && !per_axis_changed {
                 continue;
             }
 
             canvas.point_count = current_point_count;
+            canvas.active_axis = state.active_axis;
+            canvas.is_per_axis = state.is_per_axis();
 
             for (handle_entity, handle) in &point_handles {
                 if handle.curve_edit == canvas.curve_edit {
@@ -892,9 +1091,25 @@ fn respawn_handles_on_point_change(
                 }
             }
 
+            let handle_color = state.accent_color();
+            let channel = state.active_curve();
             commands.entity(canvas_entity).with_children(|parent| {
-                spawn_point_handles(parent, canvas.curve_edit, canvas_entity, &state.curve);
-                spawn_tension_handles(parent, canvas.curve_edit, canvas_entity, &state.curve);
+                spawn_point_handles(
+                    parent,
+                    canvas.curve_edit,
+                    canvas_entity,
+                    channel,
+                    handle_color,
+                );
+                spawn_tension_handles(
+                    parent,
+                    canvas.curve_edit,
+                    canvas_entity,
+                    channel,
+                    &state.curve,
+                    state.active_axis.channel_index(),
+                    handle_color,
+                );
             });
         }
     }
@@ -902,6 +1117,9 @@ fn respawn_handles_on_point_change(
 
 fn update_handle_colors(
     mut removed_dragging: RemovedComponents<Dragging>,
+    states: Query<&CurveEditState>,
+    point_handles: Query<&PointHandle>,
+    tension_handles: Query<&TensionHandle>,
     mut handles: ParamSet<(
         Query<
             (Entity, &Hovered, Has<Dragging>, &mut BackgroundColor),
@@ -914,14 +1132,15 @@ fn update_handle_colors(
     )>,
 ) {
     let removed: Vec<Entity> = removed_dragging.read().collect();
-    let hover_color = BACKGROUND_COLOR.mix(&PRIMARY_COLOR, 0.8);
 
     for (entity, hovered, is_dragging, mut bg) in &mut handles.p0() {
         if removed.contains(&entity) {
             continue;
         }
+        let accent = handle_accent(entity, &states, &point_handles, &tension_handles);
+        let hover_color = BACKGROUND_COLOR.mix(&accent, 0.8);
         *bg = if is_dragging {
-            BackgroundColor(PRIMARY_COLOR.into())
+            BackgroundColor(accent.into())
         } else if hovered.get() {
             BackgroundColor(hover_color.into())
         } else {
@@ -931,6 +1150,8 @@ fn update_handle_colors(
 
     for entity in removed {
         if let Ok((hovered, mut bg)) = handles.p1().get_mut(entity) {
+            let accent = handle_accent(entity, &states, &point_handles, &tension_handles);
+            let hover_color = BACKGROUND_COLOR.mix(&accent, 0.8);
             *bg = if hovered.get() {
                 BackgroundColor(hover_color.into())
             } else {
@@ -938,6 +1159,23 @@ fn update_handle_colors(
             };
         }
     }
+}
+
+fn handle_accent(
+    entity: Entity,
+    states: &Query<&CurveEditState>,
+    point_handles: &Query<&PointHandle>,
+    tension_handles: &Query<&TensionHandle>,
+) -> Srgba {
+    let curve_edit = point_handles
+        .get(entity)
+        .map(|h| h.curve_edit)
+        .or_else(|_| tension_handles.get(entity).map(|h| h.curve_edit));
+    curve_edit
+        .ok()
+        .and_then(|e| states.get(e).ok())
+        .map(|s| s.accent_color())
+        .unwrap_or(PRIMARY_COLOR)
 }
 
 fn handle_preset_change(
@@ -955,13 +1193,152 @@ fn handle_preset_change(
         return;
     };
 
-    let range = state.curve.x.range;
-
     if let Some(preset) = CURVE_PRESETS.get(trigger.selected) {
-        state.curve = preset.to_curve(range);
+        let range = state.active_curve().range;
+        let preset_curve = preset.to_curve(range);
+        let channel = state.active_curve_mut();
+        *channel = preset_curve.x;
     }
 
     trigger_curve_events(&mut commands, curve_edit_entity, &state.curve);
+}
+
+fn handle_axes_mode_change(
+    trigger: On<ComboBoxChangeEvent>,
+    mut commands: Commands,
+    axes_boxes: Query<&AxesComboBox>,
+    mut states: Query<&mut CurveEditState>,
+) {
+    let Ok(axes_box) = axes_boxes.get(trigger.entity) else {
+        return;
+    };
+
+    let curve_edit_entity = axes_box.0;
+    let Ok(mut state) = states.get_mut(curve_edit_entity) else {
+        return;
+    };
+
+    match trigger.selected {
+        0 => {
+            state.curve.y = None;
+            state.curve.z = None;
+            state.active_axis = CurveAxis::X;
+        }
+        1 => {
+            state.curve.y = Some(state.curve.x.clone());
+            state.curve.z = Some(state.curve.x.clone());
+            state.active_axis = CurveAxis::X;
+        }
+        _ => {}
+    }
+
+    state.mark_custom();
+    trigger_curve_events(&mut commands, curve_edit_entity, &state.curve);
+}
+
+fn handle_axis_tab_click(
+    trigger: On<ButtonClickEvent>,
+    tab_buttons: Query<&AxisTabButton>,
+    mut states: Query<&mut CurveEditState>,
+) {
+    let Ok(tab) = tab_buttons.get(trigger.entity) else {
+        return;
+    };
+
+    let Ok(mut state) = states.get_mut(tab.curve_edit) else {
+        return;
+    };
+
+    if state.active_axis != tab.axis {
+        state.active_axis = tab.axis;
+    }
+}
+
+fn sync_axis_tabs_visibility(
+    mut states: Query<&mut CurveEditState, Changed<CurveEditState>>,
+    mut tabs: Query<(&AxisTabs, &mut Node)>,
+) {
+    for (tab, mut node) in &mut tabs {
+        let Ok(mut state) = states.get_mut(tab.0) else {
+            continue;
+        };
+        let per_axis = state.is_per_axis();
+        node.display = if per_axis {
+            Display::Flex
+        } else {
+            Display::None
+        };
+        if !per_axis && state.active_axis != CurveAxis::X {
+            state.active_axis = CurveAxis::X;
+        }
+    }
+}
+
+fn sync_axis_tab_styles(
+    states: Query<&CurveEditState, Changed<CurveEditState>>,
+    tab_buttons: Query<(&AxisTabButton, Entity)>,
+    mut button_styles: Query<(&mut BackgroundColor, &mut BorderColor, &mut ButtonVariant)>,
+    children_query: Query<&Children>,
+    mut text_colors: Query<&mut TextColor>,
+) {
+    for (tab, entity) in &tab_buttons {
+        let Ok(state) = states.get(tab.curve_edit) else {
+            continue;
+        };
+        let variant = if tab.axis == state.active_axis {
+            ButtonVariant::Active
+        } else {
+            ButtonVariant::Ghost
+        };
+        if let Ok((mut bg, mut border, mut current_variant)) = button_styles.get_mut(entity) {
+            *current_variant = variant;
+            set_button_variant(variant, &mut bg, &mut border);
+        }
+        if let Ok(children) = children_query.get(entity) {
+            for child in children.iter() {
+                if let Ok(mut text_color) = text_colors.get_mut(child) {
+                    text_color.0 = variant.text_color().into();
+                }
+            }
+        }
+    }
+}
+
+fn sync_axis_tab_text_alignment(
+    tab_buttons: Query<Entity, With<AxisTabButton>>,
+    children_query: Query<&Children>,
+    mut text_layouts: Query<&mut TextLayout, With<Text>>,
+) {
+    for entity in &tab_buttons {
+        let Ok(children) = children_query.get(entity) else {
+            continue;
+        };
+        for child in children.iter() {
+            if let Ok(mut layout) = text_layouts.get_mut(child) {
+                if layout.justify != Justify::Center {
+                    layout.justify = Justify::Center;
+                }
+            }
+        }
+    }
+}
+
+fn sync_axes_combobox_to_state(
+    states: Query<&CurveEditState, Changed<CurveEditState>>,
+    axes_boxes: Query<(&AxesComboBox, Entity)>,
+    mut configs: Query<&mut ComboBoxConfig>,
+) {
+    for (axes_box, entity) in &axes_boxes {
+        let Ok(state) = states.get(axes_box.0) else {
+            continue;
+        };
+        let expected = if state.is_per_axis() { 1 } else { 0 };
+        if let Ok(mut config) = configs.get_mut(entity) {
+            if config.selected != expected {
+                config.selected = expected;
+            }
+        }
+    }
 }
 
 fn handle_flip_click(
@@ -979,32 +1356,33 @@ fn handle_flip_click(
         return;
     };
 
-    let interp_props: Vec<_> = state
-        .curve
-        .x
-        .points
-        .iter()
-        .skip(1)
-        .map(|p| (p.mode, p.easing, p.tension))
-        .collect();
+    {
+        let channel = state.active_curve_mut();
+        let interp_props: Vec<_> = channel
+            .points
+            .iter()
+            .skip(1)
+            .map(|p| (p.mode, p.easing, p.tension))
+            .collect();
 
-    for point in &mut state.curve.x.points {
-        point.position = 1.0 - point.position;
-    }
+        for point in &mut channel.points {
+            point.position = 1.0 - point.position;
+        }
 
-    state.curve.x.points.reverse();
+        channel.points.reverse();
 
-    if let Some(first) = state.curve.x.points.first_mut() {
-        first.mode = CurveMode::default();
-        first.easing = CurveEasing::default();
-        first.tension = 0.0;
-    }
+        if let Some(first) = channel.points.first_mut() {
+            first.mode = CurveMode::default();
+            first.easing = CurveEasing::default();
+            first.tension = 0.0;
+        }
 
-    for (i, (mode, easing, tension)) in interp_props.iter().rev().enumerate() {
-        if let Some(point) = state.curve.x.points.get_mut(i + 1) {
-            point.mode = *mode;
-            point.easing = *easing;
-            point.tension = *tension;
+        for (i, (mode, easing, tension)) in interp_props.iter().rev().enumerate() {
+            if let Some(point) = channel.points.get_mut(i + 1) {
+                point.mode = *mode;
+                point.easing = *easing;
+                point.tension = *tension;
+            }
         }
     }
 
@@ -1069,7 +1447,8 @@ fn sync_range_inputs_to_state(
                 continue;
             }
 
-            let values = [state.curve.x.range.min, state.curve.x.range.max];
+            let channel = state.active_curve();
+            let values = [channel.range.min, channel.range.max];
 
             for range_child in range_children.iter() {
                 let Ok(vector_children) = vector_edits.get(range_child) else {
@@ -1149,23 +1528,28 @@ fn handle_range_blur(
                 };
 
                 let mut changed = false;
-                if field_index == 0 {
-                    if (state.curve.x.range.min - value).abs() > f32::EPSILON {
-                        state.curve.x.range.min = value;
+                {
+                    let channel = state.active_curve_mut();
+                    if field_index == 0 {
+                        if (channel.range.min - value).abs() > f32::EPSILON {
+                            channel.range.min = value;
+                            changed = true;
+                        }
+                    } else if (channel.range.max - value).abs() > f32::EPSILON {
+                        channel.range.max = value;
                         changed = true;
                     }
-                } else if (state.curve.x.range.max - value).abs() > f32::EPSILON {
-                    state.curve.x.range.max = value;
-                    changed = true;
+
+                    if changed {
+                        let range_min = channel.range.min as f64;
+                        let range_max = channel.range.max as f64;
+                        for point in &mut channel.points {
+                            point.value = point.value.clamp(range_min, range_max);
+                        }
+                    }
                 }
 
                 if changed {
-                    let range_min = state.curve.x.range.min as f64;
-                    let range_max = state.curve.x.range.max as f64;
-                    for point in &mut state.curve.x.points {
-                        point.value = point.value.clamp(range_min, range_max);
-                    }
-
                     state.mark_custom();
                     trigger_curve_events(&mut commands, range_edit.0, &state.curve);
                 }
@@ -1211,8 +1595,11 @@ fn handle_canvas_right_click(
             continue;
         };
 
-        if state.curve.x.points.len() >= MAX_POINTS {
-            continue;
+        {
+            let channel = state.active_curve();
+            if channel.points.len() >= MAX_POINTS {
+                continue;
+            }
         }
 
         let cursor_pos = cursor_position / computed.inverse_scale_factor;
@@ -1223,23 +1610,27 @@ fn handle_canvas_right_click(
         let normalized_x = (normalized.x + 0.5).clamp(0.0, 1.0);
         let normalized_y = (0.5 - normalized.y).clamp(0.0, 1.0);
 
-        let range_min = state.curve.x.range.min as f64;
-        let range_span = state.curve.x.range.span() as f64;
-        let value = range_min + normalized_y as f64 * range_span;
-
-        let new_point = CurvePoint::new(normalized_x, value)
+        let new_point = CurvePoint::new(normalized_x, 0.0)
             .with_mode(CurveMode::DoubleCurve)
             .with_tension(0.0);
 
-        let insert_idx = state
-            .curve
-            .x
-            .points
-            .iter()
-            .position(|p| p.position > normalized_x)
-            .unwrap_or(state.curve.x.points.len());
+        {
+            let channel = state.active_curve_mut();
+            let range_min = channel.range.min as f64;
+            let range_span = channel.range.span() as f64;
+            let value = range_min + normalized_y as f64 * range_span;
 
-        state.curve.x.points.insert(insert_idx, new_point);
+            let mut new_point = new_point;
+            new_point.value = value;
+
+            let insert_idx = channel
+                .points
+                .iter()
+                .position(|p| p.position > normalized_x)
+                .unwrap_or(channel.points.len());
+
+            channel.points.insert(insert_idx, new_point);
+        }
         state.mark_custom();
         trigger_curve_events(&mut commands, canvas.curve_edit, &state.curve);
 
@@ -1378,12 +1769,13 @@ fn handle_point_right_click(
             continue;
         };
 
-        let Some(point) = state.curve.x.points.get(point_handle.index) else {
+        let channel = state.active_curve();
+        let Some(point) = channel.points.get(point_handle.index) else {
             continue;
         };
 
         let is_first = point_handle.index == 0;
-        let can_delete = state.curve.x.points.len() > 2;
+        let can_delete = channel.points.len() > 2;
 
         let popover_entity = commands
             .spawn((
@@ -1463,7 +1855,11 @@ fn handle_point_mode_change(
     if let Ok(mode_opt) = mode_options.get(trigger.entity) {
         if !mode_opt.disabled {
             if let Ok(mut state) = states.get_mut(mode_opt.curve_edit) {
-                if let Some(point) = state.curve.x.points.get_mut(mode_opt.point_index) {
+                if let Some(point) = state
+                    .active_curve_mut()
+                    .points
+                    .get_mut(mode_opt.point_index)
+                {
                     point.mode = mode_opt.mode;
                     state.mark_custom();
                     trigger_curve_events(&mut commands, mode_opt.curve_edit, &state.curve);
@@ -1474,7 +1870,11 @@ fn handle_point_mode_change(
     } else if let Ok(easing_opt) = easing_options.get(trigger.entity) {
         if !easing_opt.disabled {
             if let Ok(mut state) = states.get_mut(easing_opt.curve_edit) {
-                if let Some(point) = state.curve.x.points.get_mut(easing_opt.point_index) {
+                if let Some(point) = state
+                    .active_curve_mut()
+                    .points
+                    .get_mut(easing_opt.point_index)
+                {
                     point.easing = easing_opt.easing;
                     state.mark_custom();
                     trigger_curve_events(&mut commands, easing_opt.curve_edit, &state.curve);
@@ -1485,8 +1885,11 @@ fn handle_point_mode_change(
     } else if let Ok(delete_opt) = delete_options.get(trigger.entity) {
         if !delete_opt.disabled {
             if let Ok(mut state) = states.get_mut(delete_opt.curve_edit) {
-                if state.curve.x.points.len() > 2 {
-                    state.curve.x.points.remove(delete_opt.point_index);
+                if state.active_curve().points.len() > 2 {
+                    state
+                        .active_curve_mut()
+                        .points
+                        .remove(delete_opt.point_index);
                     state.mark_custom();
                     trigger_curve_events(&mut commands, delete_opt.curve_edit, &state.curve);
                     handled = true;
@@ -1521,7 +1924,11 @@ fn handle_tension_right_click(
             continue;
         };
 
-        if let Some(point) = state.curve.x.points.get_mut(tension_handle.index) {
+        if let Some(point) = state
+            .active_curve_mut()
+            .points
+            .get_mut(tension_handle.index)
+        {
             point.tension = 0.0;
             state.mark_custom();
             trigger_curve_events(&mut commands, tension_handle.curve_edit, &state.curve);

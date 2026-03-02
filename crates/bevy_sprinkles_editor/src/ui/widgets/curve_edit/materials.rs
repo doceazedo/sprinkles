@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy::reflect::TypePath;
 use bevy::render::render_resource::*;
 use bevy::shader::ShaderRef;
-use bevy_sprinkles::prelude::CurveTexture;
+use bevy_sprinkles::prelude::Curve;
 
 const SHADER_CURVE_PATH: &str = "embedded://sprinkles/assets/shaders/curve_edit.wgsl";
 pub const MAX_POINTS: usize = 8;
@@ -33,6 +33,10 @@ pub struct CurveMaterial {
     #[uniform(0)]
     range_max: f32,
     #[uniform(0)]
+    curve_color: Vec4,
+    #[uniform(0)]
+    fill_color: Vec4,
+    #[uniform(0)]
     positions_low: Vec4,
     #[uniform(0)]
     positions_high: Vec4,
@@ -55,14 +59,14 @@ pub struct CurveMaterial {
 }
 
 impl CurveMaterial {
-    pub fn from_curve(curve: &CurveTexture) -> Self {
+    pub fn from_channel(channel: &Curve, curve_color: Srgba, fill_color: Srgba) -> Self {
         let mut positions = [0.0f32; MAX_POINTS];
         let mut values = [0.0f32; MAX_POINTS];
         let mut modes = [0u32; MAX_POINTS];
         let mut tensions = [0.0f32; MAX_POINTS];
         let mut easings = [0u32; MAX_POINTS];
 
-        for (i, point) in curve.x.points.iter().take(MAX_POINTS).enumerate() {
+        for (i, point) in channel.points.iter().take(MAX_POINTS).enumerate() {
             positions[i] = point.position;
             values[i] = point.value as f32;
             modes[i] = point.mode as u32;
@@ -78,9 +82,11 @@ impl CurveMaterial {
 
         Self {
             border_radius: BORDER_RADIUS,
-            point_count: curve.x.points.len().min(MAX_POINTS) as u32,
-            range_min: curve.x.range.min,
-            range_max: curve.x.range.max,
+            point_count: channel.points.len().min(MAX_POINTS) as u32,
+            range_min: channel.range.min,
+            range_max: channel.range.max,
+            curve_color: Vec4::new(curve_color.red, curve_color.green, curve_color.blue, curve_color.alpha),
+            fill_color: Vec4::new(fill_color.red, fill_color.green, fill_color.blue, fill_color.alpha),
             positions_low,
             positions_high,
             values_low,
