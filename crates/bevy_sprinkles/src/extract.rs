@@ -516,10 +516,7 @@ fn build_base_uniforms(
 
         angular_velocity: animated_velocity_uniform_from(&emitter.velocities.angular_velocity),
 
-        orbit_velocity: scaled_animated_velocity_uniform_from(
-            &emitter.velocities.orbit_velocity,
-            transform_scale,
-        ),
+        orbit_velocity: animated_velocity_uniform_from(&emitter.velocities.orbit_velocity),
 
         directional_velocity: animated_velocity_uniform_from(
             &emitter.velocities.directional_velocity,

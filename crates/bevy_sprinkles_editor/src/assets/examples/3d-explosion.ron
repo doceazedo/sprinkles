@@ -143,8 +143,8 @@
                 spread: 180.0,
                 radial_velocity: (
                     velocity: (
-                        min: -6.0,
-                        max: -5.0,
+                        min: -15.0,
+                        max: -10.0,
                     ),
                     velocity_over_lifetime: Some((
                         name: Some("Sine out"),

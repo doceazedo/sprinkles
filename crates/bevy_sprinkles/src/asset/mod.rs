@@ -958,8 +958,11 @@ pub struct EmitterVelocities {
     /// point, in revolutions per second.
     #[serde(default)]
     pub orbit_velocity: AnimatedVelocity,
-    /// Velocity along each particle's initial emission direction, modulated over
-    /// its lifetime.
+    /// Velocity along an arbitrary direction over each particle's lifetime.
+    ///
+    /// When a curve is set, the curve's XYZ channels provide the direction
+    /// vector and the velocity range controls the magnitude. Without a curve,
+    /// particles move along their initial emission direction.
     #[serde(default)]
     pub directional_velocity: AnimatedVelocity,
     /// The pivot point used to calculate radial and orbital velocity.

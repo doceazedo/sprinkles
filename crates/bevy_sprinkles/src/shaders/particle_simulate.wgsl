@@ -416,6 +416,21 @@ fn transform_direction(d: vec3<f32>) -> vec3<f32> {
     return basis * d;
 }
 
+// transforms a spawn-space position back to emitter-local space
+// assumes no shear (orthogonal basis, possibly scaled)
+fn inverse_transform_point(p: vec3<f32>) -> vec3<f32> {
+    let t = params.emitter_transform[3].xyz;
+    let local = p - t;
+    let c0 = params.emitter_transform[0].xyz;
+    let c1 = params.emitter_transform[1].xyz;
+    let c2 = params.emitter_transform[2].xyz;
+    return vec3(
+        dot(local, c0) / dot(c0, c0),
+        dot(local, c1) / dot(c1, c1),
+        dot(local, c2) / dot(c2, c2),
+    );
+}
+
 fn zero_z_if(v: vec3<f32>, condition: bool) -> vec3<f32> {
     return select(v, vec3(v.xy, 0.0), condition);
 }
@@ -944,7 +959,6 @@ fn get_orbit_velocity_curve_multiplier(age: f32, lifetime: f32) -> vec3<f32> {
 
 fn get_orbit_displacement(
     position: vec3<f32>,
-    pivot: vec3<f32>,
     orbit_velocity: f32,
     age: f32,
     lifetime: f32,
@@ -965,18 +979,21 @@ fn get_orbit_displacement(
     let ang = effective_velocity * 2.0 * PI * dt;
 
     if (disable_z) {
-        let diff = position.xy - pivot.xy;
+        let pivot = params.velocity_pivot;
+        let local = inverse_transform_point(position);
+        let diff = local.xy - pivot.xy;
         let cos_a = cos(ang.x);
         let sin_a = sin(ang.x);
         let rotated = vec2(
             diff.x * cos_a - diff.y * sin_a,
             diff.x * sin_a + diff.y * cos_a,
         );
-        return vec3((rotated - diff) / dt, 0.0);
+        let local_disp = vec3((rotated - diff) / dt, 0.0);
+        return transform_direction(local_disp);
     }
 
-    // 3D: per-axis rotation relative to pivot
-    let local_pos = position - pivot;
+    // transform position into emitter-local space and subtract pivot
+    let local_pos = inverse_transform_point(position) - params.velocity_pivot;
     var displacement = vec3(0.0);
 
     // rotation around Y axis
@@ -1000,7 +1017,8 @@ fn get_orbit_displacement(
     let rot_z = vec2(xy.x * c_z - xy.y * s_z, xy.x * s_z + xy.y * c_z);
     displacement += vec3(rot_z.x - xy.x, rot_z.y - xy.y, 0.0);
 
-    return displacement / dt;
+    // transform displacement back to spawn space
+    return transform_direction(displacement) / dt;
 }
 
 fn get_initial_directional_velocity(seed: u32) -> f32 {
@@ -1008,12 +1026,12 @@ fn get_initial_directional_velocity(seed: u32) -> f32 {
     return mix(params.directional_velocity.min, params.directional_velocity.max, t);
 }
 
-fn get_directional_velocity_curve_multiplier(age: f32, lifetime: f32) -> f32 {
+fn get_directional_velocity_curve_value(age: f32, lifetime: f32) -> vec3<f32> {
     if (params.directional_velocity.curve.enabled == 0u) {
-        return 1.0;
+        return vec3(1.0);
     }
     let t = clamp(age / lifetime, 0.0, 1.0);
-    return sample_spline_curve(
+    return sample_spline_curve_xyz(
         directional_velocity_curve_texture,
         directional_velocity_curve_sampler,
         params.directional_velocity.curve,
@@ -1027,9 +1045,13 @@ fn get_directional_displacement(
     age: f32,
     lifetime: f32,
 ) -> vec3<f32> {
-    let curve_multiplier = get_directional_velocity_curve_multiplier(age, lifetime);
-    let effective_velocity = directional_velocity * curve_multiplier;
+    let curve_value = get_directional_velocity_curve_value(age, lifetime);
 
+    if (params.directional_velocity.curve.enabled != 0u) {
+        return curve_value * directional_velocity;
+    }
+
+    let effective_velocity = directional_velocity * curve_value.x;
     if (abs(effective_velocity) < 0.0001) {
         return vec3(0.0);
     }
@@ -1250,7 +1272,6 @@ fn spawn_particle(idx: u32) -> Particle {
     let initial_orbit_velocity = get_initial_orbit_velocity(seed + 80u);
     let orbit_displacement = get_orbit_displacement(
         emission_pos,
-        pivot,
         initial_orbit_velocity,
         0.0,
         lifetime,
@@ -1380,7 +1401,6 @@ fn update_particle(p_in: Particle) -> Particle {
 
         let prev_orbit = get_orbit_displacement(
             prev_position,
-            pivot,
             initial_orbit_velocity,
             prev_age,
             lifetime,
@@ -1413,7 +1433,6 @@ fn update_particle(p_in: Particle) -> Particle {
 
     let orbit_displacement = get_orbit_displacement(
         p.position.xyz,
-        pivot,
         initial_orbit_velocity,
         age,
         lifetime,
