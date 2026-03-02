@@ -195,7 +195,9 @@ fn vertex(vertex: Vertex) -> VertexOutput {
 #endif
 
 #ifdef VERTEX_COLORS
-        out.color = vertex.color * head_particle.color;
+        let color_lo = sorted_particles[idx_lo].color;
+        let color_hi = sorted_particles[idx_hi].color;
+        out.color = vertex.color * mix(color_lo, color_hi, seg_t);
 #endif
 
         return out;
@@ -388,6 +390,19 @@ fn get_head_particle(particle_index: u32) -> Particle {
     return sorted_particles[head_slot];
 }
 
+fn get_trail_color(particle_index: u32, section_frac: f32) -> vec4<f32> {
+    let trail_size = emitter_uniforms.trail_size;
+    let head_slot = particle_index * trail_size;
+    let last_seg = trail_size - 1u;
+    let section_f = section_frac * f32(last_seg);
+    let seg_lo = min(u32(section_f), last_seg);
+    let seg_hi = min(seg_lo + 1u, last_seg);
+    let seg_t = section_f - f32(seg_lo);
+    let color_lo = sorted_particles[head_slot + seg_lo].color;
+    let color_hi = sorted_particles[head_slot + seg_hi].color;
+    return mix(color_lo, color_hi, seg_t);
+}
+
 // depth-only prepass fragment - discard inactive, no output needed
 #ifdef PREPASS_PIPELINE
 #ifndef PREPASS_FRAGMENT
@@ -397,15 +412,23 @@ fn fragment(
     @builtin(front_facing) is_front: bool,
 ) {
 #ifdef VERTEX_UVS_B
-    let particle = get_head_particle(u32(round(in.uv_b.x)));
+    let particle_index = u32(round(in.uv_b.x));
+    let particle = get_head_particle(particle_index);
+    var particle_color: vec4<f32>;
+    if (emitter_uniforms.trail_size > 1u) {
+        particle_color = get_trail_color(particle_index, in.uv_b.y);
+    } else {
+        particle_color = particle.color;
+    }
 #else
     let particle = sorted_particles[0u];
+    let particle_color = particle.color;
 #endif
 
     let flags = bitcast<u32>(particle.custom.w);
     let is_active = (flags & PARTICLE_FLAG_ACTIVE) != 0u;
 
-    if (!is_active || particle.color.a < 0.001) {
+    if (!is_active || particle_color.a < 0.001) {
         discard;
     }
 }
@@ -421,20 +444,28 @@ fn fragment(
     @builtin(front_facing) is_front: bool,
 ) -> FragmentOutput {
 #ifdef VERTEX_UVS_B
-    let particle = get_head_particle(u32(round(in.uv_b.x)));
+    let particle_index = u32(round(in.uv_b.x));
+    let particle = get_head_particle(particle_index);
+    var particle_color: vec4<f32>;
+    if (emitter_uniforms.trail_size > 1u) {
+        particle_color = get_trail_color(particle_index, in.uv_b.y);
+    } else {
+        particle_color = particle.color;
+    }
 #else
     let particle = sorted_particles[0u];
+    let particle_color = particle.color;
 #endif
 
     let flags = bitcast<u32>(particle.custom.w);
     let is_active = (flags & PARTICLE_FLAG_ACTIVE) != 0u;
 
-    if (!is_active || particle.color.a < 0.001) {
+    if (!is_active || particle_color.a < 0.001) {
         discard;
     }
 
     var pbr_input = pbr_input_from_standard_material(in, is_front);
-    pbr_input.material.base_color = pbr_input.material.base_color * particle.color;
+    pbr_input.material.base_color = pbr_input.material.base_color * particle_color;
     let out = deferred_output(in, pbr_input);
 
     return out;
@@ -450,20 +481,28 @@ fn fragment(
     @builtin(front_facing) is_front: bool,
 ) -> FragmentOutput {
 #ifdef VERTEX_UVS_B
-    let particle = get_head_particle(u32(round(in.uv_b.x)));
+    let particle_index = u32(round(in.uv_b.x));
+    let particle = get_head_particle(particle_index);
+    var particle_color: vec4<f32>;
+    if (emitter_uniforms.trail_size > 1u) {
+        particle_color = get_trail_color(particle_index, in.uv_b.y);
+    } else {
+        particle_color = particle.color;
+    }
 #else
     let particle = sorted_particles[0u];
+    let particle_color = particle.color;
 #endif
 
     let flags = bitcast<u32>(particle.custom.w);
     let is_active = (flags & PARTICLE_FLAG_ACTIVE) != 0u;
 
-    if (!is_active || particle.color.a < 0.001) {
+    if (!is_active || particle_color.a < 0.001) {
         discard;
     }
 
     var pbr_input = pbr_input_from_standard_material(in, is_front);
-    pbr_input.material.base_color = pbr_input.material.base_color * particle.color;
+    pbr_input.material.base_color = pbr_input.material.base_color * particle_color;
     pbr_input.material.base_color = alpha_discard(pbr_input.material, pbr_input.material.base_color);
 
     let particle_alpha = pbr_input.material.base_color.a;

@@ -235,11 +235,13 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 
         let head = particles[head_slot];
         var p = head;
+        var segment_age = head.custom.x;
 
         if (params.trail_history_size > 0u) {
             let head_age = head.custom.x;
             let effective_stretch = min(head_age, params.trail_stretch_time);
             let target_age = head_age - section_frac * effective_stretch;
+            segment_age = target_age;
 
             let wi = params.trail_history_write_index;
             let hs = params.trail_history_size;
@@ -284,9 +286,20 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
             let vel = head.velocity.xyz;
             let age = head.custom.x;
             let dt = section_frac * min(age, params.trail_stretch_time);
+            segment_age = age - dt;
             let past_pos = head.position.xyz - vel * dt + 0.5 * params.gravity * dt * dt;
             p.position = vec4(past_pos, head.position.w);
         }
+
+        // recompute color/alpha for this trail segment's effective age
+        let seed = bitcast<u32>(head.custom.z);
+        let lifetime = head.velocity.w;
+        let initial_alpha = get_initial_alpha(seed);
+        p.color.a = get_alpha_at_lifetime(initial_alpha, segment_age, lifetime);
+        let initial_rgb = get_initial_color_rgb(seed);
+        let emission = get_emission_at_lifetime(segment_age, lifetime);
+        let col_life = get_color_over_lifetime(segment_age, lifetime);
+        p.color = vec4(initial_rgb * emission * col_life.rgb, p.color.a * col_life.a);
 
         particles[segment_slot] = p;
         return;
