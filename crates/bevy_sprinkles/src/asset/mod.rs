@@ -513,7 +513,7 @@ pub enum ParticleMesh {
         #[serde(default, skip_serializing_if = "is_zero_vec3")]
         subdivide: Vec3,
     },
-    /// A tube-shaped trail mesh that follows the particle's path.
+    /// A tube-shaped trail mesh.
     TubeTrail {
         /// Radius of the tube cross-section. Defaults to `0.5`.
         radius: f32,
@@ -525,7 +525,7 @@ pub enum ParticleMesh {
         #[serde(default = "default_section_rings")]
         section_rings: u32,
     },
-    /// A ribbon-shaped trail mesh that follows the particle's path.
+    /// A ribbon-shaped trail mesh.
     RibbonTrail {
         /// Half-width of the ribbon. Defaults to `1.0`.
         size: f32,
@@ -1282,14 +1282,12 @@ fn default_trail_stretch_time() -> f32 {
 /// Trail configuration for an emitter.
 ///
 /// When enabled, each particle leaves a visible trail behind it as it moves.
-/// The number of trail segments is determined by the mesh's `sections` field
-/// (on [`ParticleMesh::TubeTrail`] or [`ParticleMesh::RibbonTrail`]).
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct EmitterTrail {
     /// Whether trails are enabled. Defaults to `false`.
     #[serde(default, skip_serializing_if = "is_false")]
     pub enabled: bool,
-    /// Time in seconds for the trail to fully stretch to its maximum length.
+    /// The amount of time the particle's trail should represent, in seconds.
     ///
     /// Defaults to `0.3`.
     #[serde(default = "default_trail_stretch_time")]

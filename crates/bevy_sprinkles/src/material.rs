@@ -28,12 +28,12 @@ pub struct ParticleEmitterUniforms {
     pub particle_flags: u32,
     /// Whether particles are simulated in local coordinates (1) or world coordinates (0).
     pub use_local_coords: u32,
-    /// Trail size: `1` when trails are disabled, `sections` when enabled.
+    /// Number of trail segments per particle.
     pub trail_size: u32,
     /// Transform alignment mode (`0` = disabled, `1` = billboard, `2` = Y-to-velocity,
     /// `3` = billboard Y-to-velocity, `4` = billboard fixed-Y).
     pub transform_align: u32,
-    /// Baked trail thickness curve samples (16 evenly spaced points from head to tail).
+    /// Baked trail thickness curve samples.
     pub trail_thickness_curve: [f32; TRAIL_THICKNESS_CURVE_SAMPLES],
 }
 
