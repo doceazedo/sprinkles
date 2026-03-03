@@ -39,17 +39,17 @@ pub struct ParticleSystem3D {
 #[derive(Clone, Copy, Default, Pod, Zeroable, ShaderType)]
 #[repr(C)]
 pub struct ParticleData {
-    /// XYZ position and W = scale.
+    /// Particle position and scale.
     pub position: [f32; 4],
-    /// XYZ velocity and W = remaining lifetime.
+    /// Particle velocity and remaining lifetime.
     pub velocity: [f32; 4],
-    /// RGBA color.
+    /// Particle color.
     pub color: [f32; 4],
-    /// X = age, Y = phase, Z = seed, W = flags (bit-packed).
+    /// Particle age, phase, seed, and flags.
     pub custom: [f32; 4],
-    /// XYZ direction for velocity-aligned transforms, W = angle (radians).
+    /// Particle direction for velocity-aligned transforms and angle.
     pub alignment_dir: [f32; 4],
-    /// XYZ reference "up" direction for parallel-transported velocity alignment.
+    /// Reference "up" direction for parallel-transported velocity alignment.
     pub ref_up: [f32; 4],
 }
 
@@ -316,11 +316,11 @@ pub struct ParticleBufferHandle {
     pub sorted_particles_buffer: Handle<ShaderStorageBuffer>,
     /// Buffer holding per-emitter uniforms (transform, flags) for the material shader.
     pub emitter_uniforms_buffer: Handle<ShaderStorageBuffer>,
-    /// Maximum number of particles this buffer can hold (amount * trail_size).
+    /// Maximum number of particle slots this buffer can hold.
     pub max_particles: u32,
-    /// The particle count used when allocating buffers.
+    /// Number of head particles in this emitter.
     pub amount: u32,
-    /// The trail size used when allocating buffers.
+    /// Number of trail segments per particle.
     pub trail_size: u32,
     /// Per-particle trail position history ring buffer.
     pub trail_history_buffer: Option<Handle<ShaderStorageBuffer>>,
