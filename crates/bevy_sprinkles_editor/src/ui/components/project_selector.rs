@@ -182,7 +182,7 @@ fn handle_trigger_click(
     trigger: On<ButtonClickEvent>,
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    editor_data: Res<EditorData>,
+    mut editor_data: ResMut<EditorData>,
     triggers: Query<&ProjectSelectorTrigger>,
     mut states: Query<&mut ProjectSelectorState>,
     all_popovers: Query<Entity, With<EditorPopover>>,
@@ -288,6 +288,18 @@ fn handle_trigger_click(
             ..default()
         })
         .id();
+
+    let prev_count = editor_data.cache.recent_projects.len();
+    editor_data.cache.recent_projects.retain(|p| {
+        let exists = project_path(p).exists();
+        if !exists {
+            info!("Removing missing recent project: {p}");
+        }
+        exists
+    });
+    if editor_data.cache.recent_projects.len() != prev_count {
+        save_editor_data(&editor_data);
+    }
 
     for path_str in &editor_data.cache.recent_projects {
         let full_path = project_path(path_str);
