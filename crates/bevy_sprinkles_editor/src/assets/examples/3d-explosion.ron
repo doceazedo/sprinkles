@@ -2,7 +2,6 @@
     sprinkles_version: "0.1",
     name: "Explosion",
     dimension: D3,
-    despawn_on_finish: true,
     emitters: [
         (
             name: "Windup",
@@ -179,6 +178,8 @@
                     )),
                 ),
                 angular_velocity: (),
+                orbit_velocity: (),
+                directional_velocity: (),
             ),
             accelerations: (
                 gravity: (0.0, 0.0, 0.0),
@@ -325,6 +326,8 @@
                 ),
                 radial_velocity: (),
                 angular_velocity: (),
+                orbit_velocity: (),
+                directional_velocity: (),
             ),
             accelerations: (
                 gravity: (0.0, 1.0, 0.0),
@@ -497,6 +500,8 @@
                 ),
                 radial_velocity: (),
                 angular_velocity: (),
+                orbit_velocity: (),
+                directional_velocity: (),
             ),
             accelerations: (
                 gravity: (0.0, 0.3, 0.0),
@@ -642,6 +647,8 @@
                 ),
                 radial_velocity: (),
                 angular_velocity: (),
+                orbit_velocity: (),
+                directional_velocity: (),
             ),
             accelerations: (
                 gravity: (0.0, -1.5, 0.0),
@@ -766,6 +773,8 @@
                 spread: 45.0,
                 radial_velocity: (),
                 angular_velocity: (),
+                orbit_velocity: (),
+                directional_velocity: (),
             ),
             accelerations: (
                 gravity: (0.0, 0.0, 0.0),
@@ -872,6 +881,8 @@
                 ),
                 radial_velocity: (),
                 angular_velocity: (),
+                orbit_velocity: (),
+                directional_velocity: (),
             ),
             accelerations: (
                 gravity: (0.0, -9.8, 0.0),
@@ -893,9 +904,12 @@
             shape: Box(
                 size: (10.0, 0.1, 10.0),
             ),
-            position: (0.0, -2.0, 0.0),
+            initial_transform: (
+                translation: (0.0, -2.0, 0.0),
+            ),
         ),
     ],
+    despawn_on_finish: true,
     authors: (
         inspired_by: "Brackeys",
         submitted_by: "DoceAzedo",

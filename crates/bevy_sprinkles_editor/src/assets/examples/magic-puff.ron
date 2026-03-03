@@ -106,6 +106,8 @@
                 spread: 45.0,
                 radial_velocity: (),
                 angular_velocity: (),
+                orbit_velocity: (),
+                directional_velocity: (),
             ),
             accelerations: (
                 gravity: (0.0, 0.0, 0.0),
@@ -217,6 +219,8 @@
                         max: 10.0,
                     ),
                 ),
+                orbit_velocity: (),
+                directional_velocity: (),
             ),
             accelerations: (
                 gravity: (0.0, -9.8, 0.0),
@@ -394,6 +398,8 @@
                         max: 90.0,
                     ),
                 ),
+                orbit_velocity: (),
+                directional_velocity: (),
             ),
             accelerations: (
                 gravity: (0.0, 0.3, 0.0),
@@ -405,7 +411,9 @@
         ),
         (
             name: "Smoke",
-            position: (0.0, 0.1, 0.0),
+            initial_transform: (
+                translation: (0.0, 0.2, 0.0),
+            ),
             time: (
                 lifetime: 1.5,
                 lifetime_randomness: 0.3,
@@ -431,7 +439,6 @@
                 transform_align: Some(Billboard),
             ),
             emission: (
-                offset: (0.0, 0.2, 0.0),
                 scale: (0.5, 0.5, 0.5),
                 shape: Sphere(
                     radius: 2.0,
@@ -547,6 +554,8 @@
                         max: 90.0,
                     ),
                 ),
+                orbit_velocity: (),
+                directional_velocity: (),
             ),
             accelerations: (
                 gravity: (0.0, 9.3, 0.0),
@@ -672,6 +681,8 @@
                     ),
                 ),
                 angular_velocity: (),
+                orbit_velocity: (),
+                directional_velocity: (),
             ),
             accelerations: (
                 gravity: (0.0, -9.8, 0.0),
@@ -797,6 +808,8 @@
                     ),
                 ),
                 angular_velocity: (),
+                orbit_velocity: (),
+                directional_velocity: (),
             ),
             accelerations: (
                 gravity: (0.0, 0.0, 0.0),
@@ -813,7 +826,9 @@
             shape: Box(
                 size: (20.0, 0.2, 20.0),
             ),
-            position: (0.0, -2.1, -0.1),
+            initial_transform: (
+                translation: (0.0, -2.0, 0.0),
+            ),
         ),
     ],
     authors: (
