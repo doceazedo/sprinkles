@@ -415,13 +415,13 @@ pub fn cleanup_particle_entities(
 pub fn sync_collider_data(
     particle_systems: Query<&ParticleSystem3D>,
     assets: Res<Assets<ParticleSystemAsset>>,
-    mut collider_query: Query<(&ColliderEntity, &mut ParticlesCollider3D)>,
+    mut collider_query: Query<(&ColliderEntity, &mut ParticlesCollider3D, &mut Transform)>,
 ) {
     if !assets.is_changed() {
         return;
     }
 
-    for (collider, mut collider3d) in collider_query.iter_mut() {
+    for (collider, mut collider3d, mut transform) in collider_query.iter_mut() {
         let Some(collider_data) =
             get_particle_asset(collider.parent_system, &particle_systems, &assets)
                 .and_then(|asset| asset.colliders.get(collider.collider_index))
@@ -431,6 +431,7 @@ pub fn sync_collider_data(
 
         collider3d.enabled = collider_data.enabled;
         collider3d.shape = collider_data.shape.clone();
+        *transform = collider_data.initial_transform.to_transform();
     }
 }
 

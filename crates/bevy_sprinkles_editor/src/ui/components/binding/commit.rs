@@ -4,7 +4,7 @@ use bevy::reflect::{PartialReflect, ReflectRef};
 use bevy_sprinkles::prelude::*;
 
 use crate::io::{EditorData, save_editor_data};
-use crate::state::{DirtyState, EditorState};
+use crate::state::{DirtyState, EditorState, Inspectable};
 use crate::ui::components::inspector::FieldKind;
 use crate::ui::widgets::checkbox::CheckboxCommitEvent;
 use crate::ui::widgets::color_picker::ColorPickerCommitEvent;
@@ -14,7 +14,7 @@ use crate::ui::widgets::gradient_edit::GradientEditCommitEvent;
 use crate::ui::widgets::text_edit::TextEditCommitEvent;
 use crate::ui::widgets::texture_edit::TextureEditCommitEvent;
 use crate::ui::widgets::variant_edit::{VariantComboBox, VariantEditConfig};
-use crate::viewport::RespawnEmittersEvent;
+use crate::viewport::{RespawnCollidersEvent, RespawnEmittersEvent};
 
 use super::{
     BindingTarget, BoundTo, FieldBinding, FieldValue, get_inspected_data_mut,
@@ -78,7 +78,16 @@ impl CommitContext<'_, '_> {
             }
         }
         if requires_respawn_binding(binding) {
-            self.commands.trigger(RespawnEmittersEvent);
+            let is_collider = self
+                .editor_state
+                .inspecting
+                .as_ref()
+                .is_some_and(|i| i.kind == Inspectable::Collider);
+            if is_collider {
+                self.commands.trigger(RespawnCollidersEvent);
+            } else {
+                self.commands.trigger(RespawnEmittersEvent);
+            }
         }
     }
 
