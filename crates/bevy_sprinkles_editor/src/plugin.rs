@@ -7,9 +7,9 @@ use crate::io::{EditorData, project_path, save_editor_data, working_dir};
 use crate::project::load_project_from_path;
 use crate::state::{DirtyState, EditorState, Inspectable, Inspecting};
 use crate::viewport::{
-    CameraSettings, ViewportInputState, configure_floor_texture, despawn_preview_on_project_change,
-    draw_collider_gizmos, handle_playback_play_event, handle_playback_reset_event,
-    handle_playback_seek_event, handle_respawn_colliders, handle_respawn_emitters, orbit_camera,
+    CameraSettings, ViewportInputState, despawn_preview_on_project_change, draw_collider_gizmos,
+    handle_playback_play_event, handle_playback_reset_event, handle_playback_seek_event,
+    handle_respawn_colliders, handle_respawn_emitters, orbit_camera,
     respawn_preview_on_emitter_change, setup_camera, setup_floor, spawn_preview_particle_system,
     sync_playback_state, sync_viewport_settings, zoom_camera,
 };
@@ -53,7 +53,6 @@ impl Plugin for SprinklesEditorPlugin {
                 (
                     orbit_camera,
                     zoom_camera,
-                    configure_floor_texture,
                     spawn_preview_particle_system,
                     despawn_preview_on_project_change,
                     sync_playback_state,

@@ -6,7 +6,7 @@ use bevy::asset::RenderAssetUsages;
 use bevy::camera::RenderTarget;
 use bevy::color::palettes::tailwind::{ZINC_200, ZINC_950};
 use bevy::core_pipeline::tonemapping::Tonemapping;
-use bevy::image::{ImageAddressMode, ImageSamplerDescriptor};
+use bevy::image::{ImageAddressMode, ImageLoaderSettings, ImageSampler, ImageSamplerDescriptor};
 use bevy::input::mouse::{AccumulatedMouseMotion, AccumulatedMouseScroll};
 use bevy::math::Affine2;
 use bevy::picking::hover::Hovered;
@@ -33,7 +33,7 @@ const ORBIT_OFFSET: Vec3 = Vec3::new(1.0, 0.75, 1.0);
 const ORBIT_TARGET: Vec3 = Vec3::ZERO;
 
 const FLOOR_SIZE: f32 = 192.0;
-const FLOOR_TILE_SIZE: f32 = 2.0;
+const FLOOR_TILE_SIZE: f32 = 4.0;
 
 #[derive(Component)]
 pub struct EditorCamera;
@@ -129,24 +129,29 @@ pub fn setup_camera(
     ));
 }
 
-#[derive(Resource)]
-pub struct FloorTexture(Handle<Image>);
-
 pub fn setup_floor(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    let floor_texture: Handle<Image> = asset_server.load("embedded://sprinkles/assets/floor.png");
-    commands.insert_resource(FloorTexture(floor_texture.clone()));
-
     let mesh = meshes.add(Plane3d::new(*Dir3::Y, Vec2::splat(FLOOR_SIZE / 2.)));
-
-    let tile_count = FLOOR_SIZE / FLOOR_TILE_SIZE;
     let material = materials.add(StandardMaterial {
-        base_color_texture: Some(floor_texture),
-        uv_transform: Affine2::from_scale(Vec2::splat(tile_count)),
+        base_color_texture: Some(asset_server.load_with_settings(
+            "embedded://sprinkles/assets/floor.png",
+            |settings: &mut _| {
+                *settings = ImageLoaderSettings {
+                    sampler: ImageSampler::Descriptor(ImageSamplerDescriptor {
+                        address_mode_u: ImageAddressMode::Repeat,
+                        address_mode_v: ImageAddressMode::Repeat,
+                        address_mode_w: ImageAddressMode::Repeat,
+                        ..default()
+                    }),
+                    ..default()
+                }
+            },
+        )),
+        uv_transform: Affine2::from_scale(Vec2::splat(FLOOR_SIZE / FLOOR_TILE_SIZE)),
         perceptual_roughness: 1.0,
         ..default()
     });
@@ -158,28 +163,6 @@ pub fn setup_floor(
         Transform::from_xyz(0.0, -2.0, 0.0),
         Visibility::default(),
     ));
-}
-
-pub fn configure_floor_texture(
-    mut commands: Commands,
-    floor_texture: Option<Res<FloorTexture>>,
-    mut images: ResMut<Assets<Image>>,
-) {
-    let Some(floor_texture) = floor_texture else {
-        return;
-    };
-    let Some(image) = images.get_mut(&floor_texture.0) else {
-        return;
-    };
-
-    image.sampler = bevy::image::ImageSampler::Descriptor(ImageSamplerDescriptor {
-        address_mode_u: ImageAddressMode::Repeat,
-        address_mode_v: ImageAddressMode::Repeat,
-        address_mode_w: ImageAddressMode::Repeat,
-        ..default()
-    });
-
-    commands.remove_resource::<FloorTexture>();
 }
 
 pub fn orbit_camera(
