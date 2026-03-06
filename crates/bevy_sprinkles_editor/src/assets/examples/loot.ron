@@ -1,5 +1,5 @@
 (
-    sprinkles_version: "0.1",
+    sprinkles_version: "0.2",
     name: "Loot",
     dimension: D3,
     initial_transform: (

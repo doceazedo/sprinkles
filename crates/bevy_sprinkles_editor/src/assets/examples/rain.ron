@@ -1,5 +1,5 @@
 (
-    sprinkles_version: "0.1",
+    sprinkles_version: "0.2",
     name: "Rain",
     dimension: D3,
     emitters: [
@@ -211,7 +211,9 @@
             shape: Box(
                 size: (50.0, 1.0, 50.0),
             ),
-            position: (0.0, -2.5, 0.0),
+            initial_transform: (
+                translation: (0.0, -2.5, 0.0),
+            ),
         ),
     ],
 )

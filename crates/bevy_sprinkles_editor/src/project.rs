@@ -5,7 +5,6 @@ use std::sync::{Arc, Mutex};
 
 use bevy::prelude::*;
 use bevy::tasks::IoTaskPool;
-use bevy_sprinkles::asset::versioning::VersionStatus;
 use bevy_sprinkles::prelude::*;
 use inflector::Inflector;
 
@@ -59,26 +58,33 @@ pub enum SaveResultStatus {
 #[derive(Resource, Clone)]
 pub struct SaveResult(pub Arc<Mutex<Option<SaveResultStatus>>>);
 
-pub enum LoadProjectError {
+pub(crate) enum LoadProjectError {
     /// The file could not be read from disk.
     Read(std::io::Error),
     /// The file contents could not be parsed as a valid project.
     Parse,
+    /// The file has an unrecognized format version.
+    UnknownVersion,
 }
 
-pub fn load_project_from_path(
+pub(crate) fn load_project_from_path(
     path: &std::path::Path,
-) -> Result<bevy_sprinkles::asset::ParticleSystemAsset, LoadProjectError> {
+) -> Result<bevy_sprinkles::asset::versions::MigrationResult, LoadProjectError> {
     let contents = std::fs::read_to_string(path).map_err(|err| {
         error!("Failed to read project file: {path:?}");
         error!("{err}");
         LoadProjectError::Read(err)
     })?;
 
-    ron::from_str(&contents).map_err(|err| {
+    bevy_sprinkles::asset::versions::migrate_str(&contents).map_err(|err| {
         error!("Failed to parse project file: {path:?}");
         error!("{err}");
-        LoadProjectError::Parse
+        match err {
+            bevy_sprinkles::asset::versions::MigrationError::UnknownVersion(_) => {
+                LoadProjectError::UnknownVersion
+            }
+            _ => LoadProjectError::Parse,
+        }
     })
 }
 
@@ -94,8 +100,8 @@ fn on_open_project_event(
     let path = project_path(location);
     let is_example = is_example_path(&path);
 
-    let mut asset = match load_project_from_path(&path) {
-        Ok(asset) => asset,
+    let result = match load_project_from_path(&path) {
+        Ok(result) => result,
         Err(err) => {
             let display = truncate_path(location, MAX_DISPLAY_PATH_LEN);
             let message = match &err {
@@ -111,37 +117,30 @@ fn on_open_project_event(
                 LoadProjectError::Parse => {
                     format!("Project \"{display}\" is corrupted or invalid")
                 }
+                LoadProjectError::UnknownVersion => {
+                    format!(
+                        "Project \"{display}\" has an unknown version. You may need to update Sprinkles."
+                    )
+                }
             };
             commands.trigger(ToastEvent::error(message));
             return;
         }
     };
 
+    let asset = result.asset;
+
     let filename = path
         .file_name()
         .map(|n| n.to_string_lossy().to_string())
         .unwrap_or_else(|| location.clone());
 
-    match asset.try_upgrade_version() {
-        VersionStatus::Current => {}
-        VersionStatus::Outdated { current, .. } => {
-            dirty_state.has_unsaved_changes = true;
-            commands.trigger(ToastEvent::success(format!(
-                "Project \"{filename}\" will be updated to {current} on the next save"
-            )));
-        }
-        VersionStatus::Incompatible { found, current } => {
-            commands.trigger(ToastEvent::error(format!(
-                "Project \"{filename}\" (version {found}) is incompatible with Sprinkles {current}"
-            )));
-            return;
-        }
-        VersionStatus::Unknown => {
-            commands.trigger(ToastEvent::error(format!(
-                "Project \"{filename}\" has an unknown version. You may need to update Sprinkles."
-            )));
-            return;
-        }
+    if result.was_migrated {
+        let current = bevy_sprinkles::asset::versions::current_format_version();
+        dirty_state.has_unsaved_changes = true;
+        commands.trigger(ToastEvent::success(format!(
+            "Project \"{filename}\" will be updated to {current} on the next save"
+        )));
     }
 
     let has_emitters = !asset.emitters.is_empty();

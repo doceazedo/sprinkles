@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 use thiserror::Error;
 
-use bevy_sprinkles::asset::versioning::{self, VersionStatus};
+use bevy_sprinkles::asset::versions;
 use bevy_sprinkles::asset::{ParticleSystemAsset, ParticleSystemAssetLoader};
 
 #[derive(Asset, TypePath, Debug, Serialize, Deserialize, PartialEq)]
@@ -103,6 +103,16 @@ fn run_until_failed<T: Asset>(app: &mut App, handle: &Handle<T>, max_updates: u3
         }
     }
     false
+}
+
+fn fixture(name: &str) -> String {
+    std::fs::read_to_string(
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests")
+            .join("fixtures")
+            .join(name),
+    )
+    .unwrap()
 }
 
 #[test]
@@ -253,69 +263,36 @@ fn test_dummy_data_loader_extension() {
 }
 
 #[test]
-fn test_outdated_version_loads_successfully() {
-    let mut app = create_test_app();
-
-    let handle: Handle<ParticleSystemAsset> = {
-        let asset_server = app.world().resource::<AssetServer>();
-        asset_server.load("outdated_particle_system.ron")
-    };
-
-    assert!(
-        run_until_loaded(&mut app, &handle, 100),
-        "Should load outdated but compatible particle system"
+fn test_outdated_version_loads_and_migrates() {
+    let ron = fixture("v0_1_particle_system.ron");
+    let result = versions::migrate_str(&ron).expect("migration should succeed");
+    assert!(result.was_migrated);
+    assert_eq!(result.asset.name, "V0.1 Particle System");
+    assert_eq!(
+        result.asset.emitters[0].initial_transform.translation,
+        Vec3::new(1.0, 2.0, 3.0)
     );
+    assert_eq!(
+        result.asset.colliders[0].initial_transform.translation,
+        Vec3::new(4.0, 5.0, 6.0)
+    );
+}
 
-    let assets = app.world().resource::<Assets<ParticleSystemAsset>>();
-    let asset = assets.get(&handle).expect("Asset should be available");
-    assert_eq!(asset.name, "Outdated Particle System");
+#[test]
+fn test_current_version_loads_directly() {
+    let ron = fixture("valid_particle_system.ron");
+    let result = versions::migrate_str(&ron).expect("should load current version");
+    assert!(!result.was_migrated);
+    assert_eq!(result.asset.name, "Test Particle System");
 }
 
 #[test]
 fn test_unknown_version_fails_to_load() {
-    let mut app = create_test_app();
-
-    let handle: Handle<ParticleSystemAsset> = {
-        let asset_server = app.world().resource::<AssetServer>();
-        asset_server.load("unknown_version_particle_system.ron")
-    };
-
-    assert!(
-        run_until_failed(&mut app, &handle, 100),
-        "Should fail to load particle system with unknown version"
-    );
+    let ron = fixture("unknown_version_particle_system.ron");
+    assert!(versions::migrate_str(&ron).is_err());
 }
 
 #[test]
-fn test_validate_version_current() {
-    let current = versioning::current_format_version();
-    assert!(matches!(
-        versioning::validate_version(current),
-        VersionStatus::Current
-    ));
-}
-
-#[test]
-fn test_validate_version_outdated() {
-    assert!(matches!(
-        versioning::validate_version("0.0"),
-        VersionStatus::Outdated { .. }
-    ));
-}
-
-#[test]
-fn test_validate_version_unknown() {
-    assert!(matches!(
-        versioning::validate_version("99.99"),
-        VersionStatus::Unknown
-    ));
-}
-
-#[test]
-fn test_validate_version_incompatible() {
-    // with current FORMAT_VERSIONS (0.0 non-breaking, 0.1 non-breaking), there is
-    // no incompatible path. verify the logic by checking that can_auto_upgrade
-    // returns false when the target version is unknown (simulating a gap).
-    assert!(!versioning::can_auto_upgrade("0.0", "99.99"));
-    assert!(!versioning::can_auto_upgrade("99.99", "0.1"));
+fn test_current_format_version() {
+    assert_eq!(versions::current_format_version(), "0.2");
 }

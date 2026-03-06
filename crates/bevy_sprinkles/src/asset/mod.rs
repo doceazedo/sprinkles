@@ -2,8 +2,8 @@ mod curve;
 mod gradient;
 mod particle_material;
 pub(crate) mod serde_helpers;
-/// Asset format version tracking and compatibility validation.
-pub mod versioning;
+/// Asset format versioning, validation, and migration.
+pub mod versions;
 
 pub use curve::{Curve, CurveEasing, CurveMode, CurvePoint, CurveTexture};
 pub use gradient::{Gradient, GradientInterpolation, GradientStop, SolidOrGradientColor};
@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use serde_helpers::*;
-use versioning::{VersionStatus, current_format_version};
+use versions::current_format_version;
 
 /// Asset loader for [`ParticleSystemAsset`] files in RON format.
 #[derive(Default, TypePath)]
@@ -33,22 +33,9 @@ pub enum ParticleSystemAssetLoaderError {
     /// An I/O error occurred while reading the asset file.
     #[error("Could not load asset: {0}")]
     Io(#[from] std::io::Error),
-    /// The asset file contained invalid RON syntax.
-    #[error("Could not parse RON: {0}")]
-    Ron(#[from] ron::error::SpannedError),
-    /// The asset file has an unknown format version, likely from a newer Sprinkles.
-    #[error("Unknown sprinkles_version. You may need a newer version of Sprinkles.")]
-    UnknownVersion,
-    /// The asset file has a version that requires breaking changes to upgrade.
-    #[error(
-        "Asset version \"{found}\" is incompatible with current version \"{current}\". Manual migration is required."
-    )]
-    IncompatibleVersion {
-        /// The version found in the asset file.
-        found: String,
-        /// The current format version.
-        current: String,
-    },
+    /// The asset file could not be parsed or migrated.
+    #[error("{0}")]
+    Migration(#[from] versions::MigrationError),
 }
 
 impl AssetLoader for ParticleSystemAssetLoader {
@@ -64,28 +51,18 @@ impl AssetLoader for ParticleSystemAssetLoader {
     ) -> Result<Self::Asset, Self::Error> {
         let mut bytes = Vec::new();
         reader.read_to_end(&mut bytes).await?;
-        let mut asset = ron::de::from_bytes::<ParticleSystemAsset>(&bytes)?;
 
-        match asset.try_upgrade_version() {
-            VersionStatus::Current => {}
-            VersionStatus::Outdated { found, current } => {
-                let path = load_context.path();
-                warn!(
-                    "{path:?}: loaded asset with sprinkles_version \"{found}\", current is \"{current}\""
-                );
-            }
-            VersionStatus::Incompatible { found, current } => {
-                return Err(ParticleSystemAssetLoaderError::IncompatibleVersion {
-                    found,
-                    current: current.to_string(),
-                });
-            }
-            VersionStatus::Unknown => {
-                return Err(ParticleSystemAssetLoaderError::UnknownVersion);
-            }
+        let result = versions::migrate(&bytes)?;
+
+        if result.was_migrated {
+            let path = load_context.path();
+            warn!(
+                "{path:?}: migrated asset to sprinkles_version \"{}\"",
+                current_format_version()
+            );
         }
 
-        Ok(asset)
+        Ok(result.asset)
     }
 
     fn extensions(&self) -> &[&str] {
@@ -1422,17 +1399,5 @@ impl ParticleSystemAsset {
             authors,
             sprinkles_editor: SprinklesEditorData::default(),
         }
-    }
-
-    /// Validates this asset's `sprinkles_version` against the current format version.
-    ///
-    /// If the version is outdated but compatible, it is automatically upgraded.
-    /// Returns the original [`VersionStatus`] so the caller can react accordingly.
-    pub fn try_upgrade_version(&mut self) -> VersionStatus {
-        let status = versioning::validate_version(&self.sprinkles_version);
-        if matches!(status, VersionStatus::Outdated { .. }) {
-            self.sprinkles_version = current_format_version().to_string();
-        }
-        status
     }
 }

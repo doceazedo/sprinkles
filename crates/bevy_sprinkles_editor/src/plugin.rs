@@ -77,9 +77,9 @@ fn load_initial_project(
         } else {
             project_path(file)
         };
-        if let Ok(asset) = load_project_from_path(&path) {
-            let has_emitters = !asset.emitters.is_empty();
-            let handle = assets.add(asset);
+        if let Ok(result) = load_project_from_path(&path) {
+            let has_emitters = !result.asset.emitters.is_empty();
+            let handle = assets.add(result.asset);
             editor_state.open_project(handle, path, &mut dirty_state);
             if has_emitters {
                 editor_state.inspecting = Some(Inspecting {
@@ -96,9 +96,9 @@ fn load_initial_project(
     if let Some(location) = &editor_data.cache.last_opened_project.clone() {
         let path = project_path(location);
         if path.exists() {
-            if let Ok(asset) = load_project_from_path(&path) {
-                let has_emitters = !asset.emitters.is_empty();
-                let handle = assets.add(asset);
+            if let Ok(result) = load_project_from_path(&path) {
+                let has_emitters = !result.asset.emitters.is_empty();
+                let handle = assets.add(result.asset);
                 editor_state.open_project(handle, path, &mut dirty_state);
                 if has_emitters {
                     editor_state.inspecting = Some(Inspecting {
@@ -117,9 +117,9 @@ fn load_initial_project(
         let demo_file = "examples/3d-explosion.ron";
         let demo_path = project_path(demo_file);
         if demo_path.exists() {
-            if let Ok(asset) = load_project_from_path(&demo_path) {
-                let has_emitters = !asset.emitters.is_empty();
-                let handle = assets.add(asset);
+            if let Ok(result) = load_project_from_path(&demo_path) {
+                let has_emitters = !result.asset.emitters.is_empty();
+                let handle = assets.add(result.asset);
                 editor_state.open_project(handle, demo_path, &mut dirty_state);
                 if has_emitters {
                     editor_state.inspecting = Some(Inspecting {

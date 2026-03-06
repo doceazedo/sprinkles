@@ -68,14 +68,14 @@ fn collect_example_entries() -> Vec<ExampleEntry> {
             if path.extension().and_then(|e| e.to_str()) != Some("ron") {
                 return None;
             }
-            let asset = load_project_from_path(&path).ok()?;
+            let result = load_project_from_path(&path).ok()?;
             let stem = path.file_stem()?.to_string_lossy().to_string();
             Some(ExampleEntry {
-                name: asset.name,
+                name: result.asset.name,
                 path: format!("~/.sprinkles/examples/{stem}.ron"),
-                dimension: asset.dimension,
+                dimension: result.asset.dimension,
                 thumbnail: example_thumbnail_path(&stem),
-                authors: asset.authors,
+                authors: result.asset.authors,
             })
         })
         .collect();

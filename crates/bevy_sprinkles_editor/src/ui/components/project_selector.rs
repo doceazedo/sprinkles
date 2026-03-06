@@ -305,7 +305,7 @@ fn handle_trigger_click(
         let full_path = project_path(path_str);
         let name = load_project_from_path(&full_path)
             .ok()
-            .map(|asset| asset.name)
+            .map(|result| result.asset.name)
             .unwrap_or_else(|| {
                 full_path
                     .file_stem()

@@ -1,0 +1,30 @@
+(
+    sprinkles_version: "0.1",
+    name: "V0.1 Particle System",
+    dimension: D3,
+    emitters: [
+        (
+            name: "Test Emitter",
+            position: (1.0, 2.0, 3.0),
+            time: (
+                lifetime: 1.0,
+            ),
+            draw_pass: (
+                mesh: Sphere(),
+                material: Standard(()),
+            ),
+            emission: (
+                particles_amount: 8,
+            ),
+        ),
+    ],
+    colliders: [
+        (
+            name: "Test Collider",
+            shape: Box(
+                size: (10.0, 1.0, 10.0),
+            ),
+            position: (4.0, 5.0, 6.0),
+        ),
+    ],
+)
