@@ -153,10 +153,7 @@ fn handle_collision_mode_change(
 
     let new_mode = match trigger.value.as_deref().unwrap_or(&trigger.label) {
         "None" => None,
-        "Rigid" => Some(EmitterCollisionMode::Rigid {
-            friction: 0.0,
-            bounce: 0.0,
-        }),
+        "Rigid" => Some(EmitterCollisionMode::default()),
         "HideOnContact" => Some(EmitterCollisionMode::HideOnContact),
         _ => return,
     };

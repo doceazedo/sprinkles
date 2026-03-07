@@ -120,60 +120,56 @@ impl DrawOrder {
 
 /// Timing and lifecycle configuration for an emitter.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
+#[serde(default)]
 pub struct EmitterTime {
     /// The amount of time each particle will exist, in seconds.
     ///
     /// The effective emission rate is `particles_amount / lifetime` particles per second.
     /// Defaults to `1.0`.
-    #[serde(default = "default_lifetime")]
     pub lifetime: f32,
     /// Particle lifetime randomness ratio.
     ///
     /// The actual lifetime of each particle is `lifetime * (1.0 - rand() * lifetime_randomness)`.
     /// For example, a value of `0.4` scales each particle's lifetime between 60% and 100% of
     /// the configured [`lifetime`](Self::lifetime). Defaults to `0.0`.
-    #[serde(default, skip_serializing_if = "is_zero_f32")]
+    #[serde(skip_serializing_if = "is_zero_f32")]
     pub lifetime_randomness: f32,
     /// Time in seconds to wait before the emitter starts spawning particles.
     ///
     /// Defaults to `0.0`.
-    #[serde(default, skip_serializing_if = "is_zero_f32")]
+    #[serde(skip_serializing_if = "is_zero_f32")]
     pub delay: f32,
     /// If `true`, only one emission cycle will occur: exactly `particles_amount` particles
     /// will be emitted, and then the emitter stops.
     ///
     /// Defaults to `false`.
-    #[serde(default, skip_serializing_if = "is_false")]
+    #[serde(skip_serializing_if = "is_false")]
     pub one_shot: bool,
     /// Time ratio between each emission, from `0.0` to `1.0`.
     ///
     /// If `0.0`, particles are emitted continuously over the lifetime. If `1.0`, all
     /// particles are emitted simultaneously at the start of each cycle. Defaults to `0.0`.
-    #[serde(default, skip_serializing_if = "is_zero_f32")]
+    #[serde(skip_serializing_if = "is_zero_f32")]
     pub explosiveness: f32,
     /// Emission randomness ratio.
     ///
     /// Adds randomness to the timing of individual particle spawns within each cycle.
     /// Defaults to `0.0`.
-    #[serde(default, skip_serializing_if = "is_zero_f32")]
+    #[serde(skip_serializing_if = "is_zero_f32")]
     pub spawn_time_randomness: f32,
     /// Fixed frame rate for the particle simulation, in frames per second.
     ///
     /// When set to a non-zero value, the particle system updates at this fixed rate
     /// instead of every frame. This does not slow down the simulation itself, only
     /// how often it is evaluated. Defaults to `0` (updates every frame).
-    #[serde(default, skip_serializing_if = "is_zero_u32")]
+    #[serde(skip_serializing_if = "is_zero_u32")]
     pub fixed_fps: u32,
     /// Optional fixed random seed for deterministic particle behavior.
     ///
     /// When set, the particle system will produce the same visual result across
     /// replays, which is useful for cinematics or testing. Defaults to `None`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub fixed_seed: Option<u32>,
-}
-
-fn default_lifetime() -> f32 {
-    1.0
 }
 
 impl Default for EmitterTime {
@@ -202,17 +198,18 @@ impl EmitterTime {
 ///
 /// Used only during spawning if no [`Transform`] component is already present on the entity. To change the transform at runtime, modify the entity's [`Transform`] directly.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[serde(default)]
 pub struct InitialTransform {
     /// Position of the entity.
-    #[serde(default, skip_serializing_if = "is_zero_vec3")]
+    #[serde(skip_serializing_if = "is_zero_vec3")]
     pub translation: Vec3,
     /// Rotation of the entity.
     ///
     /// Expects `EulerRot::ZYX` where X = roll, Y = pitch, and Z = yaw.
-    #[serde(default, skip_serializing_if = "is_zero_vec3")]
+    #[serde(skip_serializing_if = "is_zero_vec3")]
     pub rotation: Vec3,
     /// Scale factors.
-    #[serde(default = "default_one_vec3", skip_serializing_if = "is_one_vec3")]
+    #[serde(skip_serializing_if = "is_one_vec3")]
     pub scale: Vec3,
 }
 
@@ -250,78 +247,66 @@ impl InitialTransform {
 /// particles are spawned, as well as their visual properties and physical behavior
 /// over their lifetime.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
+#[serde(default)]
 pub struct EmitterData {
     /// Display name for this emitter.
     pub name: String,
     /// Whether this emitter is active. Disabled emitters do not spawn particles.
     ///
     /// Defaults to `true`.
-    #[serde(default = "default_enabled", skip_serializing_if = "is_true")]
+    #[serde(skip_serializing_if = "is_true")]
     pub enabled: bool,
 
     /// Initial transform applied when spawning this emitter.
     ///
     /// Only used during spawning if no [`Transform`] is already present.
     /// To change the transform at runtime, modify the emitter entity's [`Transform`] directly.
-    #[serde(default, skip_serializing_if = "InitialTransform::should_skip")]
+    #[serde(skip_serializing_if = "InitialTransform::should_skip")]
     pub initial_transform: InitialTransform,
 
     /// Timing and lifecycle settings (lifetime, delay, one-shot, etc.).
-    #[serde(default)]
     pub time: EmitterTime,
 
     /// Draw pass configuration (mesh, material, draw order).
-    #[serde(default)]
     pub draw_pass: EmitterDrawPass,
 
     /// Emission shape and particle count settings.
-    #[serde(default)]
     pub emission: EmitterEmission,
 
     /// Particle scale range and scale-over-lifetime curve.
-    #[serde(default)]
     pub scale: EmitterScale,
 
     /// Initial particle rotation angle and angle-over-lifetime curve.
-    #[serde(default, skip_serializing_if = "EmitterAngle::should_skip")]
+    #[serde(skip_serializing_if = "EmitterAngle::should_skip")]
     pub angle: EmitterAngle,
 
     /// Color and alpha settings, including gradients and curves over lifetime.
-    #[serde(default)]
     pub colors: EmitterColors,
 
     /// Velocity settings (direction, spread, radial/angular velocity, etc.).
-    #[serde(default)]
     pub velocities: EmitterVelocities,
 
     /// Acceleration settings (gravity).
-    #[serde(default)]
     pub accelerations: EmitterAccelerations,
 
     /// Turbulence noise settings for varying particle movement.
-    #[serde(default, skip_serializing_if = "EmitterTurbulence::should_skip")]
+    #[serde(skip_serializing_if = "EmitterTurbulence::should_skip")]
     pub turbulence: EmitterTurbulence,
 
     /// Collision behavior settings.
-    #[serde(default)]
     pub collision: EmitterCollision,
 
     /// Optional sub-emitter configuration for spawning secondary particles.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub sub_emitter: Option<SubEmitterConfig>,
 
     /// Trail configuration for this emitter.
-    #[serde(default, skip_serializing_if = "EmitterTrail::should_skip")]
+    #[serde(skip_serializing_if = "EmitterTrail::should_skip")]
     pub trail: EmitterTrail,
 
     /// Bitflags controlling per-particle behavior (Y rotation, Z-axis disable, etc.).
-    #[serde(default)]
     #[reflect(ignore)]
     pub particle_flags: ParticleFlags,
-}
-
-fn default_enabled() -> bool {
-    true
 }
 
 impl Default for EmitterData {
@@ -372,21 +357,21 @@ pub enum TransformAlign {
 
 /// Configuration for how particles are rendered in a single draw pass.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
+#[serde(default)]
 pub struct EmitterDrawPass {
     /// The order in which particles are drawn. Defaults to [`DrawOrder::Index`].
-    #[serde(default, skip_serializing_if = "DrawOrder::is_default")]
+    #[serde(skip_serializing_if = "DrawOrder::is_default")]
     pub draw_order: DrawOrder,
     /// The mesh shape used to render each particle.
     pub mesh: ParticleMesh,
     /// The material applied to the particle mesh. Defaults to a standard PBR material.
-    #[serde(default)]
     pub material: DrawPassMaterial,
     /// Whether particles cast shadows. Defaults to `true`.
-    #[serde(default = "default_shadow_caster", skip_serializing_if = "is_true")]
+    #[serde(skip_serializing_if = "is_true")]
     pub shadow_caster: bool,
     /// Optional transform alignment mode for particles. When `None`, no special
     /// alignment is applied.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub transform_align: Option<TransformAlign>,
     /// Whether particles use local coordinates and follow the emitter's transform.
     ///
@@ -395,12 +380,8 @@ pub struct EmitterDrawPass {
     /// are simulated in the emitter's local space and follow the emitter.
     ///
     /// Defaults to `false`.
-    #[serde(default, skip_serializing_if = "is_false")]
+    #[serde(skip_serializing_if = "is_false")]
     pub use_local_coords: bool,
-}
-
-fn default_shadow_caster() -> bool {
-    true
 }
 
 impl Default for EmitterDrawPass {
@@ -651,10 +632,75 @@ impl std::hash::Hash for ParticleMesh {
 
 impl Default for ParticleMesh {
     fn default() -> Self {
+        Self::default_sphere()
+    }
+}
+
+impl ParticleMesh {
+    /// Returns a default [`Quad`](Self::Quad) mesh.
+    pub fn default_quad() -> Self {
+        Self::Quad {
+            orientation: QuadOrientation::default(),
+            size: Vec2::ONE,
+            subdivide: Vec2::ZERO,
+        }
+    }
+
+    /// Returns a default [`Sphere`](Self::Sphere) mesh.
+    pub fn default_sphere() -> Self {
         Self::Sphere {
             radius: 1.0,
             segments: 32,
-            rings: 18,
+            rings: 16,
+        }
+    }
+
+    /// Returns a default [`Cuboid`](Self::Cuboid) mesh.
+    pub fn default_cuboid() -> Self {
+        Self::Cuboid {
+            half_size: Vec3::splat(0.5),
+        }
+    }
+
+    /// Returns a default [`Cylinder`](Self::Cylinder) mesh.
+    pub fn default_cylinder() -> Self {
+        Self::Cylinder {
+            top_radius: 0.5,
+            bottom_radius: 0.5,
+            height: 1.0,
+            radial_segments: 16,
+            rings: 1,
+            cap_top: true,
+            cap_bottom: true,
+        }
+    }
+
+    /// Returns a default [`Prism`](Self::Prism) mesh.
+    pub fn default_prism() -> Self {
+        Self::Prism {
+            left_to_right: 0.5,
+            size: Vec3::splat(1.0),
+            subdivide: Vec3::ZERO,
+        }
+    }
+
+    /// Returns a default [`TubeTrail`](Self::TubeTrail) mesh.
+    pub fn default_tube_trail() -> Self {
+        Self::TubeTrail {
+            radius: 0.5,
+            radial_steps: 8,
+            sections: 8,
+            section_rings: 1,
+        }
+    }
+
+    /// Returns a default [`RibbonTrail`](Self::RibbonTrail) mesh.
+    pub fn default_ribbon_trail() -> Self {
+        Self::RibbonTrail {
+            size: 1.0,
+            sections: 8,
+            section_rings: 1,
+            shape: RibbonTrailShape::default(),
         }
     }
 }
@@ -664,17 +710,12 @@ impl Default for ParticleMesh {
 /// When a particle is spawned, a random value between [`min`](Self::min) and
 /// [`max`](Self::max) is selected. Defaults to `0.0..1.0`.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Reflect)]
+#[serde(default)]
 pub struct Range {
     /// Lower bound of the range. Defaults to `0.0`.
-    #[serde(default)]
     pub min: f32,
     /// Upper bound of the range. Defaults to `1.0`.
-    #[serde(default = "default_one_f32")]
     pub max: f32,
-}
-
-fn default_one_f32() -> f32 {
-    1.0
 }
 
 impl Default for Range {
@@ -744,35 +785,49 @@ impl EmissionShape {
     fn is_default(&self) -> bool {
         *self == Self::default()
     }
-}
 
-fn default_emission_scale() -> Vec3 {
-    Vec3::ONE
-}
+    /// Returns a default [`Sphere`](Self::Sphere) shape.
+    pub fn default_sphere() -> Self {
+        Self::Sphere { radius: 1.0 }
+    }
 
-fn default_particles_amount() -> u32 {
-    8
+    /// Returns a default [`SphereSurface`](Self::SphereSurface) shape.
+    pub fn default_sphere_surface() -> Self {
+        Self::SphereSurface { radius: 1.0 }
+    }
+
+    /// Returns a default [`Box`](Self::Box) shape.
+    pub fn default_box() -> Self {
+        Self::Box { extents: Vec3::ONE }
+    }
+
+    /// Returns a default [`Ring`](Self::Ring) shape.
+    pub fn default_ring() -> Self {
+        Self::Ring {
+            axis: Vec3::Y,
+            height: 0.0,
+            radius: 1.0,
+            inner_radius: 0.0,
+        }
+    }
 }
 
 /// Emission configuration: shape, offset, scale, and particle count.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
+#[serde(default)]
 pub struct EmitterEmission {
     /// Position offset of the emission shape in local space. Defaults to [`Vec3::ZERO`].
-    #[serde(default, skip_serializing_if = "is_zero_vec3")]
+    #[serde(skip_serializing_if = "is_zero_vec3")]
     pub offset: Vec3,
     /// Scale of the emission shape in local space. Defaults to [`Vec3::ONE`].
-    #[serde(
-        default = "default_emission_scale",
-        skip_serializing_if = "is_one_vec3"
-    )]
+    #[serde(skip_serializing_if = "is_one_vec3")]
     pub scale: Vec3,
     /// The shape of the emission region. Defaults to [`EmissionShape::Point`].
-    #[serde(default, skip_serializing_if = "EmissionShape::is_default")]
+    #[serde(skip_serializing_if = "EmissionShape::is_default")]
     pub shape: EmissionShape,
     /// The number of particles to emit in one emission cycle.
     ///
     /// Higher values will increase GPU load. Defaults to `8`.
-    #[serde(default = "default_particles_amount")]
     pub particles_amount: u32,
 }
 
@@ -787,30 +842,26 @@ impl Default for EmitterEmission {
     }
 }
 
-fn default_scale_range() -> Range {
-    Range { min: 1.0, max: 1.0 }
-}
-
 /// Particle scale configuration.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
+#[serde(default)]
 pub struct EmitterScale {
     /// The initial scale range applied to each particle.
     ///
     /// A random value between `min` and `max` is selected at spawn time.
     /// Defaults to `1.0..1.0`.
-    #[serde(default = "default_scale_range")]
     pub range: Range,
     /// Optional curve that modulates each particle's scale over its lifetime.
     ///
     /// The curve value is multiplied with the initial scale.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub scale_over_lifetime: Option<CurveTexture>,
 }
 
 impl Default for EmitterScale {
     fn default() -> Self {
         Self {
-            range: default_scale_range(),
+            range: Range { min: 1.0, max: 1.0 },
             scale_over_lifetime: None,
         }
     }
@@ -818,22 +869,21 @@ impl Default for EmitterScale {
 
 /// Color and alpha configuration for particles.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
+#[serde(default)]
 pub struct EmitterColors {
     /// Each particle's initial color. Can be a solid color or a gradient from which a random
     /// color is sampled at spawn time. Defaults to opaque white.
-    #[serde(default)]
     pub initial_color: SolidOrGradientColor,
     /// Gradient that modulates each particle's color over its lifetime.
     ///
     /// The particle's initial color is multiplied by the gradient value at the
     /// corresponding lifetime position. Defaults to a constant white gradient.
-    #[serde(default = "Gradient::white")]
     pub color_over_lifetime: Gradient,
     /// Optional curve that modulates each particle's alpha over its lifetime.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub alpha_over_lifetime: Option<CurveTexture>,
     /// Optional curve that modulates the emissive intensity over each particle's lifetime.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub emission_over_lifetime: Option<CurveTexture>,
 }
 
@@ -848,23 +898,16 @@ impl Default for EmitterColors {
     }
 }
 
-fn default_direction() -> Vec3 {
-    Vec3::X
-}
-
-fn default_spread() -> f32 {
-    45.0
-}
-
 /// A velocity value with an optional curve for animation over a particle's lifetime.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
+#[serde(default)]
 pub struct AnimatedVelocity {
     /// The initial velocity range. A random value between `min` and `max` is
     /// selected at spawn time. Defaults to zero.
-    #[serde(default = "Range::zero", skip_serializing_if = "Range::is_zero")]
+    #[serde(skip_serializing_if = "Range::is_zero")]
     pub velocity: Range,
     /// Optional curve that modulates the velocity over each particle's lifetime.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub velocity_over_lifetime: Option<CurveTexture>,
 }
 
@@ -882,13 +925,14 @@ impl Default for AnimatedVelocity {
 /// Only applied when [`ParticleFlags::DISABLE_Z`] or [`ParticleFlags::ROTATE_Y`] are set,
 /// or when using billboard rendering.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
+#[serde(default)]
 pub struct EmitterAngle {
     /// The initial rotation angle range in degrees. A random value between `min` and
     /// `max` is applied to each particle at spawn time. Defaults to zero.
-    #[serde(default = "Range::zero", skip_serializing_if = "Range::is_zero")]
+    #[serde(skip_serializing_if = "Range::is_zero")]
     pub range: Range,
     /// Optional curve that animates each particle's rotation over its lifetime.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub angle_over_lifetime: Option<CurveTexture>,
 }
 
@@ -909,55 +953,50 @@ impl EmitterAngle {
 
 /// Velocity settings for particles, including direction, spread, and animated velocities.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
+#[serde(default)]
 pub struct EmitterVelocities {
     /// Unit vector specifying the base emission direction. Defaults to `Vec3::X`.
-    #[serde(default = "default_direction")]
     pub initial_direction: Vec3,
     /// The angular spread in degrees. Each particle's initial direction varies from
     /// +spread to -spread relative to [`initial_direction`](Self::initial_direction).
     /// Defaults to `45.0`.
-    #[serde(default = "default_spread")]
     pub spread: f32,
     /// Amount of spread flattening along the Y axis.
     ///
     /// A value of `0.0` means uniform conical spread; `1.0` flattens it into a disc.
     /// Defaults to `0.0`.
-    #[serde(default, skip_serializing_if = "is_zero_f32")]
+    #[serde(skip_serializing_if = "is_zero_f32")]
     pub flatness: f32,
     /// The initial velocity magnitude range. Each particle receives a random speed
     /// between `min` and `max`, applied in its emission direction. Defaults to zero.
-    #[serde(default = "Range::zero", skip_serializing_if = "Range::is_zero")]
+    #[serde(skip_serializing_if = "Range::is_zero")]
     pub initial_velocity: Range,
     /// Radial velocity that pushes particles away from (or toward, if negative) the
     /// [`pivot`](Self::pivot) point.
-    #[serde(default)]
     pub radial_velocity: AnimatedVelocity,
     /// Angular (rotation) velocity applied to each particle, in degrees per second.
     ///
     /// Only applied when [`ParticleFlags::DISABLE_Z`] or [`ParticleFlags::ROTATE_Y`] are set,
     /// or when using billboard rendering.
-    #[serde(default)]
     pub angular_velocity: AnimatedVelocity,
     /// Orbital velocity that makes particles orbit around the [`pivot`](Self::pivot)
     /// point, in revolutions per second.
-    #[serde(default)]
     pub orbit_velocity: AnimatedVelocity,
     /// Velocity along an arbitrary direction over each particle's lifetime.
     ///
     /// When a curve is set, the curve's XYZ channels provide the direction
     /// vector and the velocity range controls the magnitude. Without a curve,
     /// particles move along their initial emission direction.
-    #[serde(default)]
     pub directional_velocity: AnimatedVelocity,
     /// The pivot point used to calculate radial and orbital velocity.
     ///
     /// Defaults to [`Vec3::ZERO`].
-    #[serde(default, skip_serializing_if = "is_zero_vec3")]
+    #[serde(skip_serializing_if = "is_zero_vec3")]
     pub pivot: Vec3,
     /// Percentage of the emitter entity's velocity inherited by each particle when spawning.
     ///
     /// Defaults to `0.0`.
-    #[serde(default, skip_serializing_if = "is_zero_f32")]
+    #[serde(skip_serializing_if = "is_zero_f32")]
     pub inherit_ratio: f32,
 }
 
@@ -978,17 +1017,13 @@ impl Default for EmitterVelocities {
     }
 }
 
-fn default_gravity() -> Vec3 {
-    Vec3::new(0.0, -9.8, 0.0)
-}
-
 /// Acceleration forces applied to every particle.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
+#[serde(default)]
 pub struct EmitterAccelerations {
     /// Gravity vector applied to every particle, in units per second squared.
     ///
     /// Defaults to `(0.0, -9.8, 0.0)`.
-    #[serde(default = "default_gravity")]
     pub gravity: Vec3,
 }
 
@@ -1000,57 +1035,43 @@ impl Default for EmitterAccelerations {
     }
 }
 
-fn default_turbulence_noise_strength() -> f32 {
-    1.0
-}
-
-fn default_turbulence_noise_scale() -> f32 {
-    2.5
-}
-
-fn default_turbulence_influence() -> Range {
-    Range { min: 0.0, max: 0.1 }
-}
-
 /// Turbulence noise settings for varying particle movement based on position.
 ///
 /// Turbulence uses a 3D noise pattern to displace particles, creating organic,
 /// wind-like motion. Enabling turbulence has a significant performance cost on
 /// the GPU.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
+#[serde(default)]
 pub struct EmitterTurbulence {
     /// Whether turbulence is enabled. Defaults to `false`.
-    #[serde(default, skip_serializing_if = "is_false")]
+    #[serde(skip_serializing_if = "is_false")]
     pub enabled: bool,
     /// The turbulence noise strength. Higher values produce a stronger, more
     /// contrasting flow pattern. Defaults to `1.0`.
-    #[serde(default = "default_turbulence_noise_strength")]
     pub noise_strength: f32,
     /// Overall scale/frequency of the turbulence noise pattern.
     ///
     /// A small scale produces smaller features with more detail, while a large
     /// scale produces smoother noise with larger features. Defaults to `2.5`.
-    #[serde(default = "default_turbulence_noise_scale")]
     pub noise_scale: f32,
     /// Scrolling velocity for the turbulence field, setting a directional trend
     /// for the noise pattern over time. Defaults to [`Vec3::ZERO`] (no scrolling).
-    #[serde(default, skip_serializing_if = "is_zero_vec3")]
+    #[serde(skip_serializing_if = "is_zero_vec3")]
     pub noise_speed: Vec3,
     /// The in-place rate of change of the turbulence field.
     ///
     /// Controls how quickly the noise pattern varies over time. A value of `0.0`
     /// results in a fixed pattern. Defaults to `0.0`.
-    #[serde(default, skip_serializing_if = "is_zero_f32")]
+    #[serde(skip_serializing_if = "is_zero_f32")]
     pub noise_speed_random: f32,
     /// The range of turbulence influence applied to each particle.
     ///
     /// A random value between `min` and `max` is selected per particle, then
     /// multiplied by [`influence_over_lifetime`](Self::influence_over_lifetime)
     /// if provided. Defaults to `0.0..0.1`.
-    #[serde(default = "default_turbulence_influence")]
     pub influence: Range,
     /// Optional curve that modulates turbulence influence over each particle's lifetime.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub influence_over_lifetime: Option<CurveTexture>,
 }
 
@@ -1058,11 +1079,11 @@ impl Default for EmitterTurbulence {
     fn default() -> Self {
         Self {
             enabled: false,
-            noise_strength: default_turbulence_noise_strength(),
-            noise_scale: default_turbulence_noise_scale(),
+            noise_strength: 1.0,
+            noise_scale: 2.5,
             noise_speed: Vec3::ZERO,
             noise_speed_random: 0.0,
-            influence: default_turbulence_influence(),
+            influence: Range { min: 0.0, max: 0.1 },
             influence_over_lifetime: None,
         }
     }
@@ -1082,10 +1103,6 @@ impl EmitterTurbulence {
             && self.influence.max == d.influence.max
             && self.influence_over_lifetime.is_none()
     }
-}
-
-fn default_collision_base_size() -> f32 {
-    0.01
 }
 
 /// How particles behave when they collide with a [`ParticlesCollider3D`](crate::ParticlesCollider3D).
@@ -1116,21 +1133,21 @@ impl Default for EmitterCollisionMode {
 
 /// Particle collision configuration.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
+#[serde(default)]
 pub struct EmitterCollision {
     /// The collision mode. When `None`, collision is disabled and particles pass
     /// through colliders. Defaults to `None`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub mode: Option<EmitterCollisionMode>,
     /// If `true`, [`base_size`](Self::base_size) is multiplied by the particle's
     /// effective scale. Defaults to `false`.
-    #[serde(default, skip_serializing_if = "is_false")]
+    #[serde(skip_serializing_if = "is_false")]
     pub use_scale: bool,
     /// The base diameter for particle collision, in meters.
     ///
     /// If particles appear to sink into the ground, increase this value. If they
     /// appear to float above surfaces, decrease it. Particles always use a spherical
     /// collision shape. Defaults to `0.01`.
-    #[serde(default = "default_collision_base_size")]
     pub base_size: f32,
 }
 
@@ -1138,7 +1155,7 @@ impl Default for EmitterCollision {
     fn default() -> Self {
         Self {
             mode: None,
-            base_size: default_collision_base_size(),
+            base_size: 0.01,
             use_scale: false,
         }
     }
@@ -1157,19 +1174,12 @@ pub enum SubEmitterMode {
     AtStart,
 }
 
-fn default_sub_emitter_frequency() -> f32 {
-    4.0
-}
-
-fn default_sub_emitter_amount() -> u32 {
-    1
-}
-
 /// Configuration for a sub-emitter that spawns secondary particles from parent particles.
 ///
 /// Sub-emitters can be used to achieve effects such as fireworks, sparks on collision,
 /// or bubbles popping into water drops.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
+#[serde(default)]
 pub struct SubEmitterConfig {
     /// When the sub-emitter triggers.
     pub mode: SubEmitterMode,
@@ -1178,15 +1188,13 @@ pub struct SubEmitterConfig {
     /// How often particles are emitted from the sub-emitter, in seconds.
     ///
     /// Only used when [`mode`](Self::mode) is [`SubEmitterMode::Constant`]. Defaults to `4.0`.
-    #[serde(default = "default_sub_emitter_frequency")]
     pub frequency: f32,
     /// The number of particles to spawn per trigger event. Defaults to `1`.
-    #[serde(default = "default_sub_emitter_amount")]
     pub amount: u32,
     /// If `true`, the sub-emitted particles inherit the parent particle's velocity.
     ///
     /// Defaults to `false`.
-    #[serde(default, skip_serializing_if = "is_false")]
+    #[serde(skip_serializing_if = "is_false")]
     pub keep_velocity: bool,
 }
 
@@ -1195,8 +1203,8 @@ impl Default for SubEmitterConfig {
         Self {
             mode: SubEmitterMode::Constant,
             target_emitter: 0,
-            frequency: default_sub_emitter_frequency(),
-            amount: default_sub_emitter_amount(),
+            frequency: 4.0,
+            amount: 1,
             keep_velocity: false,
         }
     }
@@ -1219,17 +1227,30 @@ pub enum ParticlesColliderShape3D {
 
 impl Default for ParticlesColliderShape3D {
     fn default() -> Self {
+        Self::default_sphere()
+    }
+}
+
+impl ParticlesColliderShape3D {
+    /// Returns a default [`Sphere`](Self::Sphere) collider.
+    pub fn default_sphere() -> Self {
         Self::Sphere { radius: 1.0 }
+    }
+
+    /// Returns a default [`Box`](Self::Box) collider.
+    pub fn default_box() -> Self {
+        Self::Box { size: Vec3::ONE }
     }
 }
 
 /// Serializable data for a particle collider.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
+#[serde(default)]
 pub struct ColliderData {
     /// Display name for this collider.
     pub name: String,
     /// Whether this collider is active. Defaults to `true`.
-    #[serde(default = "default_enabled", skip_serializing_if = "is_true")]
+    #[serde(skip_serializing_if = "is_true")]
     pub enabled: bool,
     /// The collision shape.
     pub shape: ParticlesColliderShape3D,
@@ -1237,7 +1258,7 @@ pub struct ColliderData {
     ///
     /// Only used during spawning if no [`Transform`] is already present.
     /// To change the transform at runtime, modify the collider entity's [`Transform`] directly.
-    #[serde(default, skip_serializing_if = "InitialTransform::should_skip")]
+    #[serde(skip_serializing_if = "InitialTransform::should_skip")]
     pub initial_transform: InitialTransform,
 }
 
@@ -1252,25 +1273,21 @@ impl Default for ColliderData {
     }
 }
 
-fn default_trail_stretch_time() -> f32 {
-    0.3
-}
-
 /// Trail configuration for an emitter.
 ///
 /// When enabled, each particle leaves a visible trail behind it as it moves.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
+#[serde(default)]
 pub struct EmitterTrail {
     /// Whether trails are enabled. Defaults to `false`.
-    #[serde(default, skip_serializing_if = "is_false")]
+    #[serde(skip_serializing_if = "is_false")]
     pub enabled: bool,
     /// The amount of time the particle's trail should represent, in seconds.
     ///
     /// Defaults to `0.3`.
-    #[serde(default = "default_trail_stretch_time")]
     pub stretch_time: f32,
     /// Optional curve that controls trail thickness from head (0) to tail (1).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub thickness_curve: Option<CurveTexture>,
 }
 
@@ -1278,7 +1295,7 @@ impl Default for EmitterTrail {
     fn default() -> Self {
         Self {
             enabled: false,
-            stretch_time: default_trail_stretch_time(),
+            stretch_time: 0.3,
             thickness_curve: None,
         }
     }

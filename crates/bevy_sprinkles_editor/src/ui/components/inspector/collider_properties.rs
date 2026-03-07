@@ -152,8 +152,8 @@ fn handle_collider_shape_change(
     };
 
     let new_shape = match trigger.value.as_deref().unwrap_or(&trigger.label) {
-        "Sphere" => ParticlesColliderShape3D::Sphere { radius: 1.0 },
-        "Box" => ParticlesColliderShape3D::Box { size: Vec3::ONE },
+        "Sphere" => ParticlesColliderShape3D::default_sphere(),
+        "Box" => ParticlesColliderShape3D::default_box(),
         _ => return,
     };
 

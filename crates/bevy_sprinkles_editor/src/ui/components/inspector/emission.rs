@@ -56,19 +56,19 @@ fn emission_shape_variants() -> Vec<VariantDefinition> {
             "Sphere",
             VariantConfig::default()
                 .icon(ICON_SPHERE)
-                .default_value(EmissionShape::Sphere { radius: 1.0 }),
+                .default_value(EmissionShape::default_sphere()),
         ),
         (
             "SphereSurface",
             VariantConfig::default()
                 .icon(ICON_MESH_UVSPHERE)
-                .default_value(EmissionShape::SphereSurface { radius: 1.0 }),
+                .default_value(EmissionShape::default_sphere_surface()),
         ),
         (
             "Box",
             VariantConfig::default()
                 .icon(ICON_CUBE)
-                .default_value(EmissionShape::Box { extents: Vec3::ONE }),
+                .default_value(EmissionShape::default_box()),
         ),
         (
             "Ring",
@@ -79,12 +79,7 @@ fn emission_shape_variants() -> Vec<VariantDefinition> {
                     vec!["height"],
                     vec!["radius", "inner_radius"],
                 ])
-                .default_value(EmissionShape::Ring {
-                    axis: Vec3::Y,
-                    height: 0.0,
-                    radius: 1.0,
-                    inner_radius: 0.0,
-                }),
+                .default_value(EmissionShape::default_ring()),
         ),
     ])
 }

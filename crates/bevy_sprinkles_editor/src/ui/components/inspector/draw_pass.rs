@@ -101,30 +101,20 @@ fn mesh_variants() -> Vec<VariantDefinition> {
                 .override_combobox::<QuadOrientation>("orientation")
                 .override_suffixes("size", VectorSuffixes::XY)
                 .override_suffixes("subdivide", VectorSuffixes::WD)
-                .default_value(ParticleMesh::Quad {
-                    orientation: QuadOrientation::default(),
-                    size: Vec2::ONE,
-                    subdivide: Vec2::ZERO,
-                }),
+                .default_value(ParticleMesh::default_quad()),
         ),
         (
             "Sphere",
             VariantConfig::default()
                 .icon(ICON_MESH_UVSPHERE)
                 .override_rows(vec![vec!["radius"], vec!["segments", "rings"]])
-                .default_value(ParticleMesh::Sphere {
-                    radius: 1.0,
-                    segments: 32,
-                    rings: 16,
-                }),
+                .default_value(ParticleMesh::default_sphere()),
         ),
         (
             "Cuboid",
             VariantConfig::default()
                 .icon(ICON_CUBE)
-                .default_value(ParticleMesh::Cuboid {
-                    half_size: Vec3::splat(0.5),
-                }),
+                .default_value(ParticleMesh::default_cuboid()),
         ),
         (
             "Cylinder",
@@ -137,26 +127,14 @@ fn mesh_variants() -> Vec<VariantDefinition> {
                     vec!["cap_top"],
                     vec!["cap_bottom"],
                 ])
-                .default_value(ParticleMesh::Cylinder {
-                    top_radius: 0.5,
-                    bottom_radius: 0.5,
-                    height: 1.0,
-                    radial_segments: 16,
-                    rings: 1,
-                    cap_top: true,
-                    cap_bottom: true,
-                }),
+                .default_value(ParticleMesh::default_cylinder()),
         ),
         (
             "Prism",
             VariantConfig::default()
                 .icon(ICON_CONE)
                 .override_suffixes("subdivide", VectorSuffixes::WHD)
-                .default_value(ParticleMesh::Prism {
-                    left_to_right: 0.5,
-                    size: Vec3::splat(1.0),
-                    subdivide: Vec3::ZERO,
-                }),
+                .default_value(ParticleMesh::default_prism()),
         ),
         (
             "TubeTrail",
@@ -166,12 +144,7 @@ fn mesh_variants() -> Vec<VariantDefinition> {
                     vec!["radius", "radial_steps"],
                     vec!["sections", "section_rings"],
                 ])
-                .default_value(ParticleMesh::TubeTrail {
-                    radius: 0.5,
-                    radial_steps: 8,
-                    sections: 8,
-                    section_rings: 1,
-                }),
+                .default_value(ParticleMesh::default_tube_trail()),
         ),
         (
             "RibbonTrail",
@@ -183,12 +156,7 @@ fn mesh_variants() -> Vec<VariantDefinition> {
                     vec!["sections", "section_rings"],
                     vec!["shape"],
                 ])
-                .default_value(ParticleMesh::RibbonTrail {
-                    size: 1.0,
-                    sections: 8,
-                    section_rings: 1,
-                    shape: RibbonTrailShape::default(),
-                }),
+                .default_value(ParticleMesh::default_ribbon_trail()),
         ),
     ])
 }
