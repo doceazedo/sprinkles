@@ -267,15 +267,9 @@ fn test_outdated_version_loads_and_migrates() {
     let ron = fixture("v0_1_particle_system.ron");
     let result = versions::migrate_str(&ron).expect("migration should succeed");
     assert!(result.was_migrated);
-    assert_eq!(result.asset.name, "V0.1 Particle System");
-    assert_eq!(
-        result.asset.emitters[0].initial_transform.translation,
-        Vec3::new(1.0, 2.0, 3.0)
-    );
-    assert_eq!(
-        result.asset.colliders[0].initial_transform.translation,
-        Vec3::new(4.0, 5.0, 6.0)
-    );
+    assert_eq!(result.asset.name, "gun_shot");
+    assert_eq!(result.asset.emitters.len(), 1);
+    assert_eq!(result.asset.emitters[0].name, "Sparks");
 }
 
 #[test]

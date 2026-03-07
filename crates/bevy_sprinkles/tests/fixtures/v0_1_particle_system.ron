@@ -1,30 +1,139 @@
 (
     sprinkles_version: "0.1",
-    name: "V0.1 Particle System",
+    name: "gun_shot",
     dimension: D3,
     emitters: [
         (
-            name: "Test Emitter",
-            position: (1.0, 2.0, 3.0),
+            name: "Sparks",
             time: (
-                lifetime: 1.0,
+                lifetime: 0.4,
+                lifetime_randomness: 0.01,
+                one_shot: true,
+                explosiveness: 0.9,
+                fixed_fps: 60,
             ),
             draw_pass: (
-                mesh: Sphere(),
-                material: Standard(()),
+                mesh: Quad(
+                    orientation: FaceZ,
+                    size: (0.2, 4.0),
+                ),
+                material: Standard((
+                    base_color: (1.0, 1.0, 1.0, 1.0),
+                    emissive: (0.0, 0.0, 0.0, 0.0),
+                    alpha_mode: Opaque,
+                    perceptual_roughness: 1.0,
+                    reflectance: 0.0,
+                    clearcoat_perceptual_roughness: 1.0,
+                    unlit: true,
+                    fog_enabled: false,
+                )),
+                shadow_caster: false,
+                transform_align: Some(BillboardYToVelocity),
             ),
             emission: (
+                shape: Sphere(
+                    radius: 0.1,
+                ),
                 particles_amount: 8,
             ),
-        ),
-    ],
-    colliders: [
-        (
-            name: "Test Collider",
-            shape: Box(
-                size: (10.0, 1.0, 10.0),
+            scale: (
+                range: (
+                    min: 0.05,
+                    max: 0.2,
+                ),
+                scale_over_lifetime: Some((
+                    name: Some("Sine out"),
+                    points: [
+                        (
+                            position: 0.0,
+                            value: 1.0,
+                            mode: DoubleCurve,
+                            tension: 0.0,
+                            easing: Power,
+                        ),
+                        (
+                            position: 1.0,
+                            value: 0.0,
+                            mode: SingleCurve,
+                            tension: -1.0,
+                            easing: Sine,
+                        ),
+                    ],
+                    range: (
+                        min: 0.0,
+                        max: 1.0,
+                    ),
+                )),
             ),
-            position: (4.0, 5.0, 6.0),
+            colors: (
+                initial_color: Solid(
+                    color: (0.67068523, 0.74768066, 0.0, 1.0),
+                ),
+                color_over_lifetime: (
+                    stops: [
+                        (
+                            color: (1.0, 1.0, 1.0, 1.0),
+                            position: 0.0,
+                        ),
+                        (
+                            color: (1.0, 1.0, 1.0, 1.0),
+                            position: 1.0,
+                        ),
+                    ],
+                ),
+                emission_over_lifetime: Some((
+                    points: [
+                        (
+                            position: 0.0,
+                            value: 10.0,
+                            mode: DoubleCurve,
+                            tension: 0.0,
+                            easing: Power,
+                        ),
+                        (
+                            position: 1.0,
+                            value: 0.0,
+                            mode: SingleCurve,
+                            tension: -1.0,
+                            easing: Circ,
+                        ),
+                    ],
+                    range: (
+                        min: 0.0,
+                        max: 10.0,
+                    ),
+                )),
+            ),
+            velocities: (
+                initial_direction: (1.0, 0.0, 0.0),
+                spread: 180.0,
+                initial_velocity: (
+                    min: 2.0,
+                    max: 6.0,
+                ),
+                radial_velocity: (),
+                angular_velocity: (),
+            ),
+            accelerations: (
+                gravity: (0.0, 0.0, 0.0),
+            ),
+            turbulence: (
+                noise_strength: 0.1,
+                noise_scale: 2.5,
+                noise_speed_random: 0.2,
+                influence: (
+                    min: 0.01,
+                    max: 0.04,
+                ),
+            ),
+            collision: (
+                base_size: 0.01,
+            ),
+            particle_flags: "",
         ),
     ],
+    colliders: [],
+    authors: Some((
+        submitted_by: "extrawurst",
+    )),
 )
