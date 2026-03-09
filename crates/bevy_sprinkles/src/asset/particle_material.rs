@@ -531,7 +531,7 @@ impl StandardParticleMaterial {
         Self {
             base_color: color_to_array(material.base_color.to_linear()),
             base_color_texture: None,
-            emissive: color_to_array(material.emissive.into()),
+            emissive: color_to_array(material.emissive),
             emissive_texture: None,
             emissive_exposure_weight: material.emissive_exposure_weight,
             alpha_mode: material.alpha_mode.into(),

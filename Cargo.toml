@@ -13,7 +13,16 @@ opt-level = 1
 opt-level = 3
 
 [workspace.dependencies]
-bevy = { version = "0.18.0", features = ["file_watcher"] }
+bevy = { version = "0.18.0", default-features = false, features = [
+    "default_app",
+    "default_platform",
+    "3d_api",
+    "3d_bevy_render",
+    "ui_api",
+    "ui_bevy_render",
+    "file_watcher",
+    # "reflect_auto_register",
+] }
 serde = { version = "1", features = ["derive"] }
 ron = "0.10"
 thiserror = "2"
