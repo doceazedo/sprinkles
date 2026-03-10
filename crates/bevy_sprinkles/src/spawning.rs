@@ -119,6 +119,25 @@ pub fn update_particle_time(
         let fixed_fps = emitter_data.time.fixed_fps;
         let total_duration = emitter_data.time.total_duration();
 
+        if total_duration <= 0.0 {
+            let step = SimulationStep {
+                prev_system_time: runtime.system_time,
+                system_time: runtime.system_time,
+                cycle: runtime.cycle,
+                delta_time: 0.0,
+                clear_requested,
+                trail_history_write_index: runtime.trail_history_write_index,
+            };
+            runtime.simulation_steps.push(step);
+
+            if emitter_data.time.one_shot && !runtime.one_shot_completed {
+                runtime.set_emitting(false);
+                runtime.one_shot_completed = true;
+                runtime.inactive = true;
+            }
+            continue;
+        }
+
         if fixed_fps > 0 {
             let fixed_delta = 1.0 / fixed_fps as f32;
             let frame_delta = time.delta_secs().min(MAX_FRAME_DELTA);
@@ -132,8 +151,8 @@ pub fn update_particle_time(
                 let prev_time = runtime.system_time;
                 runtime.system_time += fixed_delta;
 
-                if runtime.system_time >= total_duration && total_duration > 0.0 {
-                    runtime.system_time = runtime.system_time % total_duration;
+                if runtime.system_time >= total_duration {
+                    runtime.system_time %= total_duration;
                     runtime.cycle += 1;
                 }
 
@@ -162,8 +181,8 @@ pub fn update_particle_time(
             runtime.prev_system_time = runtime.system_time;
             runtime.system_time += delta;
 
-            if runtime.system_time >= total_duration && total_duration > 0.0 {
-                runtime.system_time = runtime.system_time % total_duration;
+            if runtime.system_time >= total_duration {
+                runtime.system_time %= total_duration;
                 runtime.cycle += 1;
             }
 
