@@ -266,13 +266,15 @@ pub fn setup_particle_systems(
             &[]
         };
 
+        let initial_transform = asset.initial_transform.to_transform();
+
         commands
             .entity(system_entity)
-            .insert(ParticleSystemRuntime::default())
-            .insert_if_new((
-                asset.initial_transform.to_transform(),
-                Visibility::default(),
-            ));
+            .queue_silenced(move |mut entity: EntityWorldMut| {
+                entity
+                    .insert(ParticleSystemRuntime::default())
+                    .insert_if_new((initial_transform, Visibility::default()));
+            });
 
         let mut emitter_entities: Vec<Entity> = Vec::new();
 
@@ -357,7 +359,11 @@ pub fn setup_particle_systems(
             let emitter_entity = emitter_cmds.id();
 
             emitter_entities.push(emitter_entity);
-            commands.entity(system_entity).add_child(emitter_entity);
+            commands
+                .entity(system_entity)
+                .queue_silenced(move |mut entity: EntityWorldMut| {
+                    entity.add_child(emitter_entity);
+                });
         }
 
         for (emitter_index, emitter) in asset.emitters.iter().enumerate() {
@@ -405,7 +411,11 @@ pub fn setup_particle_systems(
                 ))
                 .id();
 
-            commands.entity(system_entity).add_child(collider_entity);
+            commands
+                .entity(system_entity)
+                .queue_silenced(move |mut entity: EntityWorldMut| {
+                    entity.add_child(collider_entity);
+                });
         }
     }
 }
