@@ -317,7 +317,7 @@ fn spawn_preset_grid(
         .id();
 
     for preset in PresetTexture::all() {
-        let is_active = current_preset == Some(&preset);
+        let is_active = current_preset == Some(preset);
         let variant = if is_active {
             ButtonVariant::Active
         } else {
