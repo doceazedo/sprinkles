@@ -24,6 +24,7 @@ use std::borrow::Cow;
 use bevy::render::render_resource::ShaderType;
 use bevy::shader::PipelineCacheError;
 
+use crate::SprinklesDebugFlags;
 use crate::extract::{
     ColliderUniform, EmitterUniforms, ExtractedColliders, ExtractedEmitterData,
     ExtractedParticleSystem, MAX_COLLIDERS,
@@ -183,7 +184,14 @@ pub fn prepare_particle_compute_bind_groups(
     fallback_trail_history_buffer: Res<FallbackTrailHistoryBuffer>,
     gradient_sampler: Res<GradientSampler>,
     curve_sampler: Res<CurveSampler>,
+    debug_flags: Option<Res<SprinklesDebugFlags>>,
 ) {
+    if debug_flags.as_ref().is_some_and(|f| f.skip_compute_prepare) {
+        commands.insert_resource(ParticleComputeBindGroups::default());
+        commands.insert_resource(EmissionBufferClearList::default());
+        return;
+    }
+
     let mut bind_groups = Vec::new();
 
     let fallback_gradient_gpu_image = fallback_gradient_texture

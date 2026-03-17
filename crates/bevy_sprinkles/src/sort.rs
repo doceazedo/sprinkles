@@ -17,6 +17,7 @@ use bevy::{
 };
 use std::borrow::Cow;
 
+use crate::SprinklesDebugFlags;
 use crate::compute::ParticleComputeLabel;
 use crate::extract::ExtractedParticleSystem;
 use crate::runtime::ParticleData;
@@ -116,7 +117,13 @@ pub fn prepare_particle_sort_bind_groups(
     render_queue: Res<RenderQueue>,
     extracted_systems: Res<ExtractedParticleSystem>,
     gpu_storage_buffers: Res<RenderAssets<GpuShaderStorageBuffer>>,
+    debug_flags: Option<Res<SprinklesDebugFlags>>,
 ) {
+    if debug_flags.as_ref().is_some_and(|f| f.skip_sort_prepare) {
+        commands.insert_resource(ParticleSortBindGroups::default());
+        return;
+    }
+
     let mut result = ParticleSortBindGroups::default();
     let mut dynamic_uniform = DynamicUniformBuffer::<SortParams>::default();
     let mut emitter_buffers: Vec<(Buffer, Buffer, Buffer)> = Vec::new();

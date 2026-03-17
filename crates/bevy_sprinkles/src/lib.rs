@@ -177,7 +177,10 @@ use bevy::{
     asset::{embedded_asset, load_internal_asset, uuid_handle},
     pbr::MaterialPlugin,
     prelude::*,
-    render::{ExtractSchedule, RenderApp, extract_resource::ExtractResourcePlugin},
+    render::{
+        ExtractSchedule, RenderApp,
+        extract_resource::{ExtractResource, ExtractResourcePlugin},
+    },
 };
 
 const SHADER_COMMON: Handle<Shader> = uuid_handle!("10b6a301-2396-4ce0-906a-b3e38aaddddf");
@@ -245,11 +248,13 @@ impl Plugin for SprinklesPlugin {
         app.init_resource::<SprinklesCacheDiagnostics>();
         app.add_systems(PostUpdate, (write_emitter_uniforms, update_cache_diagnostics));
 
+        app.init_resource::<SprinklesDebugFlags>();
         app.add_plugins((
             ParticleComputePlugin,
             ParticleSortPlugin,
             ExtractResourcePlugin::<FallbackGradientTexture>::default(),
             ExtractResourcePlugin::<FallbackCurveTexture>::default(),
+            ExtractResourcePlugin::<SprinklesDebugFlags>::default(),
         ));
 
         if let Some(render_app) = app.get_sub_app_mut(RenderApp) {
@@ -277,6 +282,19 @@ pub use runtime::{
 #[cfg(feature = "preset-textures")]
 pub use textures::preset::PresetTexture;
 pub use textures::preset::TextureRef;
+
+/// Debug flags for selectively disabling render-world systems.
+///
+/// Used to isolate per-frame GPU allocation patterns during memory leak
+/// investigation. Set flags to `true` to skip the corresponding prepare
+/// system in the render world, eliminating its GPU allocations.
+#[derive(Resource, Clone, Default, Debug, ExtractResource)]
+pub struct SprinklesDebugFlags {
+    /// Skip `prepare_particle_compute_bind_groups` (uniform buffers + bind groups).
+    pub skip_compute_prepare: bool,
+    /// Skip `prepare_particle_sort_bind_groups` (dynamic uniform + bind groups).
+    pub skip_sort_prepare: bool,
+}
 
 /// Diagnostic counters for internal caches, updated each frame.
 #[derive(Resource, Default, Debug)]
