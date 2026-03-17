@@ -185,7 +185,6 @@ const SHADER_COMMON: Handle<Shader> = uuid_handle!("10b6a301-2396-4ce0-906a-b3e3
 use asset::{ParticleSystemAsset, ParticleSystemAssetLoader};
 use compute::ParticleComputePlugin;
 use extract::{extract_colliders, extract_particle_systems};
-use mesh::ParticleMeshCache;
 use runtime::check_particle_system_finished;
 use sort::ParticleSortPlugin;
 use spawning::{
@@ -225,7 +224,7 @@ impl Plugin for SprinklesPlugin {
             .add_systems(Startup, create_fallback_curve_texture)
             .add_systems(PostUpdate, prepare_curve_textures);
 
-        app.init_resource::<ParticleMeshCache>();
+        app.init_resource::<mesh::ParticleMeshCache>();
 
         app.add_plugins(MaterialPlugin::<runtime::ParticleMaterial>::default());
 
@@ -243,7 +242,8 @@ impl Plugin for SprinklesPlugin {
             ),
         );
 
-        app.add_systems(PostUpdate, write_emitter_uniforms);
+        app.init_resource::<SprinklesCacheDiagnostics>();
+        app.add_systems(PostUpdate, (write_emitter_uniforms, update_cache_diagnostics));
 
         app.add_plugins((
             ParticleComputePlugin,
@@ -277,3 +277,25 @@ pub use runtime::{
 #[cfg(feature = "preset-textures")]
 pub use textures::preset::PresetTexture;
 pub use textures::preset::TextureRef;
+
+/// Diagnostic counters for internal caches, updated each frame.
+#[derive(Resource, Default, Debug)]
+pub struct SprinklesCacheDiagnostics {
+    /// Number of entries in the particle mesh cache.
+    pub mesh_cache_len: usize,
+    /// Number of entries in the gradient texture cache.
+    pub gradient_cache_len: usize,
+    /// Number of entries in the curve texture cache.
+    pub curve_cache_len: usize,
+}
+
+fn update_cache_diagnostics(
+    mesh_cache: Res<mesh::ParticleMeshCache>,
+    gradient_cache: Res<GradientTextureCache>,
+    curve_cache: Res<CurveTextureCache>,
+    mut diag: ResMut<SprinklesCacheDiagnostics>,
+) {
+    diag.mesh_cache_len = mesh_cache.len();
+    diag.gradient_cache_len = gradient_cache.len();
+    diag.curve_cache_len = curve_cache.len();
+}

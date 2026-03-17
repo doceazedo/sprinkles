@@ -24,6 +24,11 @@ pub struct GradientTextureCache {
 }
 
 impl GradientTextureCache {
+    /// Returns the number of cached gradient texture entries.
+    pub fn len(&self) -> usize {
+        self.cache.len()
+    }
+
     /// Returns a cached texture handle for the gradient, creating and baking a new
     /// texture if one doesn't already exist.
     pub fn get_or_create(
@@ -162,6 +167,11 @@ pub struct CurveTextureCache {
 }
 
 impl CurveTextureCache {
+    /// Returns the number of cached curve texture entries.
+    pub fn len(&self) -> usize {
+        self.cache.len()
+    }
+
     /// Returns a cached texture handle for the curve, creating and baking a new
     /// texture if one doesn't already exist.
     pub fn get_or_create(

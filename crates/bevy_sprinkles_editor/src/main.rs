@@ -1,4 +1,5 @@
 mod assets;
+mod diagnostics;
 mod io;
 mod plugin;
 mod project;
@@ -42,5 +43,6 @@ fn main() {
         .add_plugins(bevy_easings::EasingsPlugin::default())
         .add_plugins(SprinklesEditorPlugin)
         .add_plugins(EditorUiPlugin)
+        .add_plugins(diagnostics::plugin)
         .run();
 }

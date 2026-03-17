@@ -15,6 +15,11 @@ pub struct ParticleMeshCache {
 }
 
 impl ParticleMeshCache {
+    /// Returns the number of cached mesh entries.
+    pub fn len(&self) -> usize {
+        self.cache.len()
+    }
+
     pub fn get_or_create(
         &mut self,
         config: &ParticleMesh,
