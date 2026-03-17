@@ -1,2 +1,3 @@
 [alias]
 editor = "run -p bevy_sprinkles_editor"
+leak-test = "run -p bevy_sprinkles_benches --bin leak_test"

@@ -7,3 +7,12 @@ publish = false
 [dependencies]
 bevy = { workspace = true }
 bevy_sprinkles = { path = "../crates/bevy_sprinkles" }
+sysinfo = "0.35"
+
+[[bin]]
+name = "bevy_sprinkles_benches"
+path = "src/main.rs"
+
+[[bin]]
+name = "leak_test"
+path = "src/leak_test.rs"
