@@ -1,5 +1,6 @@
 [workspace]
-members = ["crates/*", "benches"]
+members = ["crates/*"]
+exclude = ["benches"]
 resolver = "3"
 
 [workspace.lints.clippy]

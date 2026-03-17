@@ -226,7 +226,7 @@ fn setup_no_shadows(
     commands.spawn((
         PhaseEntity,
         DirectionalLight {
-            shadows_enabled: false,
+            shadow_maps_enabled: false,
             ..default()
         },
         spawn_light_transform(),
@@ -241,7 +241,7 @@ fn setup_dir_4cascade(
     commands.spawn((
         PhaseEntity,
         DirectionalLight {
-            shadows_enabled: true,
+            shadow_maps_enabled: true,
             ..default()
         },
         spawn_light_transform(),
@@ -256,7 +256,7 @@ fn setup_dir_1cascade(
     commands.spawn((
         PhaseEntity,
         DirectionalLight {
-            shadows_enabled: true,
+            shadow_maps_enabled: true,
             ..default()
         },
         spawn_light_transform(),
@@ -276,7 +276,7 @@ fn setup_dir_4cascade_small_map(
     commands.spawn((
         PhaseEntity,
         DirectionalLight {
-            shadows_enabled: true,
+            shadow_maps_enabled: true,
             ..default()
         },
         spawn_light_transform(),
@@ -292,7 +292,7 @@ fn setup_dir_4cascade_large_map(
     commands.spawn((
         PhaseEntity,
         DirectionalLight {
-            shadows_enabled: true,
+            shadow_maps_enabled: true,
             ..default()
         },
         spawn_light_transform(),
@@ -308,7 +308,7 @@ fn setup_point_shadow(
     commands.spawn((
         PhaseEntity,
         PointLight {
-            shadows_enabled: true,
+            shadow_maps_enabled: true,
             range: 20.0,
             ..default()
         },
@@ -324,7 +324,7 @@ fn setup_spot_shadow(
     commands.spawn((
         PhaseEntity,
         SpotLight {
-            shadows_enabled: true,
+            shadow_maps_enabled: true,
             range: 20.0,
             ..default()
         },
@@ -341,7 +341,7 @@ fn setup_dir_4cascade_with_mesh(
     commands.spawn((
         PhaseEntity,
         DirectionalLight {
-            shadows_enabled: true,
+            shadow_maps_enabled: true,
             ..default()
         },
         spawn_light_transform(),
