@@ -11,10 +11,24 @@ use bevy::render::{Render, RenderApp};
 use bevy::window::PresentMode;
 use bevy_sprinkles::prelude::*;
 
-const PHASE_DURATION_SECS: f64 = 120.0;
+const PHASE_DURATION_SECS: f64 = 60.0;
 const LOG_INTERVAL_SECS: f64 = 5.0;
 
-const PHASES: &[&str] = &["bare", "particles", "ui", "full"];
+struct Phase {
+    name: &'static str,
+    camera: bool,
+    light: bool,
+    shadows: bool,
+    particles: bool,
+}
+
+const PHASES: &[Phase] = &[
+    Phase { name: "empty", camera: false, light: false, shadows: false, particles: false },
+    Phase { name: "camera_only", camera: true, light: false, shadows: false, particles: false },
+    Phase { name: "cam+light", camera: true, light: true, shadows: false, particles: false },
+    Phase { name: "cam+shadows", camera: true, light: true, shadows: true, particles: false },
+    Phase { name: "cam+particles", camera: true, light: true, shadows: true, particles: true },
+];
 
 #[derive(Resource)]
 struct RenderEntityCounter(Arc<AtomicUsize>);
@@ -30,13 +44,13 @@ struct LeakTestState {
 }
 
 #[derive(Component)]
+struct PhaseCamera;
+
+#[derive(Component)]
+struct PhaseLight;
+
+#[derive(Component)]
 struct PhaseParticles;
-
-#[derive(Component)]
-struct PhaseUi;
-
-#[derive(Component)]
-struct UpdatingText;
 
 #[derive(Resource)]
 struct RestartTimer(Timer);
@@ -57,10 +71,11 @@ fn main() {
     )
     .ok();
 
+    let phase_names: Vec<&str> = PHASES.iter().map(|p| p.name).collect();
     println!("Leak test logging to: {}", log_path.display());
     println!(
         "Phases ({PHASE_DURATION_SECS}s each): {}",
-        PHASES.join(" -> ")
+        phase_names.join(" -> ")
     );
 
     let mut sys = sysinfo::System::new();
@@ -79,7 +94,7 @@ fn main() {
     app.add_plugins(
         DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
-                title: "Leak Test - Phase: bare".into(),
+                title: "Leak Test - Phase: empty".into(),
                 present_mode: PresentMode::AutoNoVsync,
                 ..default()
             }),
@@ -90,13 +105,11 @@ fn main() {
     .add_plugins(FrameTimeDiagnosticsPlugin::default())
     .insert_resource(state)
     .insert_resource(RestartTimer(Timer::from_seconds(3.0, TimerMode::Repeating)))
-    .add_systems(Startup, setup_scene)
     .add_systems(
         Update,
         (
             restart_particles,
             phase_manager,
-            update_ui_text,
             log_diagnostics,
         )
             .chain(),
@@ -110,21 +123,82 @@ fn main() {
     app.run();
 }
 
-fn setup_scene(mut commands: Commands) {
-    commands.spawn((
-        Camera3d::default(),
-        Transform::from_xyz(5.0, 3.0, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
-    ));
+fn apply_phase(
+    commands: &mut Commands,
+    phase: &Phase,
+    assets: &mut Assets<ParticleSystemAsset>,
+    cameras: &Query<Entity, With<PhaseCamera>>,
+    lights: &Query<Entity, With<PhaseLight>>,
+    particles: &Query<Entity, With<PhaseParticles>>,
+) {
+    for entity in cameras.iter() {
+        commands.entity(entity).despawn();
+    }
+    for entity in lights.iter() {
+        commands.entity(entity).despawn();
+    }
+    for entity in particles.iter() {
+        commands.entity(entity).despawn();
+    }
 
-    commands.spawn((
-        DirectionalLight {
-            shadows_enabled: true,
-            ..default()
-        },
-        Transform::from_rotation(Quat::from_euler(EulerRot::XYZ, -0.8, 0.4, 0.0)),
-    ));
+    if phase.camera {
+        commands.spawn((
+            PhaseCamera,
+            Camera3d::default(),
+            Transform::from_xyz(5.0, 3.0, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
+        ));
+    }
 
-    println!("[0.0s] Phase 0: bare");
+    if phase.light {
+        commands.spawn((
+            PhaseLight,
+            DirectionalLight {
+                shadows_enabled: phase.shadows,
+                ..default()
+            },
+            Transform::from_rotation(Quat::from_euler(EulerRot::XYZ, -0.8, 0.4, 0.0)),
+        ));
+    }
+
+    if phase.particles {
+        let emitters: Vec<EmitterData> = (0..6)
+            .map(|i| EmitterData {
+                name: format!("Emitter {i}"),
+                emission: EmitterEmission {
+                    particles_amount: 64,
+                    ..default()
+                },
+                velocities: EmitterVelocities {
+                    initial_velocity: ParticleRange::new(1.0, 5.0),
+                    spread: 90.0,
+                    ..default()
+                },
+                time: EmitterTime {
+                    lifetime: 1.0,
+                    one_shot: true,
+                    ..default()
+                },
+                ..default()
+            })
+            .collect();
+
+        let handle = assets.add(ParticleSystemAsset::new(
+            "Test Explosion".into(),
+            ParticleSystemDimension::D3,
+            Default::default(),
+            emitters,
+            vec![],
+            false,
+            Default::default(),
+        ));
+
+        commands.spawn((
+            PhaseParticles,
+            ParticleSystem3D { handle },
+            Transform::IDENTITY,
+            Visibility::default(),
+        ));
+    }
 }
 
 fn phase_manager(
@@ -132,8 +206,9 @@ fn phase_manager(
     time: Res<Time>,
     mut state: ResMut<LeakTestState>,
     mut assets: ResMut<Assets<ParticleSystemAsset>>,
+    cameras: Query<Entity, With<PhaseCamera>>,
+    lights: Query<Entity, With<PhaseLight>>,
     particles: Query<Entity, With<PhaseParticles>>,
-    ui: Query<Entity, With<PhaseUi>>,
     mut window: Query<&mut Window>,
     mut exit: MessageWriter<AppExit>,
 ) {
@@ -152,168 +227,14 @@ fn phase_manager(
         return;
     }
 
-    let phase_name = PHASES[state.phase];
-    println!("[{:.0}s] Phase {}: {phase_name}", time.elapsed_secs(), state.phase);
+    let phase = &PHASES[state.phase];
+    println!("[{:.0}s] Phase {}: {}", time.elapsed_secs(), state.phase, phase.name);
 
     if let Ok(mut window) = window.single_mut() {
-        window.title = format!("Leak Test - Phase: {phase_name}");
+        window.title = format!("Leak Test - Phase: {}", phase.name);
     }
 
-    for entity in particles.iter() {
-        commands.entity(entity).despawn();
-    }
-    for entity in ui.iter() {
-        commands.entity(entity).despawn();
-    }
-
-    match phase_name {
-        "particles" => {
-            spawn_particles(&mut commands, &mut assets);
-        }
-        "ui" => {
-            spawn_ui(&mut commands);
-        }
-        "full" => {
-            spawn_particles(&mut commands, &mut assets);
-            spawn_ui(&mut commands);
-        }
-        _ => {}
-    }
-}
-
-fn spawn_particles(
-    commands: &mut Commands,
-    assets: &mut Assets<ParticleSystemAsset>,
-) {
-    let emitters: Vec<EmitterData> = (0..6)
-        .map(|i| EmitterData {
-            name: format!("Emitter {i}"),
-            emission: EmitterEmission {
-                particles_amount: 64,
-                ..default()
-            },
-            velocities: EmitterVelocities {
-                initial_velocity: ParticleRange::new(1.0, 5.0),
-                spread: 90.0,
-                ..default()
-            },
-            time: EmitterTime {
-                lifetime: 1.0,
-                one_shot: true,
-                ..default()
-            },
-            ..default()
-        })
-        .collect();
-
-    let handle = assets.add(ParticleSystemAsset::new(
-        "Test Explosion".into(),
-        ParticleSystemDimension::D3,
-        Default::default(),
-        emitters,
-        vec![],
-        false,
-        Default::default(),
-    ));
-
-    commands.spawn((
-        PhaseParticles,
-        ParticleSystem3D { handle },
-        Transform::IDENTITY,
-        Visibility::default(),
-    ));
-}
-
-fn spawn_ui(commands: &mut Commands) {
-    commands
-        .spawn((
-            PhaseUi,
-            Node {
-                width: Val::Px(300.0),
-                height: Val::Percent(100.0),
-                flex_direction: FlexDirection::Column,
-                padding: UiRect::all(Val::Px(8.0)),
-                row_gap: Val::Px(4.0),
-                overflow: Overflow::clip(),
-                ..default()
-            },
-            BackgroundColor(Color::srgba(0.1, 0.1, 0.1, 0.9)),
-        ))
-        .with_children(|parent| {
-            for i in 0..30 {
-                parent
-                    .spawn((
-                        Node {
-                            width: Val::Percent(100.0),
-                            height: Val::Px(24.0),
-                            justify_content: JustifyContent::SpaceBetween,
-                            align_items: AlignItems::Center,
-                            padding: UiRect::horizontal(Val::Px(4.0)),
-                            ..default()
-                        },
-                        BackgroundColor(Color::srgba(0.2, 0.2, 0.2, 1.0)),
-                    ))
-                    .with_children(|row| {
-                        row.spawn((
-                            Text::new(format!("Property {i}")),
-                            TextFont {
-                                font_size: 12.0,
-                                ..default()
-                            },
-                        ));
-                        row.spawn((
-                            UpdatingText,
-                            Text::new(format!("{:.2}", i as f32 * 0.1)),
-                            TextFont {
-                                font_size: 12.0,
-                                ..default()
-                            },
-                        ));
-                    });
-            }
-        });
-
-    commands
-        .spawn((
-            PhaseUi,
-            Node {
-                position_type: PositionType::Absolute,
-                right: Val::Px(0.0),
-                top: Val::Px(0.0),
-                width: Val::Px(200.0),
-                height: Val::Percent(100.0),
-                flex_direction: FlexDirection::Column,
-                padding: UiRect::all(Val::Px(8.0)),
-                row_gap: Val::Px(4.0),
-                ..default()
-            },
-            BackgroundColor(Color::srgba(0.15, 0.15, 0.15, 0.9)),
-        ))
-        .with_children(|parent| {
-            for i in 0..15 {
-                parent.spawn((
-                    UpdatingText,
-                    Text::new(format!("Info line {i}")),
-                    TextFont {
-                        font_size: 11.0,
-                        ..default()
-                    },
-                ));
-            }
-        });
-}
-
-fn update_ui_text(time: Res<Time>, mut timer: Local<f32>, mut texts: Query<&mut Text, With<UpdatingText>>) {
-    *timer += time.delta_secs();
-    if *timer < 0.1 {
-        return;
-    }
-    *timer = 0.0;
-
-    let t = time.elapsed_secs();
-    for mut text in &mut texts {
-        **text = format!("{t:.3}");
-    }
+    apply_phase(&mut commands, phase, &mut assets, &cameras, &lights, &particles);
 }
 
 fn restart_particles(
@@ -341,7 +262,7 @@ fn log_diagnostics(
     state.log_timer -= LOG_INTERVAL_SECS;
 
     let elapsed = time.elapsed_secs_f64();
-    let phase_name = PHASES.get(state.phase).copied().unwrap_or("done");
+    let phase_name = PHASES.get(state.phase).map(|p| p.name).unwrap_or("done");
 
     let fps = diagnostics
         .get(&FrameTimeDiagnosticsPlugin::FPS)
