@@ -5,20 +5,19 @@ edition = "2024"
 publish = false
 
 [dependencies]
-bevy = { git = "https://github.com/bevyengine/bevy", branch = "main", default-features = false, features = [
+bevy = { version = "0.18.0", default-features = false, features = [
     "default_app",
     "default_platform",
     "3d_api",
     "3d_bevy_render",
 ] }
+bevy_sprinkles = { path = "../crates/bevy_sprinkles" }
 sysinfo = "0.35"
 
 [[bin]]
 name = "leak_test"
 path = "src/leak_test.rs"
 
-# NOTE: main.rs bench binary disabled while testing against Bevy main.
-# It depends on bevy_sprinkles which requires Bevy 0.18.
-# [[bin]]
-# name = "bevy_sprinkles_benches"
-# path = "src/main.rs"
+[[bin]]
+name = "bevy_sprinkles_benches"
+path = "src/main.rs"
