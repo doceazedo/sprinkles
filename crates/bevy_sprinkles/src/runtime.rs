@@ -220,6 +220,11 @@ impl EmitterRuntime {
         }
     }
 
+    /// Stops emission but allows existing particles to continue simulating.
+    pub fn stop_emitting(&mut self) {
+        self.set_emitting(false);
+    }
+
     /// Starts or resumes emission, resetting the one-shot completed flag.
     pub fn play(&mut self) {
         self.set_emitting(true);
