@@ -1,9 +1,9 @@
 use bevy::{
+    core_pipeline::schedule::camera_driver,
     prelude::*,
     render::{
         Render, RenderApp, RenderStartup, RenderSystems,
         render_asset::RenderAssets,
-        render_graph::{self, RenderGraph, RenderLabel},
         render_resource::{
             BindGroup, BindGroupEntries, BindGroupLayoutDescriptor, BindGroupLayoutEntries, Buffer,
             BufferUsages, CachedComputePipelineId, CachedPipelineState, ComputePassDescriptor,
@@ -14,15 +14,15 @@ use bevy::{
                 texture_2d, uniform_buffer,
             },
         },
-        renderer::{RenderContext, RenderDevice, RenderQueue},
-        storage::GpuShaderStorageBuffer,
+        renderer::{RenderContext, RenderDevice, RenderGraph, RenderGraphSystems, RenderQueue},
+        storage::GpuShaderBuffer,
         texture::GpuImage,
     },
 };
 use std::borrow::Cow;
 
 use bevy::render::render_resource::ShaderType;
-use bevy::shader::PipelineCacheError;
+use bevy::shader::ShaderCacheError;
 
 use crate::extract::{
     ColliderUniform, EmitterUniforms, ExtractedColliders, ExtractedEmitterData,
@@ -40,7 +40,7 @@ pub struct ColliderArray {
 const SHADER_ASSET_PATH: &str = "embedded://bevy_sprinkles/shaders/particle_simulate.wgsl";
 const WORKGROUP_SIZE: u32 = 64;
 
-#[derive(Debug, Hash, PartialEq, Eq, Clone, RenderLabel)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
 pub struct ParticleComputeLabel;
 
 #[derive(Resource)]
@@ -192,7 +192,7 @@ pub fn prepare_particle_compute_bind_groups(
     _render_queue: Res<RenderQueue>,
     extracted_systems: Res<ExtractedParticleSystem>,
     extracted_colliders: Option<Res<ExtractedColliders>>,
-    gpu_storage_buffers: Res<RenderAssets<GpuShaderStorageBuffer>>,
+    gpu_storage_buffers: Res<RenderAssets<GpuShaderBuffer>>,
     gpu_images: Res<RenderAssets<GpuImage>>,
     fallback_gradient_texture: Option<Res<FallbackGradientTexture>>,
     fallback_curve_texture: Option<Res<FallbackCurveTexture>>,
@@ -422,127 +422,92 @@ pub fn prepare_particle_compute_bind_groups(
     });
 }
 
-pub struct ParticleComputeNode {
-    ready: bool,
-}
-
-impl Default for ParticleComputeNode {
-    fn default() -> Self {
-        Self { ready: false }
-    }
-}
-
-impl render_graph::Node for ParticleComputeNode {
-    fn update(&mut self, world: &mut World) {
-        let pipeline = world.resource::<ParticleComputePipeline>();
-        let pipeline_cache = world.resource::<PipelineCache>();
-
-        match pipeline_cache.get_compute_pipeline_state(pipeline.simulate_pipeline) {
-            CachedPipelineState::Ok(_) => {
-                self.ready = true;
-            }
-            CachedPipelineState::Queued
-            | CachedPipelineState::Creating(_)
-            | CachedPipelineState::Err(PipelineCacheError::ShaderNotLoaded(_))
-            | CachedPipelineState::Err(PipelineCacheError::ShaderImportNotYetAvailable) => {}
-            CachedPipelineState::Err(err) => {
-                panic!("Failed to compile particle compute shader: {err}")
-            }
+pub fn run_particle_compute_node(
+    pipeline: Res<ParticleComputePipeline>,
+    pipeline_cache: Res<PipelineCache>,
+    bind_groups: Res<ParticleComputeBindGroups>,
+    extracted: Res<ExtractedParticleSystem>,
+    emission_clear_list: Res<EmissionBufferClearList>,
+    mut ctx: RenderContext,
+) {
+    match pipeline_cache.get_compute_pipeline_state(pipeline.simulate_pipeline) {
+        CachedPipelineState::Ok(_) => {}
+        CachedPipelineState::Queued
+        | CachedPipelineState::Creating(_)
+        | CachedPipelineState::Err(ShaderCacheError::ShaderNotLoaded(_))
+        | CachedPipelineState::Err(ShaderCacheError::ShaderImportNotYetAvailable) => return,
+        CachedPipelineState::Err(err) => {
+            panic!("Failed to compile particle compute shader: {err}")
         }
     }
 
-    fn run(
-        &self,
-        _graph: &mut render_graph::RenderGraphContext,
-        render_context: &mut RenderContext,
-        world: &World,
-    ) -> Result<(), render_graph::NodeRunError> {
-        if !self.ready {
-            return Ok(());
+    let Some(compute_pipeline) = pipeline_cache.get_compute_pipeline(pipeline.simulate_pipeline)
+    else {
+        return;
+    };
+
+    let max_steps = bind_groups
+        .bind_groups
+        .iter()
+        .map(|(_, steps)| steps.len())
+        .max()
+        .unwrap_or(0);
+
+    let emitter_map: std::collections::HashMap<Entity, &ExtractedEmitterData> = extracted
+        .emitters
+        .iter()
+        .map(|(e, data)| (*e, data))
+        .collect();
+
+    let has_sub_emitter_targets = emitter_map.values().any(|data| data.is_sub_emitter_target);
+    let pass_labels: &[&str] = if has_sub_emitter_targets {
+        &["particle_compute_pass", "particle_sub_emitter_pass"]
+    } else {
+        &["particle_compute_pass"]
+    };
+
+    for step_index in 0..max_steps {
+        for buf in &emission_clear_list.buffers {
+            ctx.command_encoder().clear_buffer(buf, 0, Some(4));
         }
 
-        let pipeline_cache = world.resource::<PipelineCache>();
-        let pipeline = world.resource::<ParticleComputePipeline>();
-        let bind_groups = world.resource::<ParticleComputeBindGroups>();
-        let extracted = world.resource::<ExtractedParticleSystem>();
-        let emission_clear_list = world.resource::<EmissionBufferClearList>();
+        for (pass_index, label) in pass_labels.iter().enumerate() {
+            let is_target_pass = pass_index == 1;
 
-        let Some(compute_pipeline) =
-            pipeline_cache.get_compute_pipeline(pipeline.simulate_pipeline)
-        else {
-            return Ok(());
-        };
+            let mut pass = ctx.command_encoder().begin_compute_pass(&ComputePassDescriptor {
+                label: Some(label),
+                ..default()
+            });
 
-        let max_steps = bind_groups
-            .bind_groups
-            .iter()
-            .map(|(_, steps)| steps.len())
-            .max()
-            .unwrap_or(0);
+            pass.set_pipeline(compute_pipeline);
 
-        let emitter_map: std::collections::HashMap<Entity, &ExtractedEmitterData> = extracted
-            .emitters
-            .iter()
-            .map(|(e, data)| (*e, data))
-            .collect();
+            for (entity, step_bind_groups) in &bind_groups.bind_groups {
+                let Some(bind_group) = step_bind_groups.get(step_index) else {
+                    continue;
+                };
 
-        let has_sub_emitter_targets = emitter_map.values().any(|data| data.is_sub_emitter_target);
-        let pass_labels: &[&str] = if has_sub_emitter_targets {
-            &["particle_compute_pass", "particle_sub_emitter_pass"]
-        } else {
-            &["particle_compute_pass"]
-        };
+                let Some(emitter_data) = emitter_map.get(entity) else {
+                    continue;
+                };
 
-        for step_index in 0..max_steps {
-            for buf in &emission_clear_list.buffers {
-                render_context
-                    .command_encoder()
-                    .clear_buffer(buf, 0, Some(4));
-            }
-
-            for (pass_index, label) in pass_labels.iter().enumerate() {
-                let is_target_pass = pass_index == 1;
-
-                let mut pass =
-                    render_context
-                        .command_encoder()
-                        .begin_compute_pass(&ComputePassDescriptor {
-                            label: Some(label),
-                            ..default()
-                        });
-
-                pass.set_pipeline(compute_pipeline);
-
-                for (entity, step_bind_groups) in &bind_groups.bind_groups {
-                    let Some(bind_group) = step_bind_groups.get(step_index) else {
-                        continue;
-                    };
-
-                    let Some(emitter_data) = emitter_map.get(entity) else {
-                        continue;
-                    };
-
-                    if emitter_data.is_sub_emitter_target != is_target_pass {
-                        continue;
-                    }
-
-                    // for trail passes, the uniform_steps alternate head/trail
-                    // dispatch count: head pass = amount threads, trail pass = amount * (trail_size - 1) threads
-                    let trail_size = emitter_data.trail_size;
-                    let is_trail_pass = trail_size > 1 && step_index % 2 == 1;
-                    let thread_count = if is_trail_pass {
-                        emitter_data.amount * (trail_size - 1)
-                    } else {
-                        emitter_data.amount
-                    };
-                    let workgroups = (thread_count + WORKGROUP_SIZE - 1) / WORKGROUP_SIZE;
-                    pass.set_bind_group(0, bind_group, &[]);
-                    pass.dispatch_workgroups(workgroups, 1, 1);
+                if emitter_data.is_sub_emitter_target != is_target_pass {
+                    continue;
                 }
+
+                // for trail passes, the uniform_steps alternate head/trail
+                // dispatch count: head pass = amount threads, trail pass = amount * (trail_size - 1) threads
+                let trail_size = emitter_data.trail_size;
+                let is_trail_pass = trail_size > 1 && step_index % 2 == 1;
+                let thread_count = if is_trail_pass {
+                    emitter_data.amount * (trail_size - 1)
+                } else {
+                    emitter_data.amount
+                };
+                let workgroups = (thread_count + WORKGROUP_SIZE - 1) / WORKGROUP_SIZE;
+                pass.set_bind_group(0, bind_group, &[]);
+                pass.dispatch_workgroups(workgroups, 1, 1);
             }
         }
-
-        Ok(())
     }
 }
 
@@ -561,10 +526,13 @@ impl Plugin for ParticleComputePlugin {
             .add_systems(
                 Render,
                 prepare_particle_compute_bind_groups.in_set(RenderSystems::PrepareBindGroups),
+            )
+            .add_systems(
+                RenderGraph,
+                run_particle_compute_node
+                    .in_set(ParticleComputeLabel)
+                    .in_set(RenderGraphSystems::Render)
+                    .before(camera_driver),
             );
-
-        let mut render_graph = render_app.world_mut().resource_mut::<RenderGraph>();
-        render_graph.add_node(ParticleComputeLabel, ParticleComputeNode::default());
-        render_graph.add_node_edge(ParticleComputeLabel, bevy::render::graph::CameraDriverLabel);
     }
 }

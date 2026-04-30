@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use bevy::pbr::ExtendedMaterial;
 use bevy::prelude::*;
 use bevy::render::render_resource::{Buffer, ShaderType};
-use bevy::render::storage::ShaderStorageBuffer;
+use bevy::render::storage::ShaderBuffer;
 use bytemuck::{Pod, Zeroable};
 
 use crate::asset::{DrawPassMaterial, ParticleMesh, ParticleSystemAsset, ParticlesColliderShape3D};
@@ -319,13 +319,13 @@ fn rand_seed() -> u32 {
 #[derive(Component)]
 pub struct ParticleBufferHandle {
     /// The main particle data buffer.
-    pub particle_buffer: Handle<ShaderStorageBuffer>,
+    pub particle_buffer: Handle<ShaderBuffer>,
     /// Buffer holding particle sort indices.
-    pub indices_buffer: Handle<ShaderStorageBuffer>,
+    pub indices_buffer: Handle<ShaderBuffer>,
     /// Buffer holding sorted/reordered particle data for rendering.
-    pub sorted_particles_buffer: Handle<ShaderStorageBuffer>,
+    pub sorted_particles_buffer: Handle<ShaderBuffer>,
     /// Buffer holding per-emitter uniforms (transform, flags) for the material shader.
-    pub emitter_uniforms_buffer: Handle<ShaderStorageBuffer>,
+    pub emitter_uniforms_buffer: Handle<ShaderBuffer>,
     /// Maximum number of particle slots this buffer can hold.
     pub max_particles: u32,
     /// Number of head particles in this emitter.
@@ -333,7 +333,7 @@ pub struct ParticleBufferHandle {
     /// Number of trail segments per particle.
     pub trail_size: u32,
     /// Per-particle trail position history ring buffer.
-    pub trail_history_buffer: Option<Handle<ShaderStorageBuffer>>,
+    pub trail_history_buffer: Option<Handle<ShaderBuffer>>,
     /// Ring buffer size per particle for trail history.
     pub trail_history_frames: u32,
 }
@@ -372,7 +372,7 @@ pub struct ParticleMaterialHandle(pub Handle<ParticleMaterial>);
 #[derive(Component)]
 pub struct SubEmitterBufferHandle {
     /// Handle to the sub-emitter event buffer.
-    pub buffer: Handle<ShaderStorageBuffer>,
+    pub buffer: Handle<ShaderBuffer>,
     /// The target emitter entity that receives sub-emitter events.
     pub target_emitter: Entity,
     /// Maximum number of particles the target emitter can hold.

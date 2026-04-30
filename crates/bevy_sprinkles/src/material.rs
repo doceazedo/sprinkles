@@ -7,7 +7,7 @@ use bevy::{
             AsBindGroup, CompareFunction, RenderPipelineDescriptor, ShaderType,
             SpecializedMeshPipelineError,
         },
-        storage::ShaderStorageBuffer,
+        storage::ShaderBuffer,
     },
     shader::ShaderRef,
 };
@@ -65,10 +65,10 @@ impl Default for ParticleEmitterUniforms {
 pub struct ParticleMaterialExtension {
     /// Handle to the sorted particle data buffer, read by the vertex shader.
     #[storage(100, read_only)]
-    pub sorted_particles: Handle<ShaderStorageBuffer>,
+    pub sorted_particles: Handle<ShaderBuffer>,
     /// Handle to the per-emitter uniforms buffer (transform, flags, etc.).
     #[storage(101, read_only)]
-    pub emitter_uniforms: Handle<ShaderStorageBuffer>,
+    pub emitter_uniforms: Handle<ShaderBuffer>,
 }
 
 impl MaterialExtension for ParticleMaterialExtension {
@@ -104,8 +104,8 @@ impl MaterialExtension for ParticleMaterialExtension {
                 .contains(MeshPipelineKey::BLEND_ALPHA_TO_COVERAGE);
 
         if let Some(depth_stencil) = &mut descriptor.depth_stencil {
-            depth_stencil.depth_write_enabled = !is_transparent;
-            depth_stencil.depth_compare = CompareFunction::GreaterEqual;
+            depth_stencil.depth_write_enabled = Some(!is_transparent);
+            depth_stencil.depth_compare = Some(CompareFunction::GreaterEqual);
         }
 
         // disable backface culling so trail tubes render both sides

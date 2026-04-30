@@ -1,5 +1,5 @@
 use bevy::{
-    light::NotShadowCaster, pbr::ExtendedMaterial, prelude::*, render::storage::ShaderStorageBuffer,
+    light::NotShadowCaster, pbr::ExtendedMaterial, prelude::*, render::storage::ShaderBuffer,
 };
 
 use crate::{
@@ -20,11 +20,11 @@ const MAX_TRAIL_HISTORY_FPS: f32 = 240.0;
 fn create_trail_history_buffer(
     amount: u32,
     frames: u32,
-    buffers: &mut Assets<ShaderStorageBuffer>,
-) -> Option<Handle<ShaderStorageBuffer>> {
+    buffers: &mut Assets<ShaderBuffer>,
+) -> Option<Handle<ShaderBuffer>> {
     if frames > 0 {
         let data = vec![TrailHistoryEntry::default(); (amount * frames) as usize];
-        Some(buffers.add(ShaderStorageBuffer::from(data)))
+        Some(buffers.add(ShaderBuffer::from(data)))
     } else {
         None
     }
@@ -209,8 +209,8 @@ fn transform_align_to_u32(align: Option<crate::asset::TransformAlign>) -> u32 {
 
 fn create_particle_material_from_config(
     config: &DrawPassMaterial,
-    sorted_particles_buffer: Handle<ShaderStorageBuffer>,
-    emitter_uniforms_buffer: Handle<ShaderStorageBuffer>,
+    sorted_particles_buffer: Handle<ShaderBuffer>,
+    emitter_uniforms_buffer: Handle<ShaderBuffer>,
     asset_server: &AssetServer,
     assets_folders: &[String],
 ) -> ParticleMaterial {
@@ -248,7 +248,7 @@ pub fn setup_particle_systems(
     asset_server: Res<AssetServer>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut mesh_cache: ResMut<ParticleMeshCache>,
-    mut buffers: ResMut<Assets<ShaderStorageBuffer>>,
+    mut buffers: ResMut<Assets<ShaderBuffer>>,
     mut materials: ResMut<Assets<ParticleMaterial>>,
 ) {
     for (system_entity, particle_system, is_editor) in query.iter() {
@@ -286,12 +286,12 @@ pub fn setup_particle_systems(
             let particles: Vec<ParticleData> =
                 (0..total_slots).map(|_| ParticleData::default()).collect();
 
-            let particle_buffer_handle = buffers.add(ShaderStorageBuffer::from(particles.clone()));
+            let particle_buffer_handle = buffers.add(ShaderBuffer::from(particles.clone()));
 
             let indices: Vec<u32> = (0..total_slots).collect();
-            let indices_buffer_handle = buffers.add(ShaderStorageBuffer::from(indices));
+            let indices_buffer_handle = buffers.add(ShaderBuffer::from(indices));
 
-            let sorted_particles_buffer_handle = buffers.add(ShaderStorageBuffer::from(particles));
+            let sorted_particles_buffer_handle = buffers.add(ShaderBuffer::from(particles));
 
             let trail_history_frames = compute_trail_history_frames(emitter);
             let trail_history_buffer =
@@ -305,7 +305,7 @@ pub fn setup_particle_systems(
                 transform_align: transform_align_to_u32(emitter.draw_pass.transform_align),
                 ..default()
             };
-            let mut emitter_uniforms_ssbo = ShaderStorageBuffer::default();
+            let mut emitter_uniforms_ssbo = ShaderBuffer::default();
             emitter_uniforms_ssbo.set_data(emitter_uniforms);
             let emitter_uniforms_buffer_handle = buffers.add(emitter_uniforms_ssbo);
 
@@ -377,7 +377,7 @@ pub fn setup_particle_systems(
                 let buffer_len = 4 + 12 * target_amount as usize;
                 let mut initial_data = vec![0u32; buffer_len];
                 initial_data[1] = target_amount;
-                let mut buffer = ShaderStorageBuffer::from(initial_data);
+                let mut buffer = ShaderBuffer::from(initial_data);
                 buffer.buffer_description.usage |=
                     bevy::render::render_resource::BufferUsages::COPY_DST;
 
@@ -521,7 +521,7 @@ pub(crate) fn sync_particle_buffers(
     )>,
     assets: Res<Assets<ParticleSystemAsset>>,
     asset_server: Res<AssetServer>,
-    mut buffers: ResMut<Assets<ShaderStorageBuffer>>,
+    mut buffers: ResMut<Assets<ShaderBuffer>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut mesh_cache: ResMut<ParticleMeshCache>,
     mut materials: ResMut<Assets<ParticleMaterial>>,
@@ -562,11 +562,11 @@ pub(crate) fn sync_particle_buffers(
         let particles: Vec<ParticleData> =
             (0..new_total).map(|_| ParticleData::default()).collect();
 
-        let new_particle_buf = buffers.add(ShaderStorageBuffer::from(particles.clone()));
-        let new_indices_buf = buffers.add(ShaderStorageBuffer::from(
+        let new_particle_buf = buffers.add(ShaderBuffer::from(particles.clone()));
+        let new_indices_buf = buffers.add(ShaderBuffer::from(
             (0..new_total).collect::<Vec<u32>>(),
         ));
-        let new_sorted_buf = buffers.add(ShaderStorageBuffer::from(particles));
+        let new_sorted_buf = buffers.add(ShaderBuffer::from(particles));
 
         let emitter_uniforms = ParticleEmitterUniforms {
             max_particles: new_total,
@@ -576,7 +576,7 @@ pub(crate) fn sync_particle_buffers(
             trail_thickness_curve: bake_thickness_curve(&emitter_data.trail),
             ..default()
         };
-        let mut emitter_uniforms_ssbo = ShaderStorageBuffer::default();
+        let mut emitter_uniforms_ssbo = ShaderBuffer::default();
         emitter_uniforms_ssbo.set_data(emitter_uniforms);
         let new_uniforms_buf = buffers.add(emitter_uniforms_ssbo);
 
@@ -626,7 +626,7 @@ pub fn write_emitter_uniforms(
         &GlobalTransform,
     )>,
     assets: Res<Assets<ParticleSystemAsset>>,
-    mut buffers: ResMut<Assets<ShaderStorageBuffer>>,
+    mut buffers: ResMut<Assets<ShaderBuffer>>,
 ) {
     for (emitter, runtime, buffer_handle, global_transform) in emitter_query.iter() {
         let Some(emitter_data) = get_emitter_data(
@@ -651,7 +651,7 @@ pub fn write_emitter_uniforms(
             trail_thickness_curve,
         };
 
-        if let Some(buffer) = buffers.get_mut(&buffer_handle.emitter_uniforms_buffer) {
+        if let Some(mut buffer) = buffers.get_mut(&buffer_handle.emitter_uniforms_buffer) {
             buffer.set_data(uniforms);
         }
     }

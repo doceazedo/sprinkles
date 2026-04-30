@@ -1,6 +1,6 @@
 use bevy::{
     prelude::*,
-    render::{Extract, render_resource::ShaderType, storage::ShaderStorageBuffer},
+    render::{Extract, render_resource::ShaderType, storage::ShaderBuffer},
 };
 use bytemuck::{Pod, Zeroable};
 
@@ -238,9 +238,9 @@ pub struct ExtractedParticleSystem {
 
 pub struct ExtractedEmitterData {
     pub uniform_steps: Vec<EmitterUniforms>,
-    pub particle_buffer_handle: Handle<ShaderStorageBuffer>,
-    pub indices_buffer_handle: Handle<ShaderStorageBuffer>,
-    pub sorted_particles_buffer_handle: Handle<ShaderStorageBuffer>,
+    pub particle_buffer_handle: Handle<ShaderBuffer>,
+    pub indices_buffer_handle: Handle<ShaderBuffer>,
+    pub sorted_particles_buffer_handle: Handle<ShaderBuffer>,
     pub amount: u32,
     pub draw_order: u32,
     pub camera_position: [f32; 3],
@@ -258,10 +258,10 @@ pub struct ExtractedEmitterData {
     pub orbit_velocity_curve_texture_handle: Option<Handle<Image>>,
     pub directional_velocity_curve_texture_handle: Option<Handle<Image>>,
     pub is_sub_emitter_target: bool,
-    pub emission_buffer_handle: Option<Handle<ShaderStorageBuffer>>,
-    pub source_buffer_handle: Option<Handle<ShaderStorageBuffer>>,
+    pub emission_buffer_handle: Option<Handle<ShaderBuffer>>,
+    pub source_buffer_handle: Option<Handle<ShaderBuffer>>,
     pub trail_size: u32,
-    pub trail_history_buffer_handle: Option<Handle<ShaderStorageBuffer>>,
+    pub trail_history_buffer_handle: Option<Handle<ShaderBuffer>>,
 }
 
 fn curve_uniform_from(curve: &Option<CurveTexture>) -> CurveUniform {
@@ -581,7 +581,7 @@ pub fn extract_particle_systems(
 
     let mut emission_buffer_map: std::collections::HashMap<
         (Entity, usize),
-        Handle<ShaderStorageBuffer>,
+        Handle<ShaderBuffer>,
     > = std::collections::HashMap::new();
     for (_entity, emitter_entity, runtime, _buffer_handle, _global_transform, sub_emitter_buf) in
         emitter_query.iter()

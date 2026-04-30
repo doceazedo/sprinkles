@@ -1,11 +1,11 @@
-use bevy::{prelude::*, render::alpha::AlphaMode, render::render_resource::Face};
+use bevy::{material::AlphaMode, prelude::*, render::render_resource::Face};
 use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
 
 use super::serde_helpers::{is_false, is_true, is_zero_f32};
 use crate::textures::preset::TextureRef;
 
-/// Sets how a material's base color alpha channel is used for transparency, copied from Bevy's [`AlphaMode`](bevy::render::alpha::AlphaMode).
+/// Sets how a material's base color alpha channel is used for transparency, copied from Bevy's [`AlphaMode`](bevy::material::AlphaMode).
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, Default, PartialEq, Reflect)]
 pub enum SerializableAlphaMode {
     /// Base color alpha values are overridden to be fully opaque (1.0).

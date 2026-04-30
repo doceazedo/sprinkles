@@ -1,9 +1,9 @@
 use bevy::{
+    core_pipeline::schedule::camera_driver,
     prelude::*,
     render::{
         Render, RenderApp, RenderStartup, RenderSystems,
         render_asset::RenderAssets,
-        render_graph::{self, RenderGraph, RenderLabel},
         render_resource::{
             BindGroup, BindGroupEntries, BindGroupLayoutDescriptor, BindGroupLayoutEntries, Buffer,
             CachedComputePipelineId, CachedPipelineState, ComputePassDescriptor,
@@ -11,8 +11,8 @@ use bevy::{
             ShaderType,
             binding_types::{storage_buffer, uniform_buffer},
         },
-        renderer::{RenderContext, RenderDevice, RenderQueue},
-        storage::GpuShaderStorageBuffer,
+        renderer::{RenderContext, RenderDevice, RenderGraph, RenderGraphSystems, RenderQueue},
+        storage::GpuShaderBuffer,
     },
 };
 use std::borrow::Cow;
@@ -41,7 +41,7 @@ pub struct SortParams {
     pub _trail_pad2: u32,
 }
 
-#[derive(Debug, Hash, PartialEq, Eq, Clone, RenderLabel)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
 pub struct ParticleSortLabel;
 
 #[derive(Resource)]
@@ -115,7 +115,7 @@ pub fn prepare_particle_sort_bind_groups(
     render_device: Res<RenderDevice>,
     render_queue: Res<RenderQueue>,
     extracted_systems: Res<ExtractedParticleSystem>,
-    gpu_storage_buffers: Res<RenderAssets<GpuShaderStorageBuffer>>,
+    gpu_storage_buffers: Res<RenderAssets<GpuShaderBuffer>>,
 ) {
     let mut result = ParticleSortBindGroups::default();
     let mut dynamic_uniform = DynamicUniformBuffer::<SortParams>::default();
@@ -230,103 +230,75 @@ pub fn prepare_particle_sort_bind_groups(
     commands.insert_resource(result);
 }
 
-pub struct ParticleSortNode {
-    ready: bool,
-}
+pub fn run_particle_sort_node(
+    pipeline: Res<ParticleSortPipeline>,
+    pipeline_cache: Res<PipelineCache>,
+    sort_bind_groups: Res<ParticleSortBindGroups>,
+    mut ctx: RenderContext,
+) {
+    let is_ready = |id| {
+        matches!(
+            pipeline_cache.get_compute_pipeline_state(id),
+            CachedPipelineState::Ok(_)
+        )
+    };
 
-impl Default for ParticleSortNode {
-    fn default() -> Self {
-        Self { ready: false }
-    }
-}
-
-impl render_graph::Node for ParticleSortNode {
-    fn update(&mut self, world: &mut World) {
-        let pipeline = world.resource::<ParticleSortPipeline>();
-        let pipeline_cache = world.resource::<PipelineCache>();
-
-        let is_ready = |id| {
-            matches!(
-                pipeline_cache.get_compute_pipeline_state(id),
-                CachedPipelineState::Ok(_)
-            )
-        };
-
-        self.ready = is_ready(pipeline.init_pipeline)
-            && is_ready(pipeline.sort_pipeline)
-            && is_ready(pipeline.copy_pipeline);
+    if !(is_ready(pipeline.init_pipeline)
+        && is_ready(pipeline.sort_pipeline)
+        && is_ready(pipeline.copy_pipeline))
+    {
+        return;
     }
 
-    fn run(
-        &self,
-        _graph: &mut render_graph::RenderGraphContext,
-        render_context: &mut RenderContext,
-        world: &World,
-    ) -> Result<(), render_graph::NodeRunError> {
-        if !self.ready {
-            return Ok(());
-        }
+    let Some(init_pipeline) = pipeline_cache.get_compute_pipeline(pipeline.init_pipeline) else {
+        return;
+    };
 
-        let pipeline_cache = world.resource::<PipelineCache>();
-        let pipeline = world.resource::<ParticleSortPipeline>();
-        let sort_bind_groups = world.resource::<ParticleSortBindGroups>();
+    let Some(sort_pipeline) = pipeline_cache.get_compute_pipeline(pipeline.sort_pipeline) else {
+        return;
+    };
 
-        let Some(init_pipeline) = pipeline_cache.get_compute_pipeline(pipeline.init_pipeline)
-        else {
-            return Ok(());
-        };
+    let Some(copy_pipeline) = pipeline_cache.get_compute_pipeline(pipeline.copy_pipeline) else {
+        return;
+    };
 
-        let Some(sort_pipeline) = pipeline_cache.get_compute_pipeline(pipeline.sort_pipeline)
-        else {
-            return Ok(());
-        };
-
-        let Some(copy_pipeline) = pipeline_cache.get_compute_pipeline(pipeline.copy_pipeline)
-        else {
-            return Ok(());
-        };
-
-        if sort_bind_groups.bind_groups.is_empty() {
-            return Ok(());
-        }
-
-        let mut run_pass = |label, pipeline, dispatches: &[SortDispatch]| {
-            let mut pass =
-                render_context
-                    .command_encoder()
-                    .begin_compute_pass(&ComputePassDescriptor {
-                        label: Some(label),
-                        ..default()
-                    });
-            pass.set_pipeline(pipeline);
-            for dispatch in dispatches {
-                pass.set_bind_group(
-                    0,
-                    &sort_bind_groups.bind_groups[dispatch.emitter_index],
-                    &[dispatch.dynamic_offset],
-                );
-                pass.dispatch_workgroups(dispatch.workgroups, 1, 1);
-            }
-        };
-
-        run_pass(
-            "particle_sort_init_pass",
-            init_pipeline,
-            &sort_bind_groups.init_dispatches,
-        );
-
-        for level in &sort_bind_groups.sort_levels {
-            run_pass("particle_sort_pass", sort_pipeline, level);
-        }
-
-        run_pass(
-            "particle_sort_copy_pass",
-            copy_pipeline,
-            &sort_bind_groups.copy_dispatches,
-        );
-
-        Ok(())
+    if sort_bind_groups.bind_groups.is_empty() {
+        return;
     }
+
+    let mut run_pass = |label, pipeline, dispatches: &[SortDispatch]| {
+        let mut pass = ctx
+            .command_encoder()
+            .begin_compute_pass(&ComputePassDescriptor {
+                label: Some(label),
+                ..default()
+            });
+        pass.set_pipeline(pipeline);
+        for dispatch in dispatches {
+            pass.set_bind_group(
+                0,
+                &sort_bind_groups.bind_groups[dispatch.emitter_index],
+                &[dispatch.dynamic_offset],
+            );
+            pass.dispatch_workgroups(dispatch.workgroups, 1, 1);
+        }
+    };
+
+    run_pass(
+        "particle_sort_init_pass",
+        init_pipeline,
+        &sort_bind_groups.init_dispatches,
+    );
+
+    for level in &sort_bind_groups.sort_levels {
+        run_pass("particle_sort_pass", sort_pipeline, level);
+    }
+
+    run_pass(
+        "particle_sort_copy_pass",
+        copy_pipeline,
+        &sort_bind_groups.copy_dispatches,
+    );
 }
 
 pub struct ParticleSortPlugin;
@@ -343,11 +315,14 @@ impl Plugin for ParticleSortPlugin {
             .add_systems(
                 Render,
                 prepare_particle_sort_bind_groups.in_set(RenderSystems::PrepareBindGroups),
+            )
+            .add_systems(
+                RenderGraph,
+                run_particle_sort_node
+                    .in_set(ParticleSortLabel)
+                    .in_set(RenderGraphSystems::Render)
+                    .after(ParticleComputeLabel)
+                    .before(camera_driver),
             );
-
-        let mut render_graph = render_app.world_mut().resource_mut::<RenderGraph>();
-        render_graph.add_node(ParticleSortLabel, ParticleSortNode::default());
-        render_graph.add_node_edge(ParticleComputeLabel, ParticleSortLabel);
-        render_graph.add_node_edge(ParticleSortLabel, bevy::render::graph::CameraDriverLabel);
     }
 }
