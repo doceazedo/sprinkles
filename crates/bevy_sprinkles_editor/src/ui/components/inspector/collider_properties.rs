@@ -63,7 +63,7 @@ fn setup_collider_content(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     editor_state: Res<EditorState>,
-    assets: Res<Assets<ParticleSystemAsset>>,
+    assets: Res<Assets<ParticlesAsset>>,
     sections: Query<(Entity, &InspectorSection), With<ColliderPropertiesSection>>,
     existing: Query<Entity, With<ColliderPropertiesContent>>,
 ) {
@@ -139,7 +139,7 @@ fn handle_collider_shape_change(
     mut commands: Commands,
     shape_comboboxes: Query<(), With<ColliderShapeComboBox>>,
     editor_state: Res<EditorState>,
-    mut assets: ResMut<Assets<ParticleSystemAsset>>,
+    mut assets: ResMut<Assets<ParticlesAsset>>,
     mut dirty_state: ResMut<DirtyState>,
     existing: Query<Entity, With<ColliderPropertiesContent>>,
 ) {
@@ -174,7 +174,7 @@ fn handle_collider_text_commit(
     parents: Query<&ChildOf>,
     shape_fields: Query<(&ColliderShapeField, &Children)>,
     editor_state: Res<EditorState>,
-    mut assets: ResMut<Assets<ParticleSystemAsset>>,
+    mut assets: ResMut<Assets<ParticlesAsset>>,
     mut dirty_state: ResMut<DirtyState>,
 ) {
     let Ok(value) = trigger.text.parse::<f32>() else {

@@ -8,9 +8,9 @@ use bevy::{
 use std::collections::HashMap;
 
 use crate::asset::{
-    CurveTexture, Gradient, GradientInterpolation, ParticleSystemAsset, SolidOrGradientColor,
+    CurveTexture, Gradient, GradientInterpolation, ParticlesAsset, SolidOrGradientColor,
 };
-use crate::runtime::ParticleSystem3D;
+use crate::runtime::Particles3d;
 
 const TEXTURE_WIDTH: u32 = 256;
 
@@ -136,11 +136,11 @@ pub struct FallbackGradientTexture {
 pub fn prepare_gradient_textures(
     mut cache: ResMut<GradientTextureCache>,
     mut images: ResMut<Assets<Image>>,
-    particle_systems: Query<&ParticleSystem3D>,
-    assets: Res<Assets<ParticleSystemAsset>>,
+    particle_systems: Query<&Particles3d>,
+    assets: Res<Assets<ParticlesAsset>>,
 ) {
     for system in &particle_systems {
-        let Some(asset) = assets.get(&system.handle) else {
+        let Some(asset) = assets.get(system) else {
             continue;
         };
         for emitter in &asset.emitters {
@@ -225,11 +225,11 @@ impl CurveTextureCache {
 pub fn prepare_curve_textures(
     mut cache: ResMut<CurveTextureCache>,
     mut images: ResMut<Assets<Image>>,
-    particle_systems: Query<&ParticleSystem3D>,
-    assets: Res<Assets<ParticleSystemAsset>>,
+    particle_systems: Query<&Particles3d>,
+    assets: Res<Assets<ParticlesAsset>>,
 ) {
     for system in &particle_systems {
-        let Some(asset) = assets.get(&system.handle) else {
+        let Some(asset) = assets.get(system) else {
             continue;
         };
         for emitter in &asset.emitters {

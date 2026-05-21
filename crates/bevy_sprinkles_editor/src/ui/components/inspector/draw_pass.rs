@@ -239,10 +239,7 @@ fn find_ancestor_child_of(
     None
 }
 
-fn extract_mask_cutoff(
-    editor_state: &EditorState,
-    assets: &Assets<ParticleSystemAsset>,
-) -> Option<f32> {
+fn extract_mask_cutoff(editor_state: &EditorState, assets: &Assets<ParticlesAsset>) -> Option<f32> {
     let (_, emitter) = get_inspecting_emitter(editor_state, assets)?;
     let DrawPassMaterial::Standard(mat) = &emitter.draw_pass.material else {
         return None;
@@ -323,7 +320,7 @@ fn spawn_cutoff_row(
 fn sync_mask_cutoff(
     mut commands: Commands,
     editor_state: Res<EditorState>,
-    assets: Res<Assets<ParticleSystemAsset>>,
+    assets: Res<Assets<ParticlesAsset>>,
     existing: Query<Entity, With<MaskCutoffRow>>,
     bindings: Query<(Entity, &FieldBinding)>,
     parents: Query<&ChildOf>,
@@ -361,7 +358,7 @@ fn sync_mask_cutoff(
 fn sync_trail_mesh_alert(
     mut commands: Commands,
     editor_state: Res<EditorState>,
-    assets: Res<Assets<ParticleSystemAsset>>,
+    assets: Res<Assets<ParticlesAsset>>,
     sections: Query<(Entity, &InspectorSection, &Children), With<DrawPassSection>>,
     existing: Query<Entity, With<TrailMeshAlert>>,
     mut alert_nodes: Query<&mut Node, With<TrailMeshAlert>>,

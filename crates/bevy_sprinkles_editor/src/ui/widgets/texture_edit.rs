@@ -132,7 +132,7 @@ fn setup_texture_content(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     editor_state: Res<EditorState>,
-    p_assets: Res<Assets<ParticleSystemAsset>>,
+    p_assets: Res<Assets<ParticlesAsset>>,
     containers: Query<(Entity, &VariantFieldsContainer), Added<VariantFieldsContainer>>,
     configs: Query<&VariantEditConfig, With<EditorVariantEdit>>,
     bindings: Query<&FieldBinding>,
@@ -182,7 +182,7 @@ fn respawn_texture_content_on_switch(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     editor_state: Res<EditorState>,
-    p_assets: Res<Assets<ParticleSystemAsset>>,
+    p_assets: Res<Assets<ParticlesAsset>>,
     changed_configs: Query<(Entity, &VariantEditConfig), Changed<VariantEditConfig>>,
     mut containers: Query<(
         Entity,
@@ -715,7 +715,7 @@ fn poll_texture_file_pick(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     editor_state: Res<EditorState>,
-    mut particle_assets: ResMut<Assets<ParticleSystemAsset>>,
+    mut particle_assets: ResMut<Assets<ParticlesAsset>>,
     pick_result: Option<Res<TextureFilePickResult>>,
     mut configs: Query<&mut VariantEditConfig, With<EditorVariantEdit>>,
     preview_images: Query<(Entity, &TexturePreviewImage, Option<&Children>)>,
@@ -815,7 +815,7 @@ fn poll_texture_file_pick(
 fn read_current_texture_ref(
     variant_edit: Entity,
     editor_state: &EditorState,
-    assets: &Assets<ParticleSystemAsset>,
+    assets: &Assets<ParticlesAsset>,
     bindings: &Query<&FieldBinding>,
     configs: &Query<&VariantEditConfig, With<EditorVariantEdit>>,
 ) -> Option<TextureRef> {

@@ -68,7 +68,7 @@ fn load_initial_project(
     mut editor_state: ResMut<EditorState>,
     mut editor_data: ResMut<EditorData>,
     mut dirty_state: ResMut<DirtyState>,
-    mut assets: ResMut<Assets<ParticleSystemAsset>>,
+    mut assets: ResMut<Assets<ParticlesAsset>>,
 ) {
     if let Some(file) = &cli_args.initial_file {
         let cwd_path = working_dir().join(file);
@@ -135,9 +135,9 @@ fn load_initial_project(
         }
     }
 
-    let asset = ParticleSystemAsset::new(
+    let asset = ParticlesAsset::new(
         "New project".to_string(),
-        ParticleSystemDimension::D3,
+        ParticlesDimension::D3,
         Default::default(),
         vec![EmitterData {
             name: "Emitter 1".to_string(),

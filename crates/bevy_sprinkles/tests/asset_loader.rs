@@ -5,7 +5,7 @@ use std::path::Path;
 use thiserror::Error;
 
 use bevy_sprinkles::asset::versions;
-use bevy_sprinkles::asset::{ParticleSystemAsset, ParticleSystemAssetLoader};
+use bevy_sprinkles::asset::{ParticlesAsset, ParticlesAssetLoader};
 
 #[derive(Asset, TypePath, Debug, Serialize, Deserialize, PartialEq)]
 struct DummyData {
@@ -68,8 +68,8 @@ fn create_test_app() -> App {
         ..default()
     });
 
-    app.init_asset::<ParticleSystemAsset>()
-        .init_asset_loader::<ParticleSystemAssetLoader>();
+    app.init_asset::<ParticlesAsset>()
+        .init_asset_loader::<ParticlesAssetLoader>();
 
     app.init_asset::<DummyData>()
         .init_asset_loader::<DummyDataAssetLoader>();
@@ -119,7 +119,7 @@ fn fixture(name: &str) -> String {
 fn test_bevy_loads_valid_ron_particle_system() {
     let mut app = create_test_app();
 
-    let handle: Handle<ParticleSystemAsset> = {
+    let handle: Handle<ParticlesAsset> = {
         let asset_server = app.world().resource::<AssetServer>();
         asset_server.load("valid_particle_system.ron")
     };
@@ -129,7 +129,7 @@ fn test_bevy_loads_valid_ron_particle_system() {
         "Should load valid particle system RON"
     );
 
-    let assets = app.world().resource::<Assets<ParticleSystemAsset>>();
+    let assets = app.world().resource::<Assets<ParticlesAsset>>();
     let asset = assets.get(&handle).expect("Asset should be available");
 
     assert_eq!(asset.name, "Test Particle System");
@@ -142,7 +142,7 @@ fn test_bevy_loads_valid_ron_particle_system() {
 fn test_bevy_loads_valid_whatever_extension_particle_system() {
     let mut app = create_test_app();
 
-    let handle: Handle<ParticleSystemAsset> = {
+    let handle: Handle<ParticlesAsset> = {
         let asset_server = app.world().resource::<AssetServer>();
         asset_server.load("valid_particle_system.whatever")
     };
@@ -152,7 +152,7 @@ fn test_bevy_loads_valid_whatever_extension_particle_system() {
         "Should load particle system with .whatever extension"
     );
 
-    let assets = app.world().resource::<Assets<ParticleSystemAsset>>();
+    let assets = app.world().resource::<Assets<ParticlesAsset>>();
     let asset = assets.get(&handle).expect("Asset should be available");
 
     assert_eq!(asset.name, "Test Particle System (Whatever Extension)");
@@ -163,7 +163,7 @@ fn test_bevy_loads_valid_whatever_extension_particle_system() {
 fn test_bevy_fails_to_load_invalid_ron_as_particle_system() {
     let mut app = create_test_app();
 
-    let handle: Handle<ParticleSystemAsset> = {
+    let handle: Handle<ParticlesAsset> = {
         let asset_server = app.world().resource::<AssetServer>();
         asset_server.load("invalid_particle_system.ron")
     };
@@ -200,7 +200,7 @@ fn test_bevy_loads_dummy_data_ron() {
 fn test_bevy_coexisting_ron_loaders_load_correct_types() {
     let mut app = create_test_app();
 
-    let particle_handle: Handle<ParticleSystemAsset> = {
+    let particle_handle: Handle<ParticlesAsset> = {
         let asset_server = app.world().resource::<AssetServer>();
         asset_server.load("valid_particle_system.ron")
     };
@@ -220,7 +220,7 @@ fn test_bevy_coexisting_ron_loaders_load_correct_types() {
         "DummyData should load from dummy_data.ron"
     );
 
-    let particle_assets = app.world().resource::<Assets<ParticleSystemAsset>>();
+    let particle_assets = app.world().resource::<Assets<ParticlesAsset>>();
     let particle = particle_assets
         .get(&particle_handle)
         .expect("Particle system should be available");
@@ -249,8 +249,8 @@ fn test_bevy_wrong_loader_for_wrong_data_fails() {
 }
 
 #[test]
-fn test_particle_system_loader_extension() {
-    let loader = ParticleSystemAssetLoader;
+fn test_particles_loader_extension() {
+    let loader = ParticlesAssetLoader;
     let extensions = loader.extensions();
     assert_eq!(extensions, &["ron"]);
 }

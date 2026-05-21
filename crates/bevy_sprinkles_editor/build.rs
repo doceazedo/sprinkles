@@ -65,7 +65,7 @@ fn main() {
             "    embedded_asset!(app, \"out\", \"assets/examples/{stem}.jpg\");\n"
         ));
     }
-    thumbnails.push_str("}");
+    thumbnails.push('}');
 
     fs::write(out_path.join("embed_thumbnails.rs"), thumbnails).unwrap();
 }

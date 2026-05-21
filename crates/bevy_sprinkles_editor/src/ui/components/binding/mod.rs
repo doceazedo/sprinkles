@@ -25,7 +25,7 @@ pub(super) const MAX_ANCESTOR_DEPTH: usize = 10;
 
 pub(crate) fn get_inspecting_emitter<'a>(
     editor_state: &EditorState,
-    assets: &'a Assets<ParticleSystemAsset>,
+    assets: &'a Assets<ParticlesAsset>,
 ) -> Option<(u8, &'a EmitterData)> {
     let inspecting = match &editor_state.inspecting {
         Some(i) if i.kind == Inspectable::Emitter => i,
@@ -39,7 +39,7 @@ pub(crate) fn get_inspecting_emitter<'a>(
 
 pub(super) fn get_inspecting_emitter_mut<'a>(
     editor_state: &EditorState,
-    assets: &'a mut Assets<ParticleSystemAsset>,
+    assets: &'a mut Assets<ParticlesAsset>,
 ) -> Option<(u8, &'a mut EmitterData)> {
     let inspecting = match &editor_state.inspecting {
         Some(i) if i.kind == Inspectable::Emitter => i,
@@ -53,7 +53,7 @@ pub(super) fn get_inspecting_emitter_mut<'a>(
 
 pub(super) fn get_inspecting_collider<'a>(
     editor_state: &EditorState,
-    assets: &'a Assets<ParticleSystemAsset>,
+    assets: &'a Assets<ParticlesAsset>,
 ) -> Option<(u8, &'a ColliderData)> {
     let inspecting = match &editor_state.inspecting {
         Some(i) if i.kind == Inspectable::Collider => i,
@@ -67,7 +67,7 @@ pub(super) fn get_inspecting_collider<'a>(
 
 pub(super) fn get_inspecting_collider_mut<'a>(
     editor_state: &EditorState,
-    assets: &'a mut Assets<ParticleSystemAsset>,
+    assets: &'a mut Assets<ParticlesAsset>,
 ) -> Option<(u8, &'a mut ColliderData)> {
     let inspecting = match &editor_state.inspecting {
         Some(i) if i.kind == Inspectable::Collider => i,
@@ -81,7 +81,7 @@ pub(super) fn get_inspecting_collider_mut<'a>(
 
 pub(super) fn get_inspected_data<'a>(
     editor_state: &EditorState,
-    assets: &'a Assets<ParticleSystemAsset>,
+    assets: &'a Assets<ParticlesAsset>,
 ) -> Option<&'a dyn Reflect> {
     let inspecting = editor_state.inspecting.as_ref()?;
     let handle = editor_state.current_project.as_ref()?;
@@ -100,7 +100,7 @@ pub(super) fn get_inspected_data<'a>(
 
 pub(super) fn get_inspected_data_mut<'a>(
     editor_state: &EditorState,
-    assets: &'a mut Assets<ParticleSystemAsset>,
+    assets: &'a mut Assets<ParticlesAsset>,
 ) -> Option<&'a mut dyn Reflect> {
     let inspecting = editor_state.inspecting.as_ref()?;
     let handle = editor_state.current_project.as_ref()?;
@@ -119,7 +119,7 @@ pub(super) fn get_inspected_data_mut<'a>(
 
 pub(super) fn get_asset_data<'a>(
     editor_state: &EditorState,
-    assets: &'a Assets<ParticleSystemAsset>,
+    assets: &'a Assets<ParticlesAsset>,
 ) -> Option<&'a dyn Reflect> {
     let handle = editor_state.current_project.as_ref()?;
     let asset = assets.get(handle)?;
@@ -128,7 +128,7 @@ pub(super) fn get_asset_data<'a>(
 
 pub(super) fn get_asset_data_mut<'a>(
     editor_state: &EditorState,
-    assets: &'a mut Assets<ParticleSystemAsset>,
+    assets: &'a mut Assets<ParticlesAsset>,
 ) -> Option<&'a mut dyn Reflect> {
     let handle = editor_state.current_project.as_ref()?;
     let asset = assets.get_mut(handle)?;
@@ -138,7 +138,7 @@ pub(super) fn get_asset_data_mut<'a>(
 pub(super) fn resolve_binding_data<'a>(
     binding: &FieldBinding,
     editor_state: &EditorState,
-    assets: &'a Assets<ParticleSystemAsset>,
+    assets: &'a Assets<ParticlesAsset>,
     editor_data: &'a EditorData,
 ) -> Option<&'a dyn Reflect> {
     match binding.target {
@@ -151,7 +151,7 @@ pub(super) fn resolve_binding_data<'a>(
 pub(super) fn resolve_binding_data_mut<'a>(
     binding: &FieldBinding,
     editor_state: &EditorState,
-    assets: &'a mut Assets<ParticleSystemAsset>,
+    assets: &'a mut Assets<ParticlesAsset>,
     editor_data: &'a mut EditorData,
 ) -> Option<&'a mut dyn Reflect> {
     match binding.target {
@@ -780,7 +780,7 @@ pub(super) fn mark_dirty_and_restart(
 #[derive(SystemParam)]
 pub(crate) struct EmitterWriter<'w, 's> {
     editor_state: Res<'w, EditorState>,
-    assets: ResMut<'w, Assets<ParticleSystemAsset>>,
+    assets: ResMut<'w, Assets<ParticlesAsset>>,
     dirty_state: ResMut<'w, DirtyState>,
     emitter_runtimes: Query<'w, 's, &'static mut EmitterRuntime>,
 }

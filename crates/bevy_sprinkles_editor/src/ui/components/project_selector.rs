@@ -147,7 +147,7 @@ fn setup_project_selector(
 fn update_project_label(
     editor_state: Res<EditorState>,
     dirty_state: Res<DirtyState>,
-    assets: Res<Assets<ParticleSystemAsset>>,
+    assets: Res<Assets<ParticlesAsset>>,
     triggers: Query<&Children, With<ProjectSelectorTrigger>>,
     mut texts: Query<&mut Text>,
 ) {
@@ -771,7 +771,7 @@ fn handle_create_project(
     state: Option<Res<NewProjectDialogState>>,
     mut editor_state: ResMut<EditorState>,
     mut editor_data: ResMut<EditorData>,
-    mut assets: ResMut<Assets<ParticleSystemAsset>>,
+    mut assets: ResMut<Assets<ParticlesAsset>>,
     mut dirty_state: ResMut<DirtyState>,
     children_query: Query<&Children>,
     text_edits: Query<Entity, With<EditorTextEdit>>,
@@ -812,9 +812,9 @@ fn handle_create_project(
         let _ = std::fs::create_dir_all(parent);
     }
 
-    let asset = ParticleSystemAsset::new(
+    let asset = ParticlesAsset::new(
         name,
-        ParticleSystemDimension::D3,
+        ParticlesDimension::D3,
         Default::default(),
         vec![EmitterData {
             name: "Emitter 1".to_string(),

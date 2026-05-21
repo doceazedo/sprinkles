@@ -40,7 +40,7 @@ fn setup_turbulence_options(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     editor_state: Res<EditorState>,
-    assets: Res<Assets<ParticleSystemAsset>>,
+    assets: Res<Assets<ParticlesAsset>>,
     sections: Query<(Entity, &InspectorSection), With<TurbulenceSection>>,
     existing: Query<Entity, With<TurbulenceOptions>>,
 ) {
@@ -104,7 +104,7 @@ fn setup_turbulence_options(
 
 fn toggle_turbulence_options(
     editor_state: Res<EditorState>,
-    assets: Res<Assets<ParticleSystemAsset>>,
+    assets: Res<Assets<ParticlesAsset>>,
     mut options: Query<&mut Node, With<TurbulenceOptions>>,
 ) {
     let Ok(mut node) = options.single_mut() else {

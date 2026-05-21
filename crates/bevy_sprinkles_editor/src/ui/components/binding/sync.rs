@@ -23,7 +23,7 @@ use super::{
 
 pub(super) fn bind_text_inputs(
     editor_state: Res<EditorState>,
-    assets: Res<Assets<ParticleSystemAsset>>,
+    assets: Res<Assets<ParticlesAsset>>,
     editor_data: Res<EditorData>,
     tracker: Res<InspectedEmitterTracker>,
     new_bindings: Query<Entity, Added<FieldBinding>>,
@@ -68,7 +68,7 @@ pub(super) fn bind_text_inputs(
 #[allow(clippy::too_many_arguments)]
 pub(super) fn bind_widget_values(
     editor_state: Res<EditorState>,
-    assets: Res<Assets<ParticleSystemAsset>>,
+    assets: Res<Assets<ParticlesAsset>>,
     editor_data: Res<EditorData>,
     tracker: Res<InspectedEmitterTracker>,
     new_bindings: Query<Entity, Added<FieldBinding>>,
@@ -184,7 +184,7 @@ pub(super) fn bind_widget_values(
 pub(super) fn bind_color_pickers(
     mut commands: Commands,
     editor_state: Res<EditorState>,
-    assets: Res<Assets<ParticleSystemAsset>>,
+    assets: Res<Assets<ParticlesAsset>>,
     editor_data: Res<EditorData>,
     mut color_pickers: Query<
         (Entity, &mut ColorPickerState, &FieldBinding),

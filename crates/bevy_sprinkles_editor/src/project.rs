@@ -92,7 +92,7 @@ fn on_open_project_event(
     event: On<OpenProjectEvent>,
     mut editor_state: ResMut<EditorState>,
     mut editor_data: ResMut<EditorData>,
-    mut assets: ResMut<Assets<ParticleSystemAsset>>,
+    mut assets: ResMut<Assets<ParticlesAsset>>,
     mut dirty_state: ResMut<DirtyState>,
     mut commands: Commands,
 ) {
@@ -207,7 +207,7 @@ fn poll_browse_open_result(result: Option<Res<BrowseOpenResult>>, mut commands: 
 
 pub fn save_project_to_path(
     path: PathBuf,
-    asset: &bevy_sprinkles::asset::ParticleSystemAsset,
+    asset: &bevy_sprinkles::asset::ParticlesAsset,
     result: Arc<Mutex<Option<SaveResultStatus>>>,
 ) {
     let Ok(contents) = ron::ser::to_string_pretty(asset, ron::ser::PrettyConfig::default()) else {
@@ -243,7 +243,7 @@ pub fn save_project_to_path(
 fn on_save_project_event(
     _event: On<SaveProjectEvent>,
     editor_state: Res<EditorState>,
-    assets: Res<Assets<ParticleSystemAsset>>,
+    assets: Res<Assets<ParticlesAsset>>,
     mut dirty_state: ResMut<DirtyState>,
     mut commands: Commands,
 ) {
@@ -267,7 +267,7 @@ fn on_save_project_event(
 fn on_save_project_as_event(
     _event: On<SaveProjectAsEvent>,
     editor_state: Res<EditorState>,
-    assets: Res<Assets<ParticleSystemAsset>>,
+    assets: Res<Assets<ParticlesAsset>>,
     mut commands: Commands,
 ) {
     let Some(handle) = &editor_state.current_project else {

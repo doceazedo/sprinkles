@@ -113,7 +113,7 @@ pub fn velocities_section(asset_server: &AssetServer) -> impl Bundle {
 
 fn get_active_animated_velocities(
     editor_state: &EditorState,
-    assets: &Assets<ParticleSystemAsset>,
+    assets: &Assets<ParticlesAsset>,
 ) -> Vec<String> {
     let Some((_, emitter)) = get_inspecting_emitter(editor_state, assets) else {
         return Vec::new();
@@ -154,7 +154,7 @@ fn setup_velocity_list(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     editor_state: Res<EditorState>,
-    assets: Res<Assets<ParticleSystemAsset>>,
+    assets: Res<Assets<ParticlesAsset>>,
     mut lists: Query<(Entity, &mut VelocityList, &InspectorSection)>,
     existing_containers: Query<Entity, With<VelocityListContainer>>,
 ) {

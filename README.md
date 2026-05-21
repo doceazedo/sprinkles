@@ -52,7 +52,7 @@ Spawn a particle system from a RON asset file:
 
 ```rust
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
-    commands.spawn(ParticleSystem3D {
+    commands.spawn(Particles3d {
         handle: asset_server.load("my_effect.ron"),
     });
 }

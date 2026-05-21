@@ -7,13 +7,12 @@ use bytemuck::{Pod, Zeroable};
 use crate::{
     asset::{
         AnimatedVelocity, CurveTexture, DrawOrder, EmissionShape, EmitterCollisionMode,
-        EmitterData, ParticleFlags, ParticleSystemAsset, ParticlesColliderShape3D,
-        SolidOrGradientColor, SubEmitterMode,
+        EmitterData, ParticleFlags, ParticlesAsset, ParticlesColliderShape3D, SolidOrGradientColor,
+        SubEmitterMode,
     },
     runtime::{
-        EmitterEntity, EmitterRuntime, ParticleBufferHandle, ParticleSystem3D,
-        ParticleSystemRuntime, ParticlesCollider3D, SubEmitterBufferHandle, compute_phase,
-        is_past_delay,
+        EmitterEntity, EmitterRuntime, ParticleBufferHandle, ParticleSystemRuntime, Particles3d,
+        ParticlesCollider3D, SubEmitterBufferHandle, compute_phase, is_past_delay,
     },
     textures::{CurveTextureCache, GradientTextureCache},
 };
@@ -565,9 +564,9 @@ pub fn extract_particle_systems(
             Option<&SubEmitterBufferHandle>,
         )>,
     >,
-    system_query: Extract<Query<(&ParticleSystem3D, &ParticleSystemRuntime)>>,
+    system_query: Extract<Query<(&Particles3d, &ParticleSystemRuntime)>>,
     camera_query: Extract<Query<&GlobalTransform, With<Camera3d>>>,
-    assets: Extract<Res<Assets<ParticleSystemAsset>>>,
+    assets: Extract<Res<Assets<ParticlesAsset>>>,
     gradient_cache: Extract<Res<GradientTextureCache>>,
     curve_cache: Extract<Res<CurveTextureCache>>,
 ) {
@@ -592,7 +591,7 @@ pub fn extract_particle_systems(
         let Ok((particle_system, _)) = system_query.get(emitter_entity.parent_system) else {
             continue;
         };
-        let Some(asset) = assets.get(&particle_system.handle) else {
+        let Some(asset) = assets.get(particle_system) else {
             continue;
         };
         let Some(emitter) = asset.emitters.get(runtime.emitter_index) else {
@@ -615,7 +614,7 @@ pub fn extract_particle_systems(
             continue;
         };
 
-        let Some(asset) = assets.get(&particle_system.handle) else {
+        let Some(asset) = assets.get(particle_system) else {
             continue;
         };
 

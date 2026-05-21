@@ -9,9 +9,9 @@ use super::super::{
     EmitterEmission, EmitterScale as CurrentEmitterScale, EmitterTime,
     EmitterTrail as CurrentEmitterTrail, EmitterTurbulence as CurrentEmitterTurbulence,
     EmitterVelocities as CurrentEmitterVelocities, Gradient, InitialTransform, ParticleFlags,
-    ParticleSystemAsset as CurrentParticleSystemAsset,
-    ParticleSystemAuthors as CurrentParticleSystemAuthors, ParticleSystemDimension,
-    ParticlesColliderShape3D, Range, SolidOrGradientColor, SprinklesEditorData, SubEmitterConfig,
+    ParticlesAsset as CurrentParticlesAsset, ParticlesAuthors as CurrentParticleSystemAuthors,
+    ParticlesColliderShape3D, ParticlesDimension, Range, SolidOrGradientColor, SprinklesEditorData,
+    SubEmitterConfig,
 };
 
 #[derive(Debug, Clone, Deserialize)]
@@ -43,14 +43,14 @@ fn migrate_curve(old: Option<OldCurveTexture>) -> Option<CurveTexture> {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-struct ParticleSystemAuthors {
+struct ParticlesAuthors {
     #[serde(default)]
     inspired_by: Option<String>,
     submitted_by: String,
 }
 
-impl From<ParticleSystemAuthors> for CurrentParticleSystemAuthors {
-    fn from(old: ParticleSystemAuthors) -> Self {
+impl From<ParticlesAuthors> for CurrentParticleSystemAuthors {
+    fn from(old: ParticlesAuthors) -> Self {
         Self {
             inspired_by: old.inspired_by.unwrap_or_default(),
             submitted_by: old.submitted_by,
@@ -59,11 +59,11 @@ impl From<ParticleSystemAuthors> for CurrentParticleSystemAuthors {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-pub(super) struct ParticleSystemAsset {
+pub(super) struct ParticlesAsset {
     #[allow(dead_code)]
     sprinkles_version: String,
     name: String,
-    dimension: ParticleSystemDimension,
+    dimension: ParticlesDimension,
     #[serde(default)]
     initial_transform: InitialTransform,
     emitters: Vec<EmitterData>,
@@ -72,7 +72,7 @@ pub(super) struct ParticleSystemAsset {
     #[serde(default)]
     despawn_on_finish: bool,
     #[serde(default)]
-    authors: Option<ParticleSystemAuthors>,
+    authors: Option<ParticlesAuthors>,
     #[serde(default)]
     sprinkles_editor: SprinklesEditorData,
 }
@@ -400,10 +400,10 @@ pub(super) struct ColliderData {
     position: Vec3,
 }
 
-impl From<ParticleSystemAsset> for CurrentParticleSystemAsset {
-    fn from(old: ParticleSystemAsset) -> Self {
+impl From<ParticlesAsset> for CurrentParticlesAsset {
+    fn from(old: ParticlesAsset) -> Self {
         let authors = old.authors.map(Into::into).unwrap_or_default();
-        let mut asset = CurrentParticleSystemAsset::new(
+        let mut asset = CurrentParticlesAsset::new(
             old.name,
             old.dimension,
             old.initial_transform,

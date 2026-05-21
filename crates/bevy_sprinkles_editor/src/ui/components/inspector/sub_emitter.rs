@@ -67,10 +67,7 @@ fn mode_options() -> Vec<ComboBoxOptionData> {
     ]
 }
 
-fn target_options(
-    asset: &ParticleSystemAsset,
-    current_emitter_index: usize,
-) -> Vec<ComboBoxOptionData> {
+fn target_options(asset: &ParticlesAsset, current_emitter_index: usize) -> Vec<ComboBoxOptionData> {
     asset
         .emitters
         .iter()
@@ -82,7 +79,7 @@ fn target_options(
 
 fn target_combo_index(
     config: &Option<SubEmitterConfig>,
-    asset: &ParticleSystemAsset,
+    asset: &ParticlesAsset,
     current_emitter_index: usize,
 ) -> usize {
     let target = match config {
@@ -103,7 +100,7 @@ fn setup_sub_emitter_content(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     editor_state: Res<EditorState>,
-    assets: Res<Assets<ParticleSystemAsset>>,
+    assets: Res<Assets<ParticlesAsset>>,
     sections: Query<(Entity, &InspectorSection), With<SubEmitterSection>>,
     existing: Query<Entity, With<SubEmitterContent>>,
 ) {
@@ -162,7 +159,7 @@ fn setup_sub_emitter_content(
 fn spawn_fields(
     parent: &mut ChildSpawnerCommands,
     config: &SubEmitterConfig,
-    asset: &ParticleSystemAsset,
+    asset: &ParticlesAsset,
     current_emitter_index: usize,
     font: &Handle<Font>,
     asset_server: &AssetServer,

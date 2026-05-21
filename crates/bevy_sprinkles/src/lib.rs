@@ -37,8 +37,8 @@
 //!
 //! ## Spawning a particle system
 //!
-//! A particle system is defined by a [`ParticleSystemAsset`] containing one or more
-//! [`EmitterData`] entries. Spawn a [`ParticleSystem3D`] component to render the effect.
+//! A particle system is defined by a [`ParticlesAsset`] containing one or more
+//! [`EmitterData`] entries. Spawn a [`Particles3d`] component to render the effect.
 //!
 //! ### Loading from a file
 //!
@@ -49,24 +49,22 @@
 //! use bevy_sprinkles::prelude::*;
 //!
 //! fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
-//!     commands.spawn(ParticleSystem3D {
-//!         handle: asset_server.load("my_effect.ron"),
-//!     });
+//!     commands.spawn(Particles3d(asset_server.load("my_effect.ron")));
 //! }
 //! ```
 //!
 //! ### Building in code
 //!
-//! You can also build a [`ParticleSystemAsset`] directly:
+//! You can also build a [`ParticlesAsset`] directly:
 //!
 //! ```
 //! use bevy::prelude::*;
 //! use bevy_sprinkles::prelude::*;
 //!
-//! fn setup(mut commands: Commands, mut assets: ResMut<Assets<ParticleSystemAsset>>) {
-//!     let handle = assets.add(ParticleSystemAsset::new(
+//! fn setup(mut commands: Commands, mut assets: ResMut<Assets<ParticlesAsset>>) {
+//!     let handle = assets.add(ParticlesAsset::new(
 //!         "My Effect".into(),
-//!         ParticleSystemDimension::D3,
+//!         ParticlesDimension::D3,
 //!         Default::default(),
 //!         vec![EmitterData {
 //!             emission: EmitterEmission {
@@ -85,7 +83,7 @@
 //!         Default::default(),
 //!     ));
 //!
-//!     commands.spawn(ParticleSystem3D { handle });
+//!     commands.spawn(Particles3d(handle));
 //! }
 //! ```
 //!
@@ -100,7 +98,7 @@
 //!
 //! A particle system is the top-level container for one or more emitters and optional colliders.
 //!
-//! - [Spawning a system](ParticleSystem3D) with a handle to a [`ParticleSystemAsset`]
+//! - [Spawning a system](Particles3d) with a handle to a [`ParticlesAsset`]
 //! - [Playback control](ParticleSystemRuntime) (pause, resume, restart)
 //! - [Per-emitter runtime state](EmitterRuntime)
 //!
@@ -182,7 +180,7 @@ use bevy::{
 
 const SHADER_COMMON: Handle<Shader> = uuid_handle!("10b6a301-2396-4ce0-906a-b3e38aaddddf");
 
-use asset::{ParticleSystemAsset, ParticleSystemAssetLoader};
+use asset::{ParticlesAsset, ParticlesAssetLoader};
 use compute::ParticleComputePlugin;
 use extract::{extract_colliders, extract_particle_systems};
 use mesh::ParticleMeshCache;
@@ -214,8 +212,8 @@ impl Plugin for SprinklesPlugin {
         #[cfg(feature = "preset-textures")]
         textures::preset::register_preset_textures(app);
 
-        app.init_asset::<ParticleSystemAsset>()
-            .init_asset_loader::<ParticleSystemAssetLoader>();
+        app.init_asset::<ParticlesAsset>()
+            .init_asset_loader::<ParticlesAssetLoader>();
 
         app.init_resource::<GradientTextureCache>()
             .add_systems(Startup, create_fallback_gradient_texture)
@@ -265,14 +263,14 @@ pub use asset::{
     ColliderData, DrawOrder, DrawPassMaterial, EmitterAccelerations, EmitterCollision,
     EmitterCollisionMode, EmitterColors, EmitterData, EmitterDrawPass, EmitterEmission,
     EmitterScale, EmitterTime, EmitterTrail, EmitterTurbulence, EmitterVelocities, ParticleFlags,
-    ParticleMesh, ParticleSystemDimension, ParticlesColliderShape3D, QuadOrientation,
-    RibbonTrailShape, SerializableAlphaMode, StandardParticleMaterial, TransformAlign,
+    ParticleMesh, ParticlesColliderShape3D, ParticlesDimension, QuadOrientation, RibbonTrailShape,
+    SerializableAlphaMode, StandardParticleMaterial, TransformAlign,
 };
 pub use material::ParticleMaterialExtension;
 pub use runtime::{
     ColliderEntity, EmitterEntity, EmitterRuntime, Finished, ParticleBufferHandle, ParticleData,
-    ParticleMaterial, ParticleMaterialHandle, ParticleSystem2D, ParticleSystem3D,
-    ParticleSystemRuntime, ParticlesCollider3D,
+    ParticleMaterial, ParticleMaterialHandle, ParticleSystemRuntime, Particles2d, Particles3d,
+    ParticlesCollider3D,
 };
 #[cfg(feature = "preset-textures")]
 pub use textures::preset::PresetTexture;

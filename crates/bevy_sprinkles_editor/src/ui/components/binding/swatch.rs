@@ -60,7 +60,7 @@ fn spawn_swatch_material(
 pub(super) fn setup_variant_swatch(
     mut commands: Commands,
     editor_state: Res<EditorState>,
-    assets: Res<Assets<ParticleSystemAsset>>,
+    assets: Res<Assets<ParticlesAsset>>,
     new_swatch_slots: Query<(Entity, &VariantEditSwatchSlot), Added<VariantEditSwatchSlot>>,
     changed_configs: Query<(Entity, &VariantEditConfig, &FieldBinding), Changed<VariantEditConfig>>,
     variant_edit_configs: Query<(&VariantEditConfig, &FieldBinding), With<EditorVariantEdit>>,

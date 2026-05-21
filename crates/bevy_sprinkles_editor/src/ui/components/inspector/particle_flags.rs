@@ -41,7 +41,7 @@ fn setup_particle_flags_content(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     editor_state: Res<EditorState>,
-    assets: Res<Assets<ParticleSystemAsset>>,
+    assets: Res<Assets<ParticlesAsset>>,
     sections: Query<(Entity, &InspectorSection), With<ParticleFlagsSection>>,
     existing: Query<Entity, With<ParticleFlagsContent>>,
 ) {
@@ -81,7 +81,7 @@ fn setup_particle_flags_content(
 
 fn sync_particle_flags(
     editor_state: Res<EditorState>,
-    assets: Res<Assets<ParticleSystemAsset>>,
+    assets: Res<Assets<ParticlesAsset>>,
     mut flag_checkboxes: Query<(&ParticleFlagCheckbox, &mut CheckboxState)>,
 ) {
     if !editor_state.is_changed() {
@@ -104,7 +104,7 @@ fn handle_particle_flag_checkbox(
     trigger: On<CheckboxCommitEvent>,
     flag_checkboxes: Query<&ParticleFlagCheckbox>,
     editor_state: Res<EditorState>,
-    mut assets: ResMut<Assets<ParticleSystemAsset>>,
+    mut assets: ResMut<Assets<ParticlesAsset>>,
     mut dirty_state: ResMut<DirtyState>,
     mut emitter_runtimes: Query<&mut EmitterRuntime>,
 ) {

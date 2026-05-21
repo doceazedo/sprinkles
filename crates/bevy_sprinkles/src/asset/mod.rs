@@ -22,14 +22,14 @@ use thiserror::Error;
 use serde_helpers::*;
 use versions::current_format_version;
 
-/// Asset loader for [`ParticleSystemAsset`] files in RON format.
+/// Asset loader for [`ParticlesAsset`] files in RON format.
 #[derive(Default, TypePath)]
-pub struct ParticleSystemAssetLoader;
+pub struct ParticlesAssetLoader;
 
-/// Errors that can occur when loading a [`ParticleSystemAsset`].
+/// Errors that can occur when loading a [`ParticlesAsset`].
 #[non_exhaustive]
 #[derive(Debug, Error)]
-pub enum ParticleSystemAssetLoaderError {
+pub enum ParticlesAssetLoaderError {
     /// An I/O error occurred while reading the asset file.
     #[error("Could not load asset: {0}")]
     Io(#[from] std::io::Error),
@@ -38,10 +38,10 @@ pub enum ParticleSystemAssetLoaderError {
     Migration(#[from] versions::MigrationError),
 }
 
-impl AssetLoader for ParticleSystemAssetLoader {
-    type Asset = ParticleSystemAsset;
+impl AssetLoader for ParticlesAssetLoader {
+    type Asset = ParticlesAsset;
     type Settings = ();
-    type Error = ParticleSystemAssetLoaderError;
+    type Error = ParticlesAssetLoaderError;
 
     async fn load(
         &self,
@@ -88,7 +88,7 @@ bitflags! {
 
 /// Whether the particle system operates in 3D or 2D space.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default, Reflect)]
-pub enum ParticleSystemDimension {
+pub enum ParticlesDimension {
     /// 3D particle system.
     #[default]
     D3,
@@ -1185,7 +1185,7 @@ pub enum SubEmitterMode {
 pub struct SubEmitterConfig {
     /// When the sub-emitter triggers.
     pub mode: SubEmitterMode,
-    /// Index of the target emitter (within the same [`ParticleSystemAsset`]) to spawn from.
+    /// Index of the target emitter (within the same [`ParticlesAsset`]) to spawn from.
     pub target_emitter: usize,
     /// How often particles are emitted from the sub-emitter, in seconds.
     ///
@@ -1344,7 +1344,7 @@ impl SprinklesEditorData {
 
 /// Attribution information for a particle system.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, Reflect)]
-pub struct ParticleSystemAuthors {
+pub struct ParticlesAuthors {
     /// The original creator this effect was inspired by.
     #[serde(default, skip_serializing_if = "is_empty_string")]
     pub inspired_by: String,
@@ -1353,7 +1353,7 @@ pub struct ParticleSystemAuthors {
     pub submitted_by: String,
 }
 
-impl ParticleSystemAuthors {
+impl ParticlesAuthors {
     /// Returns `true` if both fields are empty
     pub fn is_empty(&self) -> bool {
         self.inspired_by.is_empty() && self.submitted_by.is_empty()
@@ -1363,15 +1363,15 @@ impl ParticleSystemAuthors {
 /// A complete particle system asset, loadable from RON files.
 ///
 /// Contains one or more emitters and optional colliders that together define a
-/// particle effect. Load this asset and reference it from a [`ParticleSystem3D`](crate::ParticleSystem3D)
-/// or [`ParticleSystem2D`](crate::ParticleSystem2D) component to render the effect.
+/// particle effect. Load this asset and reference it from a [`Particles3d`](crate::Particles3d)
+/// or [`Particles2d`](crate::Particles2d) component to render the effect.
 #[derive(Asset, Debug, Clone, Serialize, Deserialize, Reflect)]
-pub struct ParticleSystemAsset {
+pub struct ParticlesAsset {
     sprinkles_version: String,
     /// Display name for this particle system.
     pub name: String,
     /// Whether this is a 3D or 2D particle system.
-    pub dimension: ParticleSystemDimension,
+    pub dimension: ParticlesDimension,
     /// Initial transform applied when spawning this particle system.
     ///
     /// Only used during spawning if no [`Transform`] is already present on the entity.
@@ -1389,23 +1389,23 @@ pub struct ParticleSystemAsset {
     #[serde(default, skip_serializing_if = "is_false")]
     pub despawn_on_finish: bool,
     /// Attribution information.
-    #[serde(default, skip_serializing_if = "ParticleSystemAuthors::is_empty")]
-    pub authors: ParticleSystemAuthors,
+    #[serde(default, skip_serializing_if = "ParticlesAuthors::is_empty")]
+    pub authors: ParticlesAuthors,
     /// Editor-specific metadata.
     #[serde(default, skip_serializing_if = "SprinklesEditorData::is_empty")]
     pub sprinkles_editor: SprinklesEditorData,
 }
 
-impl ParticleSystemAsset {
+impl ParticlesAsset {
     /// Creates a new particle system asset with the current format version.
     pub fn new(
         name: String,
-        dimension: ParticleSystemDimension,
+        dimension: ParticlesDimension,
         initial_transform: InitialTransform,
         emitters: Vec<EmitterData>,
         colliders: Vec<ColliderData>,
         despawn_on_finish: bool,
-        authors: ParticleSystemAuthors,
+        authors: ParticlesAuthors,
     ) -> Self {
         Self {
             sprinkles_version: current_format_version().to_string(),

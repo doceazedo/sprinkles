@@ -25,7 +25,7 @@ use super::{
 pub(super) struct CommitContext<'w, 's> {
     commands: Commands<'w, 's>,
     editor_state: Res<'w, EditorState>,
-    assets: ResMut<'w, Assets<ParticleSystemAsset>>,
+    assets: ResMut<'w, Assets<ParticlesAsset>>,
     editor_data: ResMut<'w, EditorData>,
     dirty_state: ResMut<'w, DirtyState>,
     bindings: Query<'w, 's, &'static FieldBinding>,

@@ -48,7 +48,7 @@ fn setup_trail_options(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     editor_state: Res<EditorState>,
-    assets: Res<Assets<ParticleSystemAsset>>,
+    assets: Res<Assets<ParticlesAsset>>,
     sections: Query<(Entity, &InspectorSection), With<TrailSection>>,
     existing: Query<Entity, With<TrailOptions>>,
 ) {
@@ -118,7 +118,7 @@ fn setup_trail_options(
 
 fn toggle_trail_options(
     editor_state: Res<EditorState>,
-    assets: Res<Assets<ParticleSystemAsset>>,
+    assets: Res<Assets<ParticlesAsset>>,
     mut options: Query<&mut Node, With<TrailOptions>>,
 ) {
     let Ok(mut node) = options.single_mut() else {
@@ -134,7 +134,7 @@ fn toggle_trail_options(
 
 fn sync_trail_no_mesh_alert(
     editor_state: Res<EditorState>,
-    assets: Res<Assets<ParticleSystemAsset>>,
+    assets: Res<Assets<ParticlesAsset>>,
     mut alert_nodes: Query<&mut Node, With<TrailNoMeshAlert>>,
     new_alerts: Query<Entity, Added<TrailNoMeshAlert>>,
 ) {

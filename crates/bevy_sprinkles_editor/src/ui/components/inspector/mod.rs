@@ -475,7 +475,7 @@ fn setup_inspector_section_fields(
 
 fn get_outliner_title(
     editor_state: &EditorState,
-    assets: &Assets<ParticleSystemAsset>,
+    assets: &Assets<ParticlesAsset>,
 ) -> Option<(String, &'static str)> {
     let inspecting = editor_state.inspecting.as_ref()?;
     let handle = editor_state.current_project.as_ref()?;
@@ -497,7 +497,7 @@ fn get_outliner_title(
 fn update_panel_title(
     editor_state: Res<EditorState>,
     active_tab: Res<ActiveSidebarTab>,
-    assets: Res<Assets<ParticleSystemAsset>>,
+    assets: Res<Assets<ParticlesAsset>>,
     mut title_text: Query<&mut Text, With<PanelTitleText>>,
     mut title_icon: Query<&mut ImageNode, With<PanelTitleIcon>>,
     asset_server: Res<AssetServer>,

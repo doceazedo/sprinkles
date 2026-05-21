@@ -3,13 +3,13 @@ use bevy::{
 };
 
 use crate::{
-    asset::{DrawPassMaterial, EmitterData, EmitterTrail, ParticleSystemAsset},
+    asset::{DrawPassMaterial, EmitterData, EmitterTrail, ParticlesAsset},
     material::{ParticleEmitterUniforms, ParticleMaterialExtension, TRAIL_THICKNESS_CURVE_SAMPLES},
     mesh::ParticleMeshCache,
     runtime::{
         ColliderEntity, CurrentMaterialConfig, CurrentMeshConfig, EditorMode, EmitterEntity,
         EmitterRuntime, ParticleBufferHandle, ParticleData, ParticleMaterial,
-        ParticleMaterialHandle, ParticleMeshHandle, ParticleSystem3D, ParticleSystemRuntime,
+        ParticleMaterialHandle, ParticleMeshHandle, ParticleSystemRuntime, Particles3d,
         ParticlesCollider3D, SimulationStep, SubEmitterBufferHandle, TrailHistoryEntry,
     },
 };
@@ -46,18 +46,18 @@ fn compute_trail_history_frames(emitter: &EmitterData) -> u32 {
 
 fn get_particle_asset<'a>(
     parent_system: Entity,
-    particle_systems: &Query<&ParticleSystem3D>,
-    assets: &'a Assets<ParticleSystemAsset>,
-) -> Option<&'a ParticleSystemAsset> {
+    particle_systems: &Query<&Particles3d>,
+    assets: &'a Assets<ParticlesAsset>,
+) -> Option<&'a ParticlesAsset> {
     let particle_system = particle_systems.get(parent_system).ok()?;
-    assets.get(&particle_system.handle)
+    assets.get(particle_system)
 }
 
 fn get_emitter_data<'a>(
     parent_system: Entity,
     emitter_index: usize,
-    particle_systems: &Query<&ParticleSystem3D>,
-    assets: &'a Assets<ParticleSystemAsset>,
+    particle_systems: &Query<&Particles3d>,
+    assets: &'a Assets<ParticlesAsset>,
 ) -> Option<&'a EmitterData> {
     get_particle_asset(parent_system, particle_systems, assets)
         .and_then(|asset| asset.emitters.get(emitter_index))
@@ -66,8 +66,8 @@ fn get_emitter_data<'a>(
 fn get_editor_assets_folders<'a>(
     parent_system: Entity,
     is_editor: bool,
-    particle_systems: &Query<&ParticleSystem3D>,
-    assets: &'a Assets<ParticleSystemAsset>,
+    particle_systems: &Query<&Particles3d>,
+    assets: &'a Assets<ParticlesAsset>,
 ) -> &'a [String] {
     if !is_editor {
         return &[];
@@ -79,8 +79,8 @@ fn get_editor_assets_folders<'a>(
 
 pub fn update_particle_time(
     time: Res<Time>,
-    assets: Res<Assets<ParticleSystemAsset>>,
-    system_query: Query<(&ParticleSystem3D, &ParticleSystemRuntime)>,
+    assets: Res<Assets<ParticlesAsset>>,
+    system_query: Query<(&Particles3d, &ParticleSystemRuntime)>,
     mut emitter_query: Query<(&EmitterEntity, &mut EmitterRuntime)>,
 ) {
     for (emitter, mut runtime) in emitter_query.iter_mut() {
@@ -88,7 +88,7 @@ pub fn update_particle_time(
             continue;
         };
 
-        let Some(asset) = assets.get(&particle_system.handle) else {
+        let Some(asset) = assets.get(particle_system) else {
             continue;
         };
 
@@ -243,8 +243,8 @@ fn bake_thickness_curve(trail: &EmitterTrail) -> [f32; TRAIL_THICKNESS_CURVE_SAM
 
 pub fn setup_particle_systems(
     mut commands: Commands,
-    query: Query<(Entity, &ParticleSystem3D, Has<EditorMode>), Without<ParticleSystemRuntime>>,
-    assets: Res<Assets<ParticleSystemAsset>>,
+    query: Query<(Entity, &Particles3d, Has<EditorMode>), Without<ParticleSystemRuntime>>,
+    assets: Res<Assets<ParticlesAsset>>,
     asset_server: Res<AssetServer>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut mesh_cache: ResMut<ParticleMeshCache>,
@@ -252,7 +252,7 @@ pub fn setup_particle_systems(
     mut materials: ResMut<Assets<ParticleMaterial>>,
 ) {
     for (system_entity, particle_system, is_editor) in query.iter() {
-        let Some(asset) = assets.get(&particle_system.handle) else {
+        let Some(asset) = assets.get(particle_system) else {
             continue;
         };
 
@@ -422,7 +422,7 @@ pub fn setup_particle_systems(
 
 pub fn cleanup_particle_entities(
     mut commands: Commands,
-    mut removed_systems: RemovedComponents<ParticleSystem3D>,
+    mut removed_systems: RemovedComponents<Particles3d>,
     emitter_entities: Query<Entity, With<EmitterEntity>>,
     emitter_parent_query: Query<&EmitterEntity>,
     collider_entities: Query<(Entity, &ColliderEntity)>,
@@ -445,8 +445,8 @@ pub fn cleanup_particle_entities(
 }
 
 pub fn sync_collider_data(
-    particle_systems: Query<&ParticleSystem3D>,
-    assets: Res<Assets<ParticleSystemAsset>>,
+    particle_systems: Query<&Particles3d>,
+    assets: Res<Assets<ParticlesAsset>>,
     mut collider_query: Query<(&ColliderEntity, &mut ParticlesCollider3D, &mut Transform)>,
 ) {
     if !assets.is_changed() {
@@ -468,7 +468,7 @@ pub fn sync_collider_data(
 }
 
 pub fn sync_particle_mesh(
-    particle_systems: Query<&ParticleSystem3D>,
+    particle_systems: Query<&Particles3d>,
     mut emitter_query: Query<(
         &EmitterEntity,
         &EmitterRuntime,
@@ -477,7 +477,7 @@ pub fn sync_particle_mesh(
         &mut ParticleMeshHandle,
         &mut Mesh3d,
     )>,
-    assets: Res<Assets<ParticleSystemAsset>>,
+    assets: Res<Assets<ParticlesAsset>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut mesh_cache: ResMut<ParticleMeshCache>,
 ) {
@@ -506,7 +506,7 @@ pub fn sync_particle_mesh(
 }
 
 pub(crate) fn sync_particle_buffers(
-    particle_systems: Query<&ParticleSystem3D>,
+    particle_systems: Query<&Particles3d>,
     editor_modes: Query<Has<EditorMode>>,
     mut emitter_query: Query<(
         &EmitterEntity,
@@ -519,7 +519,7 @@ pub(crate) fn sync_particle_buffers(
         &mut MeshMaterial3d<ParticleMaterial>,
         &mut CurrentMaterialConfig,
     )>,
-    assets: Res<Assets<ParticleSystemAsset>>,
+    assets: Res<Assets<ParticlesAsset>>,
     asset_server: Res<AssetServer>,
     mut buffers: ResMut<Assets<ShaderStorageBuffer>>,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -618,14 +618,14 @@ pub(crate) fn sync_particle_buffers(
 }
 
 pub fn write_emitter_uniforms(
-    particle_systems: Query<&ParticleSystem3D>,
+    particle_systems: Query<&Particles3d>,
     emitter_query: Query<(
         &EmitterEntity,
         &EmitterRuntime,
         &ParticleBufferHandle,
         &GlobalTransform,
     )>,
-    assets: Res<Assets<ParticleSystemAsset>>,
+    assets: Res<Assets<ParticlesAsset>>,
     mut buffers: ResMut<Assets<ShaderStorageBuffer>>,
 ) {
     for (emitter, runtime, buffer_handle, global_transform) in emitter_query.iter() {
@@ -658,7 +658,7 @@ pub fn write_emitter_uniforms(
 }
 
 pub fn sync_particle_material(
-    particle_systems: Query<&ParticleSystem3D>,
+    particle_systems: Query<&Particles3d>,
     editor_modes: Query<Has<EditorMode>>,
     mut emitter_query: Query<(
         &EmitterEntity,
@@ -667,7 +667,7 @@ pub fn sync_particle_material(
         &mut ParticleMaterialHandle,
         &mut MeshMaterial3d<ParticleMaterial>,
     )>,
-    assets: Res<Assets<ParticleSystemAsset>>,
+    assets: Res<Assets<ParticlesAsset>>,
     asset_server: Res<AssetServer>,
     mut materials: ResMut<Assets<ParticleMaterial>>,
 ) {

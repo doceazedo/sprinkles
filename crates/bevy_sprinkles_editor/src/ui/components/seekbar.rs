@@ -62,7 +62,7 @@ pub fn seekbar(asset_server: &AssetServer) -> impl Bundle {
                 SeekbarElapsed,
                 Text::new("0.00"),
                 TextFont {
-                    font: font.clone().into(),
+                    font: font.clone(),
                     font_size: LABEL_SIZE,
                     font_features: tabular_figures.clone(),
                     weight: FontWeight::MEDIUM,
@@ -117,7 +117,7 @@ pub fn seekbar(asset_server: &AssetServer) -> impl Bundle {
                 SeekbarDuration,
                 Text::new("0.00s"),
                 TextFont {
-                    font: font.into(),
+                    font,
                     font_size: LABEL_SIZE,
                     font_features: tabular_figures,
                     weight: FontWeight::MEDIUM,
@@ -148,8 +148,8 @@ fn setup_seekbar_observers(hitboxes: Query<Entity, Added<SeekbarHitbox>>, mut co
 }
 
 fn update_seekbar(
-    assets: Res<Assets<ParticleSystemAsset>>,
-    system_query: Query<(Entity, &ParticleSystem3D), With<EditorParticlePreview>>,
+    assets: Res<Assets<ParticlesAsset>>,
+    system_query: Query<(Entity, &Particles3d), With<EditorParticlePreview>>,
     emitter_query: Query<(&EmitterEntity, &EmitterRuntime)>,
     mut elapsed_label: Query<&mut Text, (With<SeekbarElapsed>, Without<SeekbarDuration>)>,
     mut duration_label: Query<&mut Text, (With<SeekbarDuration>, Without<SeekbarElapsed>)>,
@@ -164,7 +164,7 @@ fn update_seekbar(
         return;
     };
 
-    let Some(asset) = assets.get(&particle_system.handle) else {
+    let Some(asset) = assets.get(particle_system) else {
         return;
     };
 
@@ -271,15 +271,15 @@ fn on_drag_end(
 fn on_seekbar_drag(
     event: On<SeekbarDragEvent>,
     mut commands: Commands,
-    assets: Res<Assets<ParticleSystemAsset>>,
-    system_query: Query<&ParticleSystem3D, With<EditorParticlePreview>>,
+    assets: Res<Assets<ParticlesAsset>>,
+    system_query: Query<&Particles3d, With<EditorParticlePreview>>,
     mut hitboxes: Query<&mut SeekbarDragState, With<SeekbarHitbox>>,
 ) {
     let Some(particle_system) = system_query.iter().next() else {
         return;
     };
 
-    let Some(asset) = assets.get(&particle_system.handle) else {
+    let Some(asset) = assets.get(particle_system) else {
         return;
     };
 

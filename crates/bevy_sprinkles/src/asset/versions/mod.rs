@@ -3,7 +3,7 @@ mod v0_1;
 use serde::Deserialize;
 use thiserror::Error;
 
-use super::ParticleSystemAsset;
+use super::ParticlesAsset;
 
 const CURRENT_FORMAT_VERSION: &str = "0.2";
 
@@ -31,7 +31,7 @@ pub enum MigrationError {
 /// The result of a [`migrate`] call.
 pub struct MigrationResult {
     /// The particle system asset in the current format version.
-    pub asset: ParticleSystemAsset,
+    pub asset: ParticlesAsset,
     /// Whether the asset was migrated from an older version.
     pub was_migrated: bool,
 }
@@ -43,15 +43,15 @@ pub fn migrate(bytes: &[u8]) -> Result<MigrationResult, MigrationError> {
 
     match probe.sprinkles_version.as_str() {
         v if v == current => {
-            let asset: ParticleSystemAsset = ron::de::from_bytes(bytes)?;
+            let asset: ParticlesAsset = ron::de::from_bytes(bytes)?;
             Ok(MigrationResult {
                 asset,
                 was_migrated: false,
             })
         }
         "0.1" => {
-            let old: v0_1::ParticleSystemAsset = ron::de::from_bytes(bytes)?;
-            let asset: ParticleSystemAsset = old.into();
+            let old: v0_1::ParticlesAsset = ron::de::from_bytes(bytes)?;
+            let asset: ParticlesAsset = old.into();
             Ok(MigrationResult {
                 asset,
                 was_migrated: true,

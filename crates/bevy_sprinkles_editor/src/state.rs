@@ -17,7 +17,7 @@ pub fn plugin(app: &mut App) {
 
 #[derive(Resource, Default)]
 pub struct EditorState {
-    pub current_project: Option<Handle<ParticleSystemAsset>>,
+    pub current_project: Option<Handle<ParticlesAsset>>,
     pub current_project_path: Option<PathBuf>,
     pub inspecting: Option<Inspecting>,
 }
@@ -25,7 +25,7 @@ pub struct EditorState {
 impl EditorState {
     pub fn open_project(
         &mut self,
-        handle: Handle<ParticleSystemAsset>,
+        handle: Handle<ParticlesAsset>,
         path: PathBuf,
         dirty_state: &mut DirtyState,
     ) {
@@ -94,7 +94,7 @@ pub struct PlaybackSeekEvent(pub f32);
 fn update_window_title(
     editor_state: Res<EditorState>,
     dirty_state: Res<DirtyState>,
-    assets: Res<Assets<ParticleSystemAsset>>,
+    assets: Res<Assets<ParticlesAsset>>,
     mut window: Query<&mut Window, With<PrimaryWindow>>,
 ) {
     if !editor_state.is_changed() && !dirty_state.is_changed() {

@@ -76,9 +76,7 @@ fn spawn_systems(commands: &mut Commands, asset_server: &AssetServer, grid_range
         for y in -grid_range..=grid_range {
             commands.spawn((
                 BenchParticleSystem,
-                ParticleSystem3D {
-                    handle: asset_server.load("3d-explosion.ron"),
-                },
+                Particles3d(asset_server.load("3d-explosion.ron")),
                 Transform::from_xyz(x as f32 * SPACING, y as f32 * SPACING, 0.0),
             ));
         }

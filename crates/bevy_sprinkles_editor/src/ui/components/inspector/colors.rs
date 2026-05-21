@@ -114,7 +114,7 @@ fn setup_alpha_alert(
 fn sync_alpha_disabled(
     mut commands: Commands,
     editor_state: Res<EditorState>,
-    assets: Res<Assets<ParticleSystemAsset>>,
+    assets: Res<Assets<ParticlesAsset>>,
     mut alert_nodes: Query<&mut Node, With<AlphaOpaqueAlert>>,
     new_alerts: Query<Entity, Added<AlphaOpaqueAlert>>,
     fields: Query<(Entity, &FieldBinding)>,

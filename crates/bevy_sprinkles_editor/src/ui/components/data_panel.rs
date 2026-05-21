@@ -46,7 +46,7 @@ pub fn plugin(app: &mut App) {
 
 #[derive(Resource, Default)]
 struct LastLoadedProject {
-    handle: Option<AssetId<ParticleSystemAsset>>,
+    handle: Option<AssetId<ParticlesAsset>>,
 }
 
 #[derive(Component)]
@@ -143,7 +143,7 @@ fn rebuild_lists(
     mut commands: Commands,
     editor_state: Res<EditorState>,
     mut last_project: ResMut<LastLoadedProject>,
-    assets: Res<Assets<ParticleSystemAsset>>,
+    assets: Res<Assets<ParticlesAsset>>,
     emitters_section: Query<(Entity, &Children), With<EmittersSection>>,
     colliders_section: Query<(Entity, &Children), With<CollidersSection>>,
     existing_wrappers: Query<Entity, With<ItemsList>>,
@@ -283,7 +283,7 @@ fn on_add_emitter(
     _event: On<AddEmitterEvent>,
     mut commands: Commands,
     mut editor_state: ResMut<EditorState>,
-    mut assets: ResMut<Assets<ParticleSystemAsset>>,
+    mut assets: ResMut<Assets<ParticlesAsset>>,
     mut dirty_state: ResMut<DirtyState>,
     mut last_project: ResMut<LastLoadedProject>,
 ) {
@@ -318,7 +318,7 @@ fn on_add_collider(
     _event: On<AddColliderEvent>,
     mut commands: Commands,
     mut editor_state: ResMut<EditorState>,
-    mut assets: ResMut<Assets<ParticleSystemAsset>>,
+    mut assets: ResMut<Assets<ParticlesAsset>>,
     mut dirty_state: ResMut<DirtyState>,
     mut last_project: ResMut<LastLoadedProject>,
 ) {
@@ -372,7 +372,7 @@ fn on_item_menu_change(
     event: On<ComboBoxChangeEvent>,
     mut commands: Commands,
     mut editor_state: ResMut<EditorState>,
-    mut assets: ResMut<Assets<ParticleSystemAsset>>,
+    mut assets: ResMut<Assets<ParticlesAsset>>,
     mut dirty_state: ResMut<DirtyState>,
     mut last_project: ResMut<LastLoadedProject>,
     menus: Query<&ChildOf, With<ItemMenu>>,
@@ -578,7 +578,7 @@ fn strip_trailing_number(name: &str) -> (&str, Option<u32>) {
 
 fn get_item_name(
     editor_state: &EditorState,
-    assets: &Assets<ParticleSystemAsset>,
+    assets: &Assets<ParticlesAsset>,
     item: &InspectableItem,
 ) -> Option<String> {
     let handle = editor_state.current_project.as_ref()?;
@@ -616,7 +616,7 @@ fn handle_item_double_click(
     time: Res<Time<Real>>,
     mouse: Res<ButtonInput<MouseButton>>,
     editor_state: Res<EditorState>,
-    assets: Res<Assets<ParticleSystemAsset>>,
+    assets: Res<Assets<ParticlesAsset>>,
     items: Query<(Entity, &InspectableItem, &Children), Without<Renaming>>,
     mut buttons: Query<(Entity, &Hovered, &mut Node), With<ItemButton>>,
     mut last_click: Local<(Option<Entity>, f32)>,
@@ -706,7 +706,7 @@ fn on_rename_commit(
     mut button_texts: Query<&mut Text>,
     button_children: Query<&Children, With<EditorButton>>,
     editor_state: Res<EditorState>,
-    mut assets: ResMut<Assets<ParticleSystemAsset>>,
+    mut assets: ResMut<Assets<ParticlesAsset>>,
     mut dirty_state: ResMut<DirtyState>,
     mut emitter_runtimes: Query<&mut EmitterRuntime>,
 ) {
@@ -774,7 +774,7 @@ fn on_delete_confirmed(
     pending: Option<Res<PendingDelete>>,
     mut commands: Commands,
     mut editor_state: ResMut<EditorState>,
-    mut assets: ResMut<Assets<ParticleSystemAsset>>,
+    mut assets: ResMut<Assets<ParticlesAsset>>,
     mut dirty_state: ResMut<DirtyState>,
     mut last_project: ResMut<LastLoadedProject>,
 ) {
