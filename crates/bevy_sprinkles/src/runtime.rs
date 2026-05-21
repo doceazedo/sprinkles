@@ -246,7 +246,8 @@ impl EmitterRuntime {
         self.emitting
     }
 
-    pub(crate) fn set_emitting(&mut self, emitting: bool) {
+    /// Sets whether the emitter is actively spawning particles.
+    pub fn set_emitting(&mut self, emitting: bool) {
         self.emitting = emitting;
         if emitting {
             self.inactive = false;
