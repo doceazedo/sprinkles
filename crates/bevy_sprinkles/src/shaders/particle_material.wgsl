@@ -539,7 +539,7 @@ fn fragment(
 
     var pbr_input = pbr_input_from_standard_material(in, is_front);
     pbr_input.material.base_color = pbr_input.material.base_color * particle_color;
-    pbr_input.material.base_color = alpha_discard(pbr_input.material, pbr_input.material.base_color);
+    pbr_input.material.base_color = alpha_discard(pbr_input.material.flags, pbr_input.material.alpha_cutoff, pbr_input.material.base_color);
 
     let particle_alpha = pbr_input.material.base_color.a;
 
