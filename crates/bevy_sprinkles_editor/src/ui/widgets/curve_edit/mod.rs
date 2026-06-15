@@ -40,8 +40,8 @@ use crate::ui::widgets::utils::is_descendant_of;
 use crate::ui::widgets::vector_edit::{
     EditorVectorEdit, VectorEditProps, VectorSize, VectorSuffixes, vector_edit,
 };
-use bevy_ui_text_input::TextInputQueue;
-use bevy_ui_text_input::actions::{TextInputAction, TextInputEdit};
+use bevy::text::EditableText;
+use crate::ui::widgets::text_edit::set_text_input_value;
 
 #[derive(Clone, Copy, PartialEq, Default)]
 pub(crate) enum CurveAxis {
@@ -602,8 +602,8 @@ fn setup_curve_edit(
             .spawn((
                 Text::new(label_text),
                 TextFont {
-                    font: font.clone(),
-                    font_size: TEXT_SIZE_SM,
+                    font: font.clone().into(),
+                    font_size: TEXT_SIZE_SM.into(),
                     weight: FontWeight::MEDIUM,
                     ..default()
                 },
@@ -1438,7 +1438,7 @@ fn sync_range_inputs_to_state(
     states: Query<(Entity, &CurveEditState), Changed<CurveEditState>>,
     range_edits: Query<(Entity, &RangeEdit, &Children)>,
     vector_edits: Query<&Children, With<EditorVectorEdit>>,
-    mut text_inputs: Query<(Entity, &mut TextInputQueue), With<EditorTextEdit>>,
+    mut text_inputs: Query<(Entity, &mut EditableText), With<EditorTextEdit>>,
     parents: Query<&ChildOf>,
 ) {
     for (curve_edit_entity, state) in &states {
@@ -1461,14 +1461,13 @@ fn sync_range_inputs_to_state(
                     };
                     let text = value.to_string();
 
-                    for (text_input_entity, mut queue) in &mut text_inputs {
-                        if input_focus.0 == Some(text_input_entity) {
+                    for (text_input_entity, mut editable) in &mut text_inputs {
+                        if input_focus.get() == Some(text_input_entity) {
                             continue;
                         }
 
                         if is_descendant_of(text_input_entity, vector_child, &parents) {
-                            queue.add(TextInputAction::Edit(TextInputEdit::SelectAll));
-                            queue.add(TextInputAction::Edit(TextInputEdit::Paste(text.clone())));
+                            set_text_input_value(&mut editable, text.clone());
                         }
                     }
                 }
@@ -1484,10 +1483,10 @@ fn handle_range_blur(
     mut states: Query<&mut CurveEditState>,
     range_edits: Query<(Entity, &RangeEdit, &Children)>,
     vector_edits: Query<&Children, With<EditorVectorEdit>>,
-    text_inputs: Query<&bevy_ui_text_input::TextInputBuffer, With<EditorTextEdit>>,
+    text_inputs: Query<&EditableText, With<EditorTextEdit>>,
     parents: Query<&ChildOf>,
 ) {
-    let current_focus = input_focus.0;
+    let current_focus = input_focus.get();
     let previous_focus = *last_focus;
     *last_focus = current_focus;
 
@@ -1498,7 +1497,7 @@ fn handle_range_blur(
         return;
     }
 
-    let Ok(buffer) = text_inputs.get(blurred_entity) else {
+    let Ok(editable) = text_inputs.get(blurred_entity) else {
         return;
     };
 
@@ -1518,7 +1517,7 @@ fn handle_range_blur(
                     continue;
                 }
 
-                let text = buffer.get_text();
+                let text = editable.value().to_string();
                 if text.is_empty() {
                     return;
                 }

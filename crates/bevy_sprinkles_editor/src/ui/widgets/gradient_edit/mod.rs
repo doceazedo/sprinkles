@@ -27,9 +27,8 @@ use crate::ui::widgets::popover::{
     EditorPopover, PopoverHeaderProps, PopoverPlacement, PopoverProps, PopoverTracker,
     activate_trigger, deactivate_trigger, popover, popover_header,
 };
-use crate::ui::widgets::text_edit::{TextEditCommitEvent, TextEditProps, text_edit};
-use bevy_ui_text_input::TextInputQueue;
-use bevy_ui_text_input::actions::{TextInputAction, TextInputEdit};
+use crate::ui::widgets::text_edit::{TextEditCommitEvent, TextEditProps, set_text_input_value, text_edit};
+use bevy::text::EditableText;
 
 const BAR_HEIGHT: f32 = 24.0;
 const HANDLE_SIZE: f32 = 24.0;
@@ -300,8 +299,8 @@ fn setup_gradient_edit(
                 .spawn((
                     Text::new(label_text),
                     TextFont {
-                        font: font.clone(),
-                        font_size: crate::ui::tokens::TEXT_SIZE_SM,
+                        font: font.clone().into(),
+                        font_size: crate::ui::tokens::TEXT_SIZE_SM.into(),
                         weight: bevy::text::FontWeight::MEDIUM,
                         ..default()
                     },
@@ -1065,7 +1064,7 @@ fn update_stop_position_inputs(
     states: Query<(Entity, &GradientEditState), Changed<GradientEditState>>,
     position_inputs: Query<(&StopPositionInput, &Children)>,
     children_query: Query<&Children>,
-    mut text_queues: Query<&mut TextInputQueue>,
+    mut text_queues: Query<&mut EditableText>,
 ) {
     for (gradient_edit_entity, state) in &states {
         for (input, input_children) in &position_inputs {
@@ -1085,9 +1084,8 @@ fn update_stop_position_inputs(
                     continue;
                 };
                 for text_input_entity in wrapper_children.iter() {
-                    if let Ok(mut queue) = text_queues.get_mut(text_input_entity) {
-                        queue.add(TextInputAction::Edit(TextInputEdit::SelectAll));
-                        queue.add(TextInputAction::Edit(TextInputEdit::Paste(text.clone())));
+                    if let Ok(mut editable) = text_queues.get_mut(text_input_entity) {
+                        set_text_input_value(&mut editable, text.clone());
                         break;
                     }
                 }
