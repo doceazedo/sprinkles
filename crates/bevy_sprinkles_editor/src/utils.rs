@@ -40,12 +40,13 @@ pub fn truncate_path(path: &str, max_len: usize) -> String {
 
 pub fn simplify_path(path: &Path) -> String {
     #[cfg(unix)]
-    if let Some(home) = env::var_os("HOME") {
-        let home_path = PathBuf::from(home);
+    let home = env::var_os("HOME").map(PathBuf::from);
+    #[cfg(not(unix))]
+    let home = env::var_os("USERPROFILE").map(PathBuf::from);
+    if let Some(home_path) = home {
         if let Ok(relative) = path.strip_prefix(&home_path) {
             return format!("~/{}", relative.to_string_lossy());
         }
     }
-
     path.to_string_lossy().to_string()
 }

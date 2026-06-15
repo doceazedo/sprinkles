@@ -531,15 +531,11 @@ fn slugify(name: &str) -> String {
 fn resolve_location_path(raw: &str) -> PathBuf {
     let expanded = if raw.starts_with("~/") {
         #[cfg(unix)]
-        {
-            std::env::var_os("HOME")
-                .map(|home| PathBuf::from(home).join(&raw[2..]))
-                .unwrap_or_else(|| PathBuf::from(raw))
-        }
+        let home = std::env::var_os("HOME").map(PathBuf::from);
         #[cfg(not(unix))]
-        {
-            PathBuf::from(raw)
-        }
+        let home = std::env::var_os("USERPROFILE").map(PathBuf::from);
+        home.map(|h| h.join(&raw[2..]))
+            .unwrap_or_else(|| PathBuf::from(raw))
     } else if PathBuf::from(raw).is_absolute() {
         PathBuf::from(raw)
     } else {

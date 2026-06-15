@@ -127,7 +127,10 @@ impl EditorCache {
 }
 
 pub fn data_dir() -> PathBuf {
+    #[cfg(unix)]
     let home = env::var_os("HOME").map(PathBuf::from).unwrap_or_default();
+    #[cfg(not(unix))]
+    let home = env::var_os("USERPROFILE").map(PathBuf::from).unwrap_or_default();
     home.join(".sprinkles")
 }
 
@@ -168,15 +171,11 @@ fn editor_data_path() -> PathBuf {
 pub fn project_path(relative_path: &str) -> PathBuf {
     if relative_path.starts_with("~/") {
         #[cfg(unix)]
-        {
-            std::env::var_os("HOME")
-                .map(|home| PathBuf::from(home).join(&relative_path[2..]))
-                .unwrap_or_else(|| PathBuf::from(relative_path))
-        }
+        let home = env::var_os("HOME").map(PathBuf::from);
         #[cfg(not(unix))]
-        {
-            PathBuf::from(relative_path)
-        }
+        let home = env::var_os("USERPROFILE").map(PathBuf::from);
+        home.map(|h| h.join(&relative_path[2..]))
+            .unwrap_or_else(|| PathBuf::from(relative_path))
     } else {
         PathBuf::from(relative_path)
     }
