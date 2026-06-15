@@ -13,7 +13,7 @@
   <a href="https://github.com/doceazedo/sprinkles/actions">
     <img src="https://github.com/doceazedo/sprinkles/workflows/CI/badge.svg">
   </a>
-  <img src="https://img.shields.io/static/v1?label=Bevy&message=v0.18&color=4a6e91&logo=bevy">
+  <img src="https://img.shields.io/static/v1?label=Bevy&message=v0.19&color=4a6e91&logo=bevy">
 </p>
 
 # 🍩 Sprinkles
@@ -80,9 +80,10 @@ Documentation is available at [docs.rs](https://docs.rs/bevy_sprinkles/latest/be
 
 ## Bevy version table
 
-| Bevy | Sprinkles       |
-|------|-----------------|
-| 0.18 | 0.1 - 0.2, main |
+| Bevy | Sprinkles |
+|------|-----------|
+| 0.19 | main      |
+| 0.18 | 0.1 - 0.2 |
 
 ## Features
 
@@ -121,9 +122,9 @@ Project examples and bundled textures are licensed under [CC0](https://creativec
 
 The editor includes two icon sets:
 
-- Remix Icon, licensed under [Remix Icon License v1.0](https://github.com/Remix-Design/remixicon/blob/master/License)
+- Remix Icon, licensed under [Remix Icon License v1.0](https://github.com/Remix-Design/remixicon/blob/master/License).
 - Blender icons, licensed under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) by Andrzej
-  Ambroż. <sup><small>[<a href="https://devtalk.blender.org/t/license-for-blender-icons/5522/20">source</a>]</small></sup>
+  Ambroż. <sup><small>[<a href="https://devtalk.blender.org/t/license-for-blender-icons/5522/21">source</a>]</small></sup>
 
 The donut icon is an edited version of the Noto Emoji, licensed
 under [Apache 2.0](https://github.com/googlefonts/noto-emoji/blob/main/svg/LICENSE).
