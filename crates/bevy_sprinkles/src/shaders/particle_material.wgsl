@@ -33,9 +33,22 @@
 
 const STANDARD_MATERIAL_FLAGS_UNLIT_BIT: u32 = 1u << 5u;
 
-// sorted particle data, written in draw order by the sort compute shader
+#ifdef PREPASS_PIPELINE
+#ifndef PREPASS_FRAGMENT
+#ifndef MAY_DISCARD
+// depth-only prepass (storage buffers not bound, nothing declared here)
+#else
 @group(#{MATERIAL_BIND_GROUP}) @binding(100) var<storage, read> sorted_particles: array<Particle>;
 @group(#{MATERIAL_BIND_GROUP}) @binding(101) var<storage, read> emitter_uniforms: ParticleEmitterUniforms;
+#endif
+#else
+@group(#{MATERIAL_BIND_GROUP}) @binding(100) var<storage, read> sorted_particles: array<Particle>;
+@group(#{MATERIAL_BIND_GROUP}) @binding(101) var<storage, read> emitter_uniforms: ParticleEmitterUniforms;
+#endif
+#else
+@group(#{MATERIAL_BIND_GROUP}) @binding(100) var<storage, read> sorted_particles: array<Particle>;
+@group(#{MATERIAL_BIND_GROUP}) @binding(101) var<storage, read> emitter_uniforms: ParticleEmitterUniforms;
+#endif
 
 // computes a shortest-arc rotation matrix that aligns the Y axis to a direction
 fn align_y_to_direction(dir: vec3<f32>) -> mat3x3<f32> {
@@ -91,11 +104,36 @@ fn rot_z(a: f32) -> mat3x3<f32> {
     return mat3x3<f32>(vec3(c, s, 0.0), vec3(-s, c, 0.0), vec3(0.0, 0.0, 1.0));
 }
 
-@vertex
-fn vertex(vertex: Vertex) -> VertexOutput {
+#ifdef PREPASS_PIPELINE
+#ifndef PREPASS_FRAGMENT
+#ifdef MAY_DISCARD
+
+fn get_head_particle(particle_index: u32) -> Particle {
+    let trail_size = emitter_uniforms.trail_size;
+    let head_slot = particle_index * max(trail_size, 1u);
+    return sorted_particles[head_slot];
+}
+
+fn get_trail_color(particle_index: u32, section_frac: f32) -> vec4<f32> {
+    let trail_size = emitter_uniforms.trail_size;
+    let head_slot = particle_index * trail_size;
+    let last_seg = trail_size - 1u;
+    let section_f = section_frac * f32(last_seg);
+    let seg_lo = min(u32(section_f), last_seg);
+    let seg_hi = min(seg_lo + 1u, last_seg);
+    let seg_t = section_f - f32(seg_lo);
+    let color_lo = sorted_particles[head_slot + seg_lo].color;
+    let color_hi = sorted_particles[head_slot + seg_hi].color;
+    return mix(color_lo, color_hi, seg_t);
+}
+
+fn particle_vertex_impl(vertex: Vertex) -> VertexOutput {
     var out: VertexOutput;
 
-    // particle index encoded in uv_b.x (instance_index doesn't guarantee particle order)
+#ifdef VERTEX_OUTPUT_INSTANCE_INDEX
+    out.instance_index = vertex.instance_index;
+#endif
+
     let particle_index = u32(round(vertex.uv_b.x));
     let trail_size = emitter_uniforms.trail_size;
     var world_from_local = mesh_functions::get_world_from_local(vertex.instance_index);
@@ -108,11 +146,6 @@ fn vertex(vertex: Vertex) -> VertexOutput {
     out.uv_b = vertex.uv_b;
 #endif
 
-#ifdef VERTEX_OUTPUT_INSTANCE_INDEX
-    out.instance_index = vertex.instance_index;
-#endif
-
-    // trail rendering: position vertices along the trail path
     if (trail_size > 1u) {
         let head_slot = particle_index * trail_size;
         let head_particle = sorted_particles[head_slot];
@@ -121,7 +154,6 @@ fn vertex(vertex: Vertex) -> VertexOutput {
 
         let section_frac = vertex.uv_b.y;
 
-        // per-segment interpolation for curved trails
         let last_seg = trail_size - 1u;
         let section_f = section_frac * f32(last_seg);
         let seg_lo = min(u32(section_f), last_seg);
@@ -139,7 +171,6 @@ fn vertex(vertex: Vertex) -> VertexOutput {
         let base_scale = mix(scale_lo, scale_hi, seg_t);
         let particle_scale = select(0.0, base_scale, is_active);
 
-        // sample thickness curve LUT (index 0 = tail, index N = head)
         let last_curve_idx = TRAIL_THICKNESS_CURVE_SAMPLES - 1u;
         let curve_idx_f = (1.0 - section_frac) * f32(last_curve_idx);
         let curve_lo = min(u32(curve_idx_f), last_curve_idx);
@@ -151,12 +182,10 @@ fn vertex(vertex: Vertex) -> VertexOutput {
             curve_t
         );
 
-        // derive trail direction from adjacent segment positions
         var trail_dir: vec3<f32>;
         if (seg_lo != seg_hi) {
             trail_dir = pos_hi - pos_lo;
         } else {
-            // at the tail end, use direction from previous segment
             let prev_pos = sorted_particles[head_slot + max(seg_lo, 1u) - 1u].position.xyz;
             trail_dir = pos_lo - prev_pos;
         }
@@ -169,7 +198,6 @@ fn vertex(vertex: Vertex) -> VertexOutput {
 
         let orient = align_y_to_direction(trail_dir);
 
-        // scale cross-section by width curve, flatten Y (position from trail_pos)
         var cross_section = vertex.position;
         cross_section.x *= thickness;
         cross_section.z *= thickness;
@@ -300,7 +328,6 @@ fn vertex(vertex: Vertex) -> VertexOutput {
                 v = emitter_rotation * v;
             }
 
-            // project velocity onto the screen plane
             var sv = v - cam_forward * dot(cam_forward, v);
             if length(sv) < 0.001 {
                 sv = cam_up;
@@ -330,7 +357,6 @@ fn vertex(vertex: Vertex) -> VertexOutput {
             );
 #endif
         } else if transform_align == TRANSFORM_ALIGN_BILLBOARD_FIXED_Y {
-            // y-axis locked to world up, rotates around vertical axis to face camera
             let world_up = vec3(0.0, 1.0, 0.0);
             let right = normalize(cross(world_up, cam_forward));
             let forward = cross(right, world_up);
@@ -356,7 +382,6 @@ fn vertex(vertex: Vertex) -> VertexOutput {
             );
 #endif
         } else {
-            // standard billboard
             let scaled_vertex = rotated_position * scale;
             let billboard_pos = particle_world_pos
                 + cam_right * scaled_vertex.x
@@ -379,7 +404,6 @@ fn vertex(vertex: Vertex) -> VertexOutput {
 #endif
         }
     } else {
-        // non-billboard rendering
         let emitter_rotation = mat3x3(
             normalize(world_from_local[0].xyz),
             normalize(world_from_local[1].xyz),
@@ -420,6 +444,9 @@ fn vertex(vertex: Vertex) -> VertexOutput {
     return out;
 }
 
+#endif // MAY_DISCARD
+#else // PREPASS_FRAGMENT
+
 fn get_head_particle(particle_index: u32) -> Particle {
     let trail_size = emitter_uniforms.trail_size;
     let head_slot = particle_index * max(trail_size, 1u);
@@ -439,9 +466,692 @@ fn get_trail_color(particle_index: u32, section_frac: f32) -> vec4<f32> {
     return mix(color_lo, color_hi, seg_t);
 }
 
-// depth-only prepass fragment - discard inactive, no output needed
+fn particle_vertex_impl(vertex: Vertex) -> VertexOutput {
+    var out: VertexOutput;
+
+#ifdef VERTEX_OUTPUT_INSTANCE_INDEX
+    out.instance_index = vertex.instance_index;
+#endif
+
+    let particle_index = u32(round(vertex.uv_b.x));
+    let trail_size = emitter_uniforms.trail_size;
+    var world_from_local = mesh_functions::get_world_from_local(vertex.instance_index);
+
+#ifdef VERTEX_UVS_A
+    out.uv = vertex.uv;
+#endif
+
+#ifdef VERTEX_UVS_B
+    out.uv_b = vertex.uv_b;
+#endif
+
+    if (trail_size > 1u) {
+        let head_slot = particle_index * trail_size;
+        let head_particle = sorted_particles[head_slot];
+        let head_flags = bitcast<u32>(head_particle.custom.w);
+        let is_active = (head_flags & PARTICLE_FLAG_ACTIVE) != 0u;
+
+        let section_frac = vertex.uv_b.y;
+
+        let last_seg = trail_size - 1u;
+        let section_f = section_frac * f32(last_seg);
+        let seg_lo = min(u32(section_f), last_seg);
+        let seg_hi = min(seg_lo + 1u, last_seg);
+        let seg_t = section_f - f32(seg_lo);
+
+        let idx_lo = head_slot + seg_lo;
+        let idx_hi = head_slot + seg_hi;
+        let pos_lo = sorted_particles[idx_lo].position.xyz;
+        let pos_hi = sorted_particles[idx_hi].position.xyz;
+        let scale_lo = sorted_particles[idx_lo].position.w;
+        let scale_hi = sorted_particles[idx_hi].position.w;
+
+        let trail_pos = mix(pos_lo, pos_hi, seg_t);
+        let base_scale = mix(scale_lo, scale_hi, seg_t);
+        let particle_scale = select(0.0, base_scale, is_active);
+
+        let last_curve_idx = TRAIL_THICKNESS_CURVE_SAMPLES - 1u;
+        let curve_idx_f = (1.0 - section_frac) * f32(last_curve_idx);
+        let curve_lo = min(u32(curve_idx_f), last_curve_idx);
+        let curve_hi = min(curve_lo + 1u, last_curve_idx);
+        let curve_t = curve_idx_f - f32(curve_lo);
+        let thickness = mix(
+            emitter_uniforms.trail_thickness_curve[curve_lo],
+            emitter_uniforms.trail_thickness_curve[curve_hi],
+            curve_t
+        );
+
+        var trail_dir: vec3<f32>;
+        if (seg_lo != seg_hi) {
+            trail_dir = pos_hi - pos_lo;
+        } else {
+            let prev_pos = sorted_particles[head_slot + max(seg_lo, 1u) - 1u].position.xyz;
+            trail_dir = pos_lo - prev_pos;
+        }
+        let dir_len = length(trail_dir);
+        if (dir_len > 0.001) {
+            trail_dir = trail_dir / dir_len;
+        } else {
+            trail_dir = -normalize(head_particle.velocity.xyz);
+        }
+
+        let orient = align_y_to_direction(trail_dir);
+
+        var cross_section = vertex.position;
+        cross_section.x *= thickness;
+        cross_section.z *= thickness;
+        cross_section.y = 0.0;
+
+        let is_local = emitter_uniforms.use_local_coords != 0u;
+
+        if (is_local) {
+            let offset = orient * (cross_section * particle_scale);
+            let local_pos = trail_pos + offset;
+            out.world_position = mesh_functions::mesh_position_local_to_world(
+                world_from_local, vec4(local_pos, 1.0)
+            );
+        } else {
+            let emitter_scale = vec3(
+                length(world_from_local[0].xyz),
+                length(world_from_local[1].xyz),
+                length(world_from_local[2].xyz),
+            );
+            let offset = orient * (cross_section * particle_scale * emitter_scale);
+            out.world_position = vec4(trail_pos + offset, 1.0);
+        }
+
+        out.position = position_world_to_clip(out.world_position.xyz);
+
+#ifdef VERTEX_NORMALS
+        let rotated_normal = orient * vertex.normal;
+        if (is_local) {
+            out.world_normal = mesh_functions::mesh_normal_local_to_world(rotated_normal, vertex.instance_index);
+        } else {
+            out.world_normal = rotated_normal;
+        }
+#endif
+
+#ifdef VERTEX_TANGENTS
+        let rotated_tangent_trail = orient * vertex.tangent.xyz;
+        if (is_local) {
+            out.world_tangent = mesh_functions::mesh_tangent_local_to_world(world_from_local, vec4(rotated_tangent_trail, vertex.tangent.w), vertex.instance_index);
+        } else {
+            out.world_tangent = vec4(rotated_tangent_trail, vertex.tangent.w);
+        }
+#endif
+
+#ifdef VERTEX_COLORS
+        let color_lo = sorted_particles[idx_lo].color;
+        let color_hi = sorted_particles[idx_hi].color;
+        out.color = vertex.color * mix(color_lo, color_hi, seg_t);
+#endif
+
+        return out;
+    }
+
+    let particle = sorted_particles[particle_index];
+
+    let flags = bitcast<u32>(particle.custom.w);
+    let is_active = (flags & PARTICLE_FLAG_ACTIVE) != 0u;
+
+    let particle_position = particle.position.xyz;
+    let particle_scale = select(0.0, particle.position.w, is_active);
+    let is_local = emitter_uniforms.use_local_coords != 0u;
+
+    var rotated_position = vertex.position;
+#ifdef VERTEX_NORMALS
+    var rotated_normal = vertex.normal;
+#endif
+#ifdef VERTEX_TANGENTS
+    var rotated_tangent = vertex.tangent.xyz;
+#endif
+
+    let transform_align = emitter_uniforms.transform_align;
+
+    if transform_align == TRANSFORM_ALIGN_Y_TO_VELOCITY {
+        let alignment_dir = particle.alignment_dir.xyz;
+        let dir_length = length(alignment_dir);
+        if dir_length > 0.0 {
+            let rotation_matrix = align_y_with_ref(alignment_dir, particle.ref_up.xyz);
+            rotated_position = rotation_matrix * vertex.position;
+#ifdef VERTEX_NORMALS
+            rotated_normal = rotation_matrix * vertex.normal;
+#endif
+#ifdef VERTEX_TANGENTS
+            rotated_tangent = rotation_matrix * vertex.tangent.xyz;
+#endif
+        }
+    }
+
+    let angles = particle.angles.xyz;
+    var angle_rot = mat3x3<f32>(vec3(1.0, 0.0, 0.0), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 1.0));
+    if abs(angles.x) > 0.0001 { angle_rot = rot_x(angles.x) * angle_rot; }
+    if abs(angles.y) > 0.0001 { angle_rot = rot_y(angles.y) * angle_rot; }
+    if abs(angles.z) > 0.0001 { angle_rot = rot_z(angles.z) * angle_rot; }
+
+    rotated_position = angle_rot * rotated_position;
+#ifdef VERTEX_NORMALS
+    rotated_normal = angle_rot * rotated_normal;
+#endif
+#ifdef VERTEX_TANGENTS
+    rotated_tangent = angle_rot * rotated_tangent;
+#endif
+
+    let emitter_scale = vec3(
+        length(world_from_local[0].xyz),
+        length(world_from_local[1].xyz),
+        length(world_from_local[2].xyz),
+    );
+
+    if transform_align == TRANSFORM_ALIGN_BILLBOARD || transform_align == TRANSFORM_ALIGN_BILLBOARD_Y_TO_VELOCITY || transform_align == TRANSFORM_ALIGN_BILLBOARD_FIXED_Y {
+        let cam_right = normalize(view.world_from_view[0].xyz);
+        let cam_up = normalize(view.world_from_view[1].xyz);
+        let cam_forward = normalize(view.world_from_view[2].xyz);
+
+        var particle_world_pos: vec3<f32>;
+        if is_local {
+            particle_world_pos = (world_from_local * vec4(particle_position, 1.0)).xyz;
+        } else {
+            particle_world_pos = particle_position;
+        }
+        let scale = vec3(particle_scale) * emitter_scale;
+
+        if transform_align == TRANSFORM_ALIGN_BILLBOARD_Y_TO_VELOCITY {
+            var v = particle.alignment_dir.xyz;
+            if is_local {
+                let emitter_rotation = mat3x3<f32>(
+                    normalize(world_from_local[0].xyz),
+                    normalize(world_from_local[1].xyz),
+                    normalize(world_from_local[2].xyz)
+                );
+                v = emitter_rotation * v;
+            }
+
+            var sv = v - cam_forward * dot(cam_forward, v);
+            if length(sv) < 0.001 {
+                sv = cam_up;
+            }
+            sv = normalize(sv);
+
+            let right = normalize(cross(sv, cam_forward));
+
+            let scaled_vertex = rotated_position * scale;
+            let pos = particle_world_pos
+                + right * scaled_vertex.x
+                + sv * scaled_vertex.y
+                + cam_forward * scaled_vertex.z;
+
+            out.world_position = vec4(pos, 1.0);
+            out.position = position_world_to_clip(pos);
+
+#ifdef VERTEX_NORMALS
+            out.world_normal = right * rotated_normal.x
+                + sv * rotated_normal.y
+                + cam_forward * rotated_normal.z;
+#endif
+#ifdef VERTEX_TANGENTS
+            out.world_tangent = vec4(
+                right * rotated_tangent.x + sv * rotated_tangent.y + cam_forward * rotated_tangent.z,
+                vertex.tangent.w
+            );
+#endif
+        } else if transform_align == TRANSFORM_ALIGN_BILLBOARD_FIXED_Y {
+            let world_up = vec3(0.0, 1.0, 0.0);
+            let right = normalize(cross(world_up, cam_forward));
+            let forward = cross(right, world_up);
+
+            let scaled_vertex = rotated_position * scale;
+            let pos = particle_world_pos
+                + right * scaled_vertex.x
+                + world_up * scaled_vertex.y
+                + forward * scaled_vertex.z;
+
+            out.world_position = vec4(pos, 1.0);
+            out.position = position_world_to_clip(pos);
+
+#ifdef VERTEX_NORMALS
+            out.world_normal = right * rotated_normal.x
+                + world_up * rotated_normal.y
+                + forward * rotated_normal.z;
+#endif
+#ifdef VERTEX_TANGENTS
+            out.world_tangent = vec4(
+                right * rotated_tangent.x + world_up * rotated_tangent.y + forward * rotated_tangent.z,
+                vertex.tangent.w
+            );
+#endif
+        } else {
+            let scaled_vertex = rotated_position * scale;
+            let billboard_pos = particle_world_pos
+                + cam_right * scaled_vertex.x
+                + cam_up * scaled_vertex.y
+                + cam_forward * scaled_vertex.z;
+
+            out.world_position = vec4(billboard_pos, 1.0);
+            out.position = position_world_to_clip(billboard_pos);
+
+#ifdef VERTEX_NORMALS
+            out.world_normal = cam_right * rotated_normal.x
+                + cam_up * rotated_normal.y
+                + cam_forward * rotated_normal.z;
+#endif
+#ifdef VERTEX_TANGENTS
+            out.world_tangent = vec4(
+                cam_right * rotated_tangent.x + cam_up * rotated_tangent.y + cam_forward * rotated_tangent.z,
+                vertex.tangent.w
+            );
+#endif
+        }
+    } else {
+        let emitter_rotation = mat3x3(
+            normalize(world_from_local[0].xyz),
+            normalize(world_from_local[1].xyz),
+            normalize(world_from_local[2].xyz)
+        );
+
+        if is_local {
+            let offset = rotated_position * particle_scale;
+            let local_position = offset + particle_position;
+            out.world_position = mesh_functions::mesh_position_local_to_world(world_from_local, vec4(local_position, 1.0));
+        } else {
+            let offset = emitter_rotation * (rotated_position * particle_scale * emitter_scale);
+            out.world_position = vec4(particle_position + offset, 1.0);
+        }
+
+        out.position = position_world_to_clip(out.world_position.xyz);
+
+#ifdef VERTEX_NORMALS
+        if is_local {
+            out.world_normal = mesh_functions::mesh_normal_local_to_world(rotated_normal, vertex.instance_index);
+        } else {
+            out.world_normal = emitter_rotation * rotated_normal;
+        }
+#endif
+#ifdef VERTEX_TANGENTS
+        if is_local {
+            out.world_tangent = mesh_functions::mesh_tangent_local_to_world(world_from_local, vec4(rotated_tangent, vertex.tangent.w), vertex.instance_index);
+        } else {
+            out.world_tangent = vec4(emitter_rotation * rotated_tangent, vertex.tangent.w);
+        }
+#endif
+    }
+
+#ifdef VERTEX_COLORS
+    out.color = vertex.color * particle.color;
+#endif
+
+    return out;
+}
+
+#endif // PREPASS_FRAGMENT
+#else // not PREPASS_PIPELINE (forward pass)
+
+fn get_head_particle(particle_index: u32) -> Particle {
+    let trail_size = emitter_uniforms.trail_size;
+    let head_slot = particle_index * max(trail_size, 1u);
+    return sorted_particles[head_slot];
+}
+
+fn get_trail_color(particle_index: u32, section_frac: f32) -> vec4<f32> {
+    let trail_size = emitter_uniforms.trail_size;
+    let head_slot = particle_index * trail_size;
+    let last_seg = trail_size - 1u;
+    let section_f = section_frac * f32(last_seg);
+    let seg_lo = min(u32(section_f), last_seg);
+    let seg_hi = min(seg_lo + 1u, last_seg);
+    let seg_t = section_f - f32(seg_lo);
+    let color_lo = sorted_particles[head_slot + seg_lo].color;
+    let color_hi = sorted_particles[head_slot + seg_hi].color;
+    return mix(color_lo, color_hi, seg_t);
+}
+
+fn particle_vertex_impl(vertex: Vertex) -> VertexOutput {
+    var out: VertexOutput;
+
+#ifdef VERTEX_OUTPUT_INSTANCE_INDEX
+    out.instance_index = vertex.instance_index;
+#endif
+
+    let particle_index = u32(round(vertex.uv_b.x));
+    let trail_size = emitter_uniforms.trail_size;
+    var world_from_local = mesh_functions::get_world_from_local(vertex.instance_index);
+
+#ifdef VERTEX_UVS_A
+    out.uv = vertex.uv;
+#endif
+
+#ifdef VERTEX_UVS_B
+    out.uv_b = vertex.uv_b;
+#endif
+
+    if (trail_size > 1u) {
+        let head_slot = particle_index * trail_size;
+        let head_particle = sorted_particles[head_slot];
+        let head_flags = bitcast<u32>(head_particle.custom.w);
+        let is_active = (head_flags & PARTICLE_FLAG_ACTIVE) != 0u;
+
+        let section_frac = vertex.uv_b.y;
+
+        let last_seg = trail_size - 1u;
+        let section_f = section_frac * f32(last_seg);
+        let seg_lo = min(u32(section_f), last_seg);
+        let seg_hi = min(seg_lo + 1u, last_seg);
+        let seg_t = section_f - f32(seg_lo);
+
+        let idx_lo = head_slot + seg_lo;
+        let idx_hi = head_slot + seg_hi;
+        let pos_lo = sorted_particles[idx_lo].position.xyz;
+        let pos_hi = sorted_particles[idx_hi].position.xyz;
+        let scale_lo = sorted_particles[idx_lo].position.w;
+        let scale_hi = sorted_particles[idx_hi].position.w;
+
+        let trail_pos = mix(pos_lo, pos_hi, seg_t);
+        let base_scale = mix(scale_lo, scale_hi, seg_t);
+        let particle_scale = select(0.0, base_scale, is_active);
+
+        let last_curve_idx = TRAIL_THICKNESS_CURVE_SAMPLES - 1u;
+        let curve_idx_f = (1.0 - section_frac) * f32(last_curve_idx);
+        let curve_lo = min(u32(curve_idx_f), last_curve_idx);
+        let curve_hi = min(curve_lo + 1u, last_curve_idx);
+        let curve_t = curve_idx_f - f32(curve_lo);
+        let thickness = mix(
+            emitter_uniforms.trail_thickness_curve[curve_lo],
+            emitter_uniforms.trail_thickness_curve[curve_hi],
+            curve_t
+        );
+
+        var trail_dir: vec3<f32>;
+        if (seg_lo != seg_hi) {
+            trail_dir = pos_hi - pos_lo;
+        } else {
+            let prev_pos = sorted_particles[head_slot + max(seg_lo, 1u) - 1u].position.xyz;
+            trail_dir = pos_lo - prev_pos;
+        }
+        let dir_len = length(trail_dir);
+        if (dir_len > 0.001) {
+            trail_dir = trail_dir / dir_len;
+        } else {
+            trail_dir = -normalize(head_particle.velocity.xyz);
+        }
+
+        let orient = align_y_to_direction(trail_dir);
+
+        var cross_section = vertex.position;
+        cross_section.x *= thickness;
+        cross_section.z *= thickness;
+        cross_section.y = 0.0;
+
+        let is_local = emitter_uniforms.use_local_coords != 0u;
+
+        if (is_local) {
+            let offset = orient * (cross_section * particle_scale);
+            let local_pos = trail_pos + offset;
+            out.world_position = mesh_functions::mesh_position_local_to_world(
+                world_from_local, vec4(local_pos, 1.0)
+            );
+        } else {
+            let emitter_scale = vec3(
+                length(world_from_local[0].xyz),
+                length(world_from_local[1].xyz),
+                length(world_from_local[2].xyz),
+            );
+            let offset = orient * (cross_section * particle_scale * emitter_scale);
+            out.world_position = vec4(trail_pos + offset, 1.0);
+        }
+
+        out.position = position_world_to_clip(out.world_position.xyz);
+
+#ifdef VERTEX_NORMALS
+        let rotated_normal = orient * vertex.normal;
+        if (is_local) {
+            out.world_normal = mesh_functions::mesh_normal_local_to_world(rotated_normal, vertex.instance_index);
+        } else {
+            out.world_normal = rotated_normal;
+        }
+#endif
+
+#ifdef VERTEX_TANGENTS
+        let rotated_tangent_trail = orient * vertex.tangent.xyz;
+        if (is_local) {
+            out.world_tangent = mesh_functions::mesh_tangent_local_to_world(world_from_local, vec4(rotated_tangent_trail, vertex.tangent.w), vertex.instance_index);
+        } else {
+            out.world_tangent = vec4(rotated_tangent_trail, vertex.tangent.w);
+        }
+#endif
+
+#ifdef VERTEX_COLORS
+        let color_lo = sorted_particles[idx_lo].color;
+        let color_hi = sorted_particles[idx_hi].color;
+        out.color = vertex.color * mix(color_lo, color_hi, seg_t);
+#endif
+
+        return out;
+    }
+
+    let particle = sorted_particles[particle_index];
+
+    let flags = bitcast<u32>(particle.custom.w);
+    let is_active = (flags & PARTICLE_FLAG_ACTIVE) != 0u;
+
+    let particle_position = particle.position.xyz;
+    let particle_scale = select(0.0, particle.position.w, is_active);
+    let is_local = emitter_uniforms.use_local_coords != 0u;
+
+    var rotated_position = vertex.position;
+#ifdef VERTEX_NORMALS
+    var rotated_normal = vertex.normal;
+#endif
+#ifdef VERTEX_TANGENTS
+    var rotated_tangent = vertex.tangent.xyz;
+#endif
+
+    let transform_align = emitter_uniforms.transform_align;
+
+    if transform_align == TRANSFORM_ALIGN_Y_TO_VELOCITY {
+        let alignment_dir = particle.alignment_dir.xyz;
+        let dir_length = length(alignment_dir);
+        if dir_length > 0.0 {
+            let rotation_matrix = align_y_with_ref(alignment_dir, particle.ref_up.xyz);
+            rotated_position = rotation_matrix * vertex.position;
+#ifdef VERTEX_NORMALS
+            rotated_normal = rotation_matrix * vertex.normal;
+#endif
+#ifdef VERTEX_TANGENTS
+            rotated_tangent = rotation_matrix * vertex.tangent.xyz;
+#endif
+        }
+    }
+
+    let angles = particle.angles.xyz;
+    var angle_rot = mat3x3<f32>(vec3(1.0, 0.0, 0.0), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 1.0));
+    if abs(angles.x) > 0.0001 { angle_rot = rot_x(angles.x) * angle_rot; }
+    if abs(angles.y) > 0.0001 { angle_rot = rot_y(angles.y) * angle_rot; }
+    if abs(angles.z) > 0.0001 { angle_rot = rot_z(angles.z) * angle_rot; }
+
+    rotated_position = angle_rot * rotated_position;
+#ifdef VERTEX_NORMALS
+    rotated_normal = angle_rot * rotated_normal;
+#endif
+#ifdef VERTEX_TANGENTS
+    rotated_tangent = angle_rot * rotated_tangent;
+#endif
+
+    let emitter_scale = vec3(
+        length(world_from_local[0].xyz),
+        length(world_from_local[1].xyz),
+        length(world_from_local[2].xyz),
+    );
+
+    if transform_align == TRANSFORM_ALIGN_BILLBOARD || transform_align == TRANSFORM_ALIGN_BILLBOARD_Y_TO_VELOCITY || transform_align == TRANSFORM_ALIGN_BILLBOARD_FIXED_Y {
+        let cam_right = normalize(view.world_from_view[0].xyz);
+        let cam_up = normalize(view.world_from_view[1].xyz);
+        let cam_forward = normalize(view.world_from_view[2].xyz);
+
+        var particle_world_pos: vec3<f32>;
+        if is_local {
+            particle_world_pos = (world_from_local * vec4(particle_position, 1.0)).xyz;
+        } else {
+            particle_world_pos = particle_position;
+        }
+        let scale = vec3(particle_scale) * emitter_scale;
+
+        if transform_align == TRANSFORM_ALIGN_BILLBOARD_Y_TO_VELOCITY {
+            var v = particle.alignment_dir.xyz;
+            if is_local {
+                let emitter_rotation = mat3x3<f32>(
+                    normalize(world_from_local[0].xyz),
+                    normalize(world_from_local[1].xyz),
+                    normalize(world_from_local[2].xyz)
+                );
+                v = emitter_rotation * v;
+            }
+
+            var sv = v - cam_forward * dot(cam_forward, v);
+            if length(sv) < 0.001 {
+                sv = cam_up;
+            }
+            sv = normalize(sv);
+
+            let right = normalize(cross(sv, cam_forward));
+
+            let scaled_vertex = rotated_position * scale;
+            let pos = particle_world_pos
+                + right * scaled_vertex.x
+                + sv * scaled_vertex.y
+                + cam_forward * scaled_vertex.z;
+
+            out.world_position = vec4(pos, 1.0);
+            out.position = position_world_to_clip(pos);
+
+#ifdef VERTEX_NORMALS
+            out.world_normal = right * rotated_normal.x
+                + sv * rotated_normal.y
+                + cam_forward * rotated_normal.z;
+#endif
+#ifdef VERTEX_TANGENTS
+            out.world_tangent = vec4(
+                right * rotated_tangent.x + sv * rotated_tangent.y + cam_forward * rotated_tangent.z,
+                vertex.tangent.w
+            );
+#endif
+        } else if transform_align == TRANSFORM_ALIGN_BILLBOARD_FIXED_Y {
+            let world_up = vec3(0.0, 1.0, 0.0);
+            let right = normalize(cross(world_up, cam_forward));
+            let forward = cross(right, world_up);
+
+            let scaled_vertex = rotated_position * scale;
+            let pos = particle_world_pos
+                + right * scaled_vertex.x
+                + world_up * scaled_vertex.y
+                + forward * scaled_vertex.z;
+
+            out.world_position = vec4(pos, 1.0);
+            out.position = position_world_to_clip(pos);
+
+#ifdef VERTEX_NORMALS
+            out.world_normal = right * rotated_normal.x
+                + world_up * rotated_normal.y
+                + forward * rotated_normal.z;
+#endif
+#ifdef VERTEX_TANGENTS
+            out.world_tangent = vec4(
+                right * rotated_tangent.x + world_up * rotated_tangent.y + forward * rotated_tangent.z,
+                vertex.tangent.w
+            );
+#endif
+        } else {
+            let scaled_vertex = rotated_position * scale;
+            let billboard_pos = particle_world_pos
+                + cam_right * scaled_vertex.x
+                + cam_up * scaled_vertex.y
+                + cam_forward * scaled_vertex.z;
+
+            out.world_position = vec4(billboard_pos, 1.0);
+            out.position = position_world_to_clip(billboard_pos);
+
+#ifdef VERTEX_NORMALS
+            out.world_normal = cam_right * rotated_normal.x
+                + cam_up * rotated_normal.y
+                + cam_forward * rotated_normal.z;
+#endif
+#ifdef VERTEX_TANGENTS
+            out.world_tangent = vec4(
+                cam_right * rotated_tangent.x + cam_up * rotated_tangent.y + cam_forward * rotated_tangent.z,
+                vertex.tangent.w
+            );
+#endif
+        }
+    } else {
+        let emitter_rotation = mat3x3(
+            normalize(world_from_local[0].xyz),
+            normalize(world_from_local[1].xyz),
+            normalize(world_from_local[2].xyz)
+        );
+
+        if is_local {
+            let offset = rotated_position * particle_scale;
+            let local_position = offset + particle_position;
+            out.world_position = mesh_functions::mesh_position_local_to_world(world_from_local, vec4(local_position, 1.0));
+        } else {
+            let offset = emitter_rotation * (rotated_position * particle_scale * emitter_scale);
+            out.world_position = vec4(particle_position + offset, 1.0);
+        }
+
+        out.position = position_world_to_clip(out.world_position.xyz);
+
+#ifdef VERTEX_NORMALS
+        if is_local {
+            out.world_normal = mesh_functions::mesh_normal_local_to_world(rotated_normal, vertex.instance_index);
+        } else {
+            out.world_normal = emitter_rotation * rotated_normal;
+        }
+#endif
+#ifdef VERTEX_TANGENTS
+        if is_local {
+            out.world_tangent = mesh_functions::mesh_tangent_local_to_world(world_from_local, vec4(rotated_tangent, vertex.tangent.w), vertex.instance_index);
+        } else {
+            out.world_tangent = vec4(emitter_rotation * rotated_tangent, vertex.tangent.w);
+        }
+#endif
+    }
+
+#ifdef VERTEX_COLORS
+    out.color = vertex.color * particle.color;
+#endif
+
+    return out;
+}
+
+#endif // not PREPASS_PIPELINE
+
+@vertex
+fn vertex(vertex: Vertex) -> VertexOutput {
+    var out: VertexOutput;
+
+#ifdef VERTEX_OUTPUT_INSTANCE_INDEX
+    out.instance_index = vertex.instance_index;
+#endif
+
 #ifdef PREPASS_PIPELINE
 #ifndef PREPASS_FRAGMENT
+#ifndef MAY_DISCARD
+    out.position = vec4(2.0, 2.0, 0.0, 1.0);
+    out.world_position = vec4(0.0);
+    return out;
+#else
+    return particle_vertex_impl(vertex);
+#endif
+#else
+    return particle_vertex_impl(vertex);
+#endif
+#else
+    return particle_vertex_impl(vertex);
+#endif
+}
+
+#ifdef PREPASS_PIPELINE
+#ifndef PREPASS_FRAGMENT
+#ifdef MAY_DISCARD
 @fragment
 fn fragment(
     in: VertexOutput,
@@ -468,8 +1178,9 @@ fn fragment(
         discard;
     }
 }
-#endif
-#endif
+#endif // MAY_DISCARD
+#endif // not PREPASS_FRAGMENT
+#endif // PREPASS_PIPELINE
 
 // deferred prepass fragment (normal/motion vector/deferred passes)
 #ifdef PREPASS_PIPELINE
@@ -506,8 +1217,8 @@ fn fragment(
 
     return out;
 }
-#endif
-#endif
+#endif // PREPASS_FRAGMENT
+#endif // PREPASS_PIPELINE
 
 // forward rendering fragment
 #ifndef PREPASS_PIPELINE
@@ -539,7 +1250,7 @@ fn fragment(
 
     var pbr_input = pbr_input_from_standard_material(in, is_front);
     pbr_input.material.base_color = pbr_input.material.base_color * particle_color;
-    pbr_input.material.base_color = alpha_discard(pbr_input.material.flags, pbr_input.material.alpha_cutoff, pbr_input.material.base_color);
+    pbr_input.material.base_color = alpha_discard(pbr_input.material, pbr_input.material.base_color);
 
     let particle_alpha = pbr_input.material.base_color.a;
 
@@ -560,4 +1271,4 @@ fn fragment(
 
     return out;
 }
-#endif
+#endif // not PREPASS_PIPELINE
