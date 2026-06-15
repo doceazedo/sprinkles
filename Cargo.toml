@@ -22,6 +22,7 @@ bevy = { version = "0.19.0-rc.3", default-features = false, features = [
     "ui_bevy_render",
     "picking",
     "bevy_ui_widgets",
+    "system_clipboard",
     # "reflect_auto_register",
 ] }
 serde = { version = "1", features = ["derive"] }
