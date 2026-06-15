@@ -1,13 +1,13 @@
 mod color_math;
 pub mod materials;
 
+use crate::ui::widgets::text_edit::set_text_input_value;
 use bevy::input_focus::InputFocus;
 use bevy::picking::events::{Press, Release};
 use bevy::picking::prelude::Pickable;
 use bevy::prelude::*;
-use bevy::ui::UiGlobalTransform;
 use bevy::text::EditableText;
-use crate::ui::widgets::text_edit::set_text_input_value;
+use bevy::ui::UiGlobalTransform;
 
 use color_math::{hsv_to_rgb, parse_hex, rgb_to_hsv};
 pub use materials::{

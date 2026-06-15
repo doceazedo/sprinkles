@@ -27,7 +27,9 @@ use crate::ui::widgets::popover::{
     EditorPopover, PopoverHeaderProps, PopoverPlacement, PopoverProps, PopoverTracker,
     activate_trigger, deactivate_trigger, popover, popover_header,
 };
-use crate::ui::widgets::text_edit::{TextEditCommitEvent, TextEditProps, set_text_input_value, text_edit};
+use crate::ui::widgets::text_edit::{
+    TextEditCommitEvent, TextEditProps, set_text_input_value, text_edit,
+};
 use bevy::text::EditableText;
 
 const BAR_HEIGHT: f32 = 24.0;

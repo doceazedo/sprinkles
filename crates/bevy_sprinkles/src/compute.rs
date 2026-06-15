@@ -474,10 +474,12 @@ pub fn run_particle_compute_node(
         for (pass_index, label) in pass_labels.iter().enumerate() {
             let is_target_pass = pass_index == 1;
 
-            let mut pass = ctx.command_encoder().begin_compute_pass(&ComputePassDescriptor {
-                label: Some(label),
-                ..default()
-            });
+            let mut pass = ctx
+                .command_encoder()
+                .begin_compute_pass(&ComputePassDescriptor {
+                    label: Some(label),
+                    ..default()
+                });
 
             pass.set_pipeline(compute_pipeline);
 

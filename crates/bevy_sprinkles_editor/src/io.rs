@@ -130,7 +130,9 @@ pub fn data_dir() -> PathBuf {
     #[cfg(unix)]
     let home = env::var_os("HOME").map(PathBuf::from).unwrap_or_default();
     #[cfg(not(unix))]
-    let home = env::var_os("USERPROFILE").map(PathBuf::from).unwrap_or_default();
+    let home = env::var_os("USERPROFILE")
+        .map(PathBuf::from)
+        .unwrap_or_default();
     home.join(".sprinkles")
 }
 

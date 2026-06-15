@@ -5,10 +5,10 @@ mod sync;
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use bevy::reflect::{
+    PartialReflect, ReflectMut, ReflectRef, TypeInfo,
     enums::{DynamicEnum, DynamicVariant, VariantInfo},
     structs::DynamicStruct,
     tuple::DynamicTuple,
-    PartialReflect, ReflectMut, ReflectRef, TypeInfo,
 };
 use bevy_sprinkles::prelude::*;
 

@@ -3,7 +3,9 @@ use std::time::Duration;
 use bevy::input_focus::{FocusCause, InputFocus};
 use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
-use bevy::text::{EditableText, EditableTextFilter, FontFeatureTag, FontFeatures, TextEdit, TextLayoutInfo};
+use bevy::text::{
+    EditableText, EditableTextFilter, FontFeatureTag, FontFeatures, TextEdit, TextLayoutInfo,
+};
 
 use bevy::ui::UiGlobalTransform;
 use bevy::window::SystemCursorIcon;
@@ -480,7 +482,9 @@ fn setup_text_edit_input(
                     Pickable::IGNORE,
                 ))
                 .id();
-            commands.entity(text_input_entity).add_child(placeholder_entity);
+            commands
+                .entity(text_input_entity)
+                .add_child(placeholder_entity);
             commands.entity(text_input_entity).insert(Placeholder {
                 text: placeholder_text,
             });
@@ -699,8 +703,7 @@ fn handle_clamp_on_unfocus(
         return;
     }
 
-    let Ok((variant, mut editable, suffix, range, allow_empty)) =
-        text_edits.get_mut(was_focused)
+    let Ok((variant, mut editable, suffix, range, allow_empty)) = text_edits.get_mut(was_focused)
     else {
         return;
     };
@@ -794,13 +797,13 @@ fn handle_drag_value(
 
         if mouse.just_pressed(MouseButton::Left) && *interaction == Interaction::Pressed {
             if let Some(pos) = cursor_pos {
-                let start_value =
-                    if let Ok((_, editable, suffix, _)) = text_edits.get(input_entity) {
-                        let text = editable.value().to_string();
-                        parse_numeric_value(&text, suffix)
-                    } else {
-                        continue;
-                    };
+                let start_value = if let Ok((_, editable, suffix, _)) = text_edits.get(input_entity)
+                {
+                    let text = editable.value().to_string();
+                    parse_numeric_value(&text, suffix)
+                } else {
+                    continue;
+                };
                 hitbox.dragging = true;
                 hitbox.start_x = pos.x;
                 hitbox.start_value = start_value;

@@ -36,12 +36,12 @@ use crate::ui::widgets::popover::{
     activate_trigger, deactivate_trigger, popover, popover_content, popover_header,
 };
 use crate::ui::widgets::text_edit::EditorTextEdit;
+use crate::ui::widgets::text_edit::set_text_input_value;
 use crate::ui::widgets::utils::is_descendant_of;
 use crate::ui::widgets::vector_edit::{
     EditorVectorEdit, VectorEditProps, VectorSize, VectorSuffixes, vector_edit,
 };
 use bevy::text::EditableText;
-use crate::ui::widgets::text_edit::set_text_input_value;
 
 #[derive(Clone, Copy, PartialEq, Default)]
 pub(crate) enum CurveAxis {

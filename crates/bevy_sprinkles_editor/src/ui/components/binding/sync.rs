@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy::reflect::{PartialReflect, ReflectRef};
-use bevy_sprinkles::prelude::*;
 use bevy::text::EditableText;
+use bevy_sprinkles::prelude::*;
 
 use crate::io::EditorData;
 use crate::state::EditorState;

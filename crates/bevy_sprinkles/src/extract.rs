@@ -578,10 +578,8 @@ pub fn extract_particle_systems(
         .map(|t| (t.translation(), t.forward().as_vec3()))
         .unwrap_or((Vec3::ZERO, Vec3::NEG_Z));
 
-    let mut emission_buffer_map: std::collections::HashMap<
-        (Entity, usize),
-        Handle<ShaderBuffer>,
-    > = std::collections::HashMap::new();
+    let mut emission_buffer_map: std::collections::HashMap<(Entity, usize), Handle<ShaderBuffer>> =
+        std::collections::HashMap::new();
     for (_entity, emitter_entity, runtime, _buffer_handle, _global_transform, sub_emitter_buf) in
         emitter_query.iter()
     {

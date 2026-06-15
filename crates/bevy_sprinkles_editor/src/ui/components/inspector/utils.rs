@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use bevy::prelude::*;
-use bevy::reflect::{enums::VariantInfo, TypeInfo, Typed};
+use bevy::reflect::{TypeInfo, Typed, enums::VariantInfo};
 use inflector::Inflector;
 
 use crate::ui::widgets::combobox::ComboBoxOptionData;
