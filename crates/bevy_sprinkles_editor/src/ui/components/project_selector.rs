@@ -1,14 +1,11 @@
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
-use bevy::input_focus::InputFocus;
+use bevy::input_focus::{FocusCause, InputFocus};
 use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
 use bevy::tasks::IoTaskPool;
-use bevy_ui_text_input::{
-    TextInputBuffer, TextInputPrompt, TextInputQueue,
-    actions::{TextInputAction, TextInputEdit},
-};
+use bevy::text::EditableText;
 
 use bevy_sprinkles::prelude::*;
 
@@ -31,7 +28,9 @@ use crate::ui::widgets::dialog::{
     DialogActionEvent, DialogChildrenSlot, EditorDialog, OpenDialogEvent,
 };
 use crate::ui::widgets::popover::{EditorPopover, PopoverPlacement, PopoverProps, popover};
-use crate::ui::widgets::text_edit::{EditorTextEdit, TextEditProps, text_edit};
+use crate::ui::widgets::text_edit::{
+    EditorTextEdit, Placeholder, PlaceholderNode, TextEditProps, set_text_input_value, text_edit,
+};
 use crate::ui::widgets::utils::is_descendant_of;
 use crate::utils::simplify_path;
 
@@ -273,8 +272,8 @@ fn handle_trigger_click(
     commands.entity(popover_entity).with_child((
         Text::new("Recent projects"),
         TextFont {
-            font,
-            font_size: TEXT_SIZE_SM,
+            font: font.into(),
+            font_size: TEXT_SIZE_SM.into(),
             weight: FontWeight::MEDIUM,
             ..default()
         },
@@ -637,8 +636,8 @@ fn setup_new_project_dialog_content(
         .spawn((
             Text::new(".ron"),
             TextFont {
-                font: font.clone(),
-                font_size: TEXT_SIZE,
+                font: font.clone().into(),
+                font_size: TEXT_SIZE.into(),
                 ..default()
             },
             TextColor(TEXT_MUTED_COLOR.into()),
@@ -672,8 +671,8 @@ fn setup_new_project_dialog_content(
     grid.with_child((
         Text::new("Project name"),
         TextFont {
-            font: font.clone(),
-            font_size: TEXT_SIZE,
+            font: font.clone().into(),
+            font_size: TEXT_SIZE.into(),
             weight: FontWeight::MEDIUM,
             ..default()
         },
@@ -683,8 +682,8 @@ fn setup_new_project_dialog_content(
     grid.with_child((
         Text::new("Location"),
         TextFont {
-            font,
-            font_size: TEXT_SIZE,
+            font: font.into(),
+            font_size: TEXT_SIZE.into(),
             weight: FontWeight::MEDIUM,
             ..default()
         },
@@ -714,7 +713,7 @@ fn focus_new_project_name(
     };
 
     if let Some(inner) = find_inner_text_edit(name_entity, &children_query, &text_edits) {
-        focus.0 = Some(inner);
+        focus.set(inner, FocusCause::Navigated);
         state.focused = true;
     }
 }
@@ -723,8 +722,9 @@ fn update_location_placeholder(
     state: Option<Res<NewProjectDialogState>>,
     children_query: Query<&Children>,
     text_edits: Query<Entity, With<EditorTextEdit>>,
-    buffers: Query<&TextInputBuffer>,
-    mut prompts: Query<&mut TextInputPrompt>,
+    buffers: Query<&EditableText>,
+    mut placeholders: Query<&mut Placeholder>,
+    mut placeholder_texts: Query<&mut Text, With<PlaceholderNode>>,
 ) {
     let Some(state) = state else { return };
     let Some(name_entity) = state.name_entity else {
@@ -742,10 +742,10 @@ fn update_location_placeholder(
         return;
     };
 
-    let Ok(buffer) = buffers.get(name_inner) else {
+    let Ok(editable) = buffers.get(name_inner) else {
         return;
     };
-    let name_text = buffer.get_text();
+    let name_text = editable.value().to_string();
 
     let slug = if name_text.is_empty() {
         state.default_slug.clone()
@@ -759,9 +759,21 @@ fn update_location_placeholder(
     };
 
     let new_placeholder = format!("projects/{}", slug);
-    if let Ok(mut prompt) = prompts.get_mut(location_inner) {
-        if prompt.text != new_placeholder {
-            prompt.text = new_placeholder;
+
+    if let Ok(mut placeholder) = placeholders.get_mut(location_inner) {
+        if placeholder.text != new_placeholder {
+            placeholder.text = new_placeholder.clone();
+        }
+    }
+
+    if let Ok(children) = children_query.get(location_inner) {
+        for child in children.iter() {
+            if let Ok(mut text) = placeholder_texts.get_mut(child) {
+                if **text != new_placeholder {
+                    **text = new_placeholder.clone();
+                }
+                break;
+            }
         }
     }
 }
@@ -775,7 +787,7 @@ fn handle_create_project(
     mut dirty_state: ResMut<DirtyState>,
     children_query: Query<&Children>,
     text_edits: Query<Entity, With<EditorTextEdit>>,
-    buffers: Query<&TextInputBuffer>,
+    buffers: Query<&EditableText>,
     mut commands: Commands,
 ) {
     let Some(state) = state else { return };
@@ -788,13 +800,13 @@ fn handle_create_project(
 
     let name = find_inner_text_edit(name_entity, &children_query, &text_edits)
         .and_then(|e| buffers.get(e).ok())
-        .map(|b| b.get_text().to_string())
+        .map(|b| b.value().to_string())
         .filter(|s| !s.is_empty())
         .unwrap_or_else(|| state.default_name.clone());
 
     let location_raw = find_inner_text_edit(location_entity, &children_query, &text_edits)
         .and_then(|e| buffers.get(e).ok())
-        .map(|b| b.get_text().to_string())
+        .map(|b| b.value().to_string())
         .filter(|s| !s.is_empty());
 
     let slug = slugify(&name);
@@ -880,8 +892,7 @@ fn poll_browse_location_result(
     state: Option<Res<NewProjectDialogState>>,
     children_query: Query<&Children>,
     text_edits: Query<Entity, With<EditorTextEdit>>,
-    buffers: Query<&TextInputBuffer>,
-    mut queues: Query<&mut TextInputQueue>,
+    mut editables: Query<&mut EditableText>,
     mut commands: Commands,
 ) {
     let Some(result) = result else { return };
@@ -906,22 +917,21 @@ fn poll_browse_location_result(
     };
 
     let slug = find_inner_text_edit(name_entity, &children_query, &text_edits)
-        .and_then(|e| buffers.get(e).ok())
-        .map(|b| slugify(&b.get_text()))
+        .and_then(|e| editables.get(e).ok())
+        .map(|b| slugify(&b.value().to_string()))
         .filter(|s| !s.is_empty())
         .unwrap_or_else(|| state.default_slug.clone());
 
     let Some(inner) = find_inner_text_edit(location_entity, &children_query, &text_edits) else {
         return;
     };
-    let Ok(mut queue) = queues.get_mut(inner) else {
+    let Ok(mut editable) = editables.get_mut(inner) else {
         return;
     };
 
     let dir_path = simplify_path(&path);
     let display_path = format!("{dir_path}/{slug}");
-    queue.add(TextInputAction::Edit(TextInputEdit::SelectAll));
-    queue.add(TextInputAction::Edit(TextInputEdit::Paste(display_path)));
+    set_text_input_value(&mut editable, display_path);
 }
 
 fn cleanup_new_project_state(

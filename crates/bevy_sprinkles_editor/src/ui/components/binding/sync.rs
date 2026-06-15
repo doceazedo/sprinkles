@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy::reflect::{PartialReflect, ReflectRef};
 use bevy_sprinkles::prelude::*;
-use bevy_ui_text_input::TextInputQueue;
+use bevy::text::EditableText;
 
 use crate::io::EditorData;
 use crate::state::EditorState;
@@ -29,7 +29,7 @@ pub(super) fn bind_text_inputs(
     new_bindings: Query<Entity, Added<FieldBinding>>,
     new_bound: Query<Entity, Added<BoundTo>>,
     bindings: Query<&FieldBinding>,
-    mut text_edits: Query<(&BoundTo, &mut TextInputQueue), With<EditorTextEdit>>,
+    mut text_edits: Query<(&BoundTo, &mut EditableText), With<EditorTextEdit>>,
 ) {
     if !tracker.is_changed() && new_bindings.is_empty() && new_bound.is_empty() {
         return;

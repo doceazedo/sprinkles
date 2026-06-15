@@ -4,8 +4,6 @@ use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use bevy_easings::{CustomComponentEase, EaseFunction, EasingComponent, EasingType, Lerp};
 
-use bevy_ui_text_input::TextInputPrompt;
-
 use crate::ui::icons::ICON_CLOSE;
 use crate::ui::tokens::{
     BACKGROUND_COLOR, BORDER_COLOR, FONT_PATH, TEXT_DISPLAY_COLOR, TEXT_MUTED_COLOR, TEXT_SIZE_LG,
@@ -215,9 +213,6 @@ impl Lerp for DialogVisual {
 }
 
 #[derive(Component)]
-struct PromptBaseAlpha(f32);
-
-#[derive(Component)]
 struct BaseBgAlpha(f32);
 
 #[derive(Component)]
@@ -299,8 +294,8 @@ fn spawn_dialog(commands: &mut Commands, asset_server: &AssetServer, event: &Ope
             header.with_child((
                 Text::new(title),
                 TextFont {
-                    font: font.clone(),
-                    font_size: TEXT_SIZE_XL,
+                    font: font.clone().into(),
+                    font_size: TEXT_SIZE_XL.into(),
                     weight: FontWeight::SEMIBOLD,
                     ..default()
                 },
@@ -312,8 +307,8 @@ fn spawn_dialog(commands: &mut Commands, asset_server: &AssetServer, event: &Ope
             header.with_child((
                 Text::new(desc),
                 TextFont {
-                    font: font.clone(),
-                    font_size: TEXT_SIZE_LG,
+                    font: font.clone().into(),
+                    font_size: TEXT_SIZE_LG.into(),
                     ..default()
                 },
                 TextColor(TEXT_MUTED_COLOR.with_alpha(0.0).into()),
@@ -471,8 +466,6 @@ struct AlphaQueries<'w, 's> {
     border_colors: Query<'w, 's, &'static mut BorderColor>,
     text_colors: Query<'w, 's, &'static mut TextColor>,
     image_nodes: Query<'w, 's, &'static mut ImageNode>,
-    prompts: Query<'w, 's, (Entity, &'static mut TextInputPrompt)>,
-    base_alphas: Query<'w, 's, &'static PromptBaseAlpha>,
     base_bg_alphas: Query<'w, 's, &'static BaseBgAlpha>,
     children: Query<'w, 's, &'static Children>,
     buttons: Query<'w, 's, &'static ButtonVariant, With<EditorButton>>,
@@ -526,18 +519,6 @@ impl AlphaQueries<'_, '_> {
             image.color = base.with_alpha(alpha).into();
         }
 
-        if let Ok((_, mut prompt)) = self.prompts.get_mut(entity) {
-            if let Some(color) = &mut prompt.color {
-                let base: Srgba = (*color).into();
-                let base_alpha = self
-                    .base_alphas
-                    .get(entity)
-                    .map(|b| b.0)
-                    .unwrap_or(base.alpha);
-                *color = base.with_alpha(base_alpha * alpha).into();
-            }
-        }
-
         if let Ok(children) = self.children.get(entity) {
             let children: Vec<Entity> = children.iter().collect();
             for child in children {
@@ -580,18 +561,6 @@ fn sync_dialog_visual(
     mut alpha_queries: AlphaQueries,
     backdrop_query: Query<Entity, With<DialogBackdrop>>,
 ) {
-    if !dialogs.is_empty() {
-        for (entity, prompt) in &alpha_queries.prompts {
-            if alpha_queries.base_alphas.contains(entity) {
-                continue;
-            }
-            if let Some(color) = prompt.color {
-                let base: Srgba = color.into();
-                commands.entity(entity).insert(PromptBaseAlpha(base.alpha));
-            }
-        }
-    }
-
     let mut pending_base_bg = Vec::new();
 
     for (visual, dialog_children) in &dialogs {
