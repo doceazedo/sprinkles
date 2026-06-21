@@ -1,5 +1,6 @@
 use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
+use bevy::text::FontSourceTemplate;
 
 use crate::state::{ActiveSidebarTab, SidebarTab};
 use crate::ui::tokens::{
@@ -10,16 +11,16 @@ use crate::ui::widgets::separator::EditorSeparator;
 
 use super::data_panel::EditorDataPanel;
 
-#[derive(Component)]
+#[derive(Component, Default, Clone)]
 pub struct EditorSidebar;
 
-#[derive(Component, Clone, Copy)]
+#[derive(Component, Default, Clone, Copy)]
 struct SidebarButton(SidebarTab);
 
-#[derive(Component)]
+#[derive(Component, Default, Clone)]
 struct SidebarButtonIcon;
 
-#[derive(Component)]
+#[derive(Component, Default, Clone)]
 struct SidebarButtonImage;
 
 pub fn plugin(app: &mut App) {
@@ -34,88 +35,85 @@ pub fn plugin(app: &mut App) {
     );
 }
 
-pub fn sidebar() -> impl Bundle {
-    (
-        EditorSidebar,
+pub fn sidebar() -> impl Scene {
+    bsn! {
+        EditorSidebar
         Node {
             width: px(72),
-            flex_direction: FlexDirection::Column,
-            padding: UiRect::all(px(12)),
+            flex_direction: { FlexDirection::Column },
+            padding: { UiRect::all(px(12)) },
             row_gap: px(12),
-            border: UiRect::right(px(1)),
-            ..default()
-        },
-        BackgroundColor(BACKGROUND_COLOR.into()),
-        BorderColor::all(BORDER_COLOR),
-    )
+            border: { UiRect::right(px(1)) },
+        }
+        BackgroundColor(BACKGROUND_COLOR)
+        template_value(BorderColor::all(BORDER_COLOR))
+    }
 }
 
-fn sidebar_button(parent: &mut ChildSpawnerCommands, tab: SidebarTab, asset_server: &AssetServer) {
-    let font: Handle<Font> = asset_server.load(FONT_PATH);
-
-    parent
-        .spawn((
-            SidebarButton(tab),
-            Button,
-            Hovered::default(),
-            Node {
-                width: percent(100),
-                flex_direction: FlexDirection::Column,
-                align_items: AlignItems::Center,
-                row_gap: px(2),
-                ..default()
-            },
-        ))
-        .with_children(|btn| {
-            btn.spawn((
-                SidebarButton(tab),
-                SidebarButtonIcon,
+fn sidebar_button(tab: SidebarTab) -> impl Scene {
+    bsn! {
+        SidebarButton(tab)
+        Button
+        Hovered
+        Node {
+            width: percent(100),
+            flex_direction: { FlexDirection::Column },
+            align_items: { AlignItems::Center },
+            row_gap: px(2),
+        }
+        Children [
+            (
+                SidebarButton(tab)
+                SidebarButtonIcon
                 Node {
                     width: px(28),
                     height: px(28),
-                    justify_content: JustifyContent::Center,
-                    align_items: AlignItems::Center,
-                    border_radius: BorderRadius::all(CORNER_RADIUS_LG),
-                    ..default()
-                },
-                BackgroundColor(Color::NONE),
-            ))
-            .with_child((
-                SidebarButton(tab),
-                SidebarButtonImage,
-                ImageNode::new(asset_server.load(tab.icon()))
-                    .with_color(Color::Srgba(TEXT_BODY_COLOR)),
-                Node {
-                    width: px(16),
-                    height: px(16),
-                    ..default()
-                },
-            ));
-
-            btn.spawn((
-                Text::new(tab.label()),
+                    justify_content: { JustifyContent::Center },
+                    align_items: { AlignItems::Center },
+                    border_radius: { BorderRadius::all(CORNER_RADIUS_LG) },
+                }
+                BackgroundColor({ Color::NONE })
+                Children [
+                    (
+                        SidebarButton(tab)
+                        SidebarButtonImage
+                        ImageNode {
+                            image: { tab.icon() },
+                            color: { Color::Srgba(TEXT_BODY_COLOR) },
+                        }
+                        Node {
+                            width: px(16),
+                            height: px(16),
+                        }
+                    )
+                ]
+            ),
+            (
+                Text({ tab.label() })
                 TextFont {
-                    font: font.into(),
-                    font_size: TEXT_SIZE_SM.into(),
-                    ..default()
-                },
-                TextColor(TEXT_BODY_COLOR.into()),
-            ));
-        });
+                    font: { FontSourceTemplate::Handle(FONT_PATH.into()) },
+                    font_size: TEXT_SIZE_SM,
+                }
+                TextColor(TEXT_BODY_COLOR)
+            )
+        ]
+    }
 }
 
-fn setup_sidebar(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    sidebars: Query<Entity, Added<EditorSidebar>>,
-) {
+fn setup_sidebar(mut commands: Commands, sidebars: Query<Entity, Added<EditorSidebar>>) {
     for entity in &sidebars {
-        commands.entity(entity).with_children(|parent| {
-            sidebar_button(parent, SidebarTab::Project, &asset_server);
-            sidebar_button(parent, SidebarTab::Outliner, &asset_server);
-            parent.spawn(EditorSeparator::horizontal());
-            sidebar_button(parent, SidebarTab::Settings, &asset_server);
-        });
+        commands
+            .spawn_scene(sidebar_button(SidebarTab::Project))
+            .insert(ChildOf(entity));
+        commands
+            .spawn_scene(sidebar_button(SidebarTab::Outliner))
+            .insert(ChildOf(entity));
+        commands
+            .entity(entity)
+            .with_child(EditorSeparator::horizontal());
+        commands
+            .spawn_scene(sidebar_button(SidebarTab::Settings))
+            .insert(ChildOf(entity));
     }
 }
 

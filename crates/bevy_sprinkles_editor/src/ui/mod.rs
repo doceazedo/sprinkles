@@ -70,19 +70,23 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
 
     spawn_topbar(&mut commands, &asset_server, root);
 
-    commands.spawn((
-        Node {
-            width: percent(100),
-            flex_grow: 1.0,
-            min_height: px(0.0),
-            ..default()
-        },
-        children![
-            sidebar(),
-            data_panel(&asset_server),
-            inspector_panel(&asset_server),
-            viewport_container(),
-        ],
-        ChildOf(root),
-    ));
+    let main_row = commands
+        .spawn((
+            Node {
+                width: percent(100),
+                flex_grow: 1.0,
+                min_height: px(0.0),
+                ..default()
+            },
+            children![
+                data_panel(&asset_server),
+                inspector_panel(&asset_server),
+                viewport_container(),
+            ],
+            ChildOf(root),
+        ))
+        .id();
+
+    let sidebar = commands.spawn_scene(sidebar()).id();
+    commands.entity(main_row).insert_children(0, &[sidebar]);
 }
