@@ -613,15 +613,13 @@ fn setup_curve_edit(
         commands.entity(entity).add_child(label_entity);
 
         let trigger_entity = commands
-            .spawn((
-                CurveEditTrigger(entity),
-                button(
-                    ButtonProps::new(state.label())
-                        .align_left()
-                        .with_left_icon(ICON_FCURVE)
-                        .with_right_icon(ICON_MORE),
-                ),
+            .spawn_scene(button(
+                ButtonProps::new(state.label())
+                    .align_left()
+                    .with_left_icon(ICON_FCURVE)
+                    .with_right_icon(ICON_MORE),
             ))
+            .insert(CurveEditTrigger(entity))
             .id();
 
         commands.entity(entity).add_child(trigger_entity);
@@ -631,7 +629,7 @@ fn setup_curve_edit(
 fn handle_trigger_click(
     trigger: On<ButtonClickEvent>,
     mut commands: Commands,
-    asset_server: Res<AssetServer>,
+    _asset_server: Res<AssetServer>,
     triggers: Query<&CurveEditTrigger>,
     states: Query<&CurveEditState>,
     mut trackers: Query<&mut PopoverTracker>,
@@ -706,11 +704,13 @@ fn handle_trigger_click(
     let active_axis = state.active_axis;
 
     commands
+        .spawn_scene(popover_header(PopoverHeaderProps::new(
+            "Curve editor",
+            popover_entity,
+        )))
+        .insert(ChildOf(popover_entity));
+    commands
         .entity(popover_entity)
-        .with_child(popover_header(
-            PopoverHeaderProps::new("Curve editor", popover_entity),
-            &asset_server,
-        ))
         .with_children(|parent| {
             parent
                 .spawn((
@@ -733,18 +733,19 @@ fn handle_trigger_click(
                         AxesComboBox(curve_edit_entity),
                         combobox_with_selected(axes_options, axes_selected),
                     ));
-                    row.spawn((Node {
-                        flex_shrink: 0.0,
-                        ..default()
-                    },))
-                        .with_child((
-                            FlipButton(curve_edit_entity),
-                            icon_button(
-                                IconButtonProps::new(ICON_ARROW_LEFT_RIGHT)
-                                    .variant(ButtonVariant::Default),
-                                &asset_server,
-                            ),
-                        ));
+                    let flip_wrapper = row
+                        .spawn((Node {
+                            flex_shrink: 0.0,
+                            ..default()
+                        },))
+                        .id();
+                    row.commands()
+                        .spawn_scene(icon_button(
+                            IconButtonProps::new(ICON_ARROW_LEFT_RIGHT)
+                                .variant(ButtonVariant::Default),
+                        ))
+                        .insert(FlipButton(curve_edit_entity))
+                        .insert(ChildOf(flip_wrapper));
                 });
 
             parent
@@ -779,23 +780,28 @@ fn handle_trigger_click(
                         BorderColor::all(BORDER_COLOR),
                     ))
                     .with_children(|inner| {
+                        let inner_target = inner.target_entity();
                         for axis in CurveAxis::ALL {
                             let variant = if axis == active_axis {
                                 ButtonVariant::Active
                             } else {
                                 ButtonVariant::Ghost
                             };
-                            let mut btn = inner.spawn((
-                                AxisTabButton {
+                            inner
+                                .commands()
+                                .spawn_scene(button(
+                                    ButtonProps::new(axis.label()).with_variant(variant),
+                                ))
+                                .insert(AxisTabButton {
                                     curve_edit: curve_edit_entity,
                                     axis,
-                                },
-                                button(ButtonProps::new(axis.label()).with_variant(variant)),
-                            ));
-                            btn.entry::<Node>().and_modify(|mut node| {
-                                node.flex_grow = 1.0;
-                                node.flex_basis = px(0.0);
-                            });
+                                })
+                                .insert(ChildOf(inner_target))
+                                .entry::<Node>()
+                                .and_modify(|mut node| {
+                                    node.flex_grow = 1.0;
+                                    node.flex_basis = px(0.0);
+                                });
                         }
                     });
                 });
@@ -1669,6 +1675,7 @@ fn spawn_enum_options<T, C, F>(
     C: Component,
     F: Fn(T, bool) -> C,
 {
+    let parent_entity = parent.target_entity();
     let bevy::reflect::TypeInfo::Enum(info) = T::type_info() else {
         return;
     };
@@ -1681,10 +1688,13 @@ fn spawn_enum_options<T, C, F>(
         let is_active = value == current && !is_disabled;
         let variant = menu_button_variant(is_active, is_disabled);
 
-        parent.spawn((
-            make_component(value, is_disabled),
-            button(ButtonProps::new(&name).with_variant(variant).align_left()),
-        ));
+        parent
+            .commands()
+            .spawn_scene(button(
+                ButtonProps::new(&name).with_variant(variant).align_left(),
+            ))
+            .insert(make_component(value, is_disabled))
+            .insert(ChildOf(parent_entity));
     }
 }
 
@@ -1730,18 +1740,20 @@ fn spawn_delete_option(
 ) {
     let variant = menu_button_variant(false, !can_delete);
 
-    parent.spawn((
-        DeletePointOption {
-            curve_edit,
-            point_index,
-            disabled: !can_delete,
-        },
-        button(
+    let parent_entity = parent.target_entity();
+    parent
+        .commands()
+        .spawn_scene(button(
             ButtonProps::new("Delete")
                 .with_variant(variant)
                 .align_left(),
-        ),
-    ));
+        ))
+        .insert(DeletePointOption {
+            curve_edit,
+            point_index,
+            disabled: !can_delete,
+        })
+        .insert(ChildOf(parent_entity));
 }
 
 fn handle_point_right_click(

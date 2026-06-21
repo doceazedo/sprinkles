@@ -193,7 +193,7 @@ pub fn combobox_icon_with_selected(
 
 fn setup_combobox(
     mut commands: Commands,
-    asset_server: Res<AssetServer>,
+    _asset_server: Res<AssetServer>,
     mut configs: Query<(Entity, &mut ComboBoxConfig)>,
 ) {
     for (entity, mut config) in &mut configs {
@@ -204,13 +204,10 @@ fn setup_combobox(
 
         let trigger_entity = match config.style {
             ComboBoxStyle::IconOnly => commands
-                .spawn((
-                    ComboBoxTrigger(entity),
-                    icon_button(
-                        IconButtonProps::new(ICON_MORE).variant(ButtonVariant::Ghost),
-                        &asset_server,
-                    ),
+                .spawn_scene(icon_button(
+                    IconButtonProps::new(ICON_MORE).variant(ButtonVariant::Ghost),
                 ))
+                .insert(ComboBoxTrigger(entity))
                 .id(),
             ComboBoxStyle::Default => {
                 let selected_option = config.options.get(config.selected);
@@ -232,7 +229,8 @@ fn setup_combobox(
                 }
 
                 commands
-                    .spawn((ComboBoxTrigger(entity), button(button_props)))
+                    .spawn_scene(button(button_props))
+                    .insert(ComboBoxTrigger(entity))
                     .id()
             }
         };
@@ -353,15 +351,15 @@ fn handle_trigger_click(
             button_props = button_props.with_left_icon(icon_path);
         }
 
-        commands.entity(popover_entity).with_child((
-            ComboBoxOption {
+        commands
+            .spawn_scene(button(button_props))
+            .insert(ComboBoxOption {
                 combobox: combobox_entity,
                 index,
                 label: option.label.clone(),
                 value: option.value.clone(),
-            },
-            button(button_props),
-        ));
+            })
+            .insert(ChildOf(popover_entity));
     }
 }
 

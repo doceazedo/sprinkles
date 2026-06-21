@@ -582,14 +582,12 @@ fn setup_color_picker(
             let hex = state.to_hex();
 
             let trigger_entity = commands
-                .spawn((
-                    ColorPickerTrigger(entity),
-                    button(
-                        ButtonProps::new(hex)
-                            .with_variant(ButtonVariant::Default)
-                            .align_left(),
-                    ),
+                .spawn_scene(button(
+                    ButtonProps::new(hex)
+                        .with_variant(ButtonVariant::Default)
+                        .align_left(),
                 ))
+                .insert(ColorPickerTrigger(entity))
                 .id();
 
             commands.entity(entity).add_child(trigger_entity);
@@ -1133,7 +1131,7 @@ fn spawn_single_input_field(
 fn handle_trigger_click(
     trigger: On<ButtonClickEvent>,
     mut commands: Commands,
-    asset_server: Res<AssetServer>,
+    _asset_server: Res<AssetServer>,
     triggers: Query<&ColorPickerTrigger>,
     mut trackers: Query<&mut PopoverTracker>,
     existing_popovers: Query<(Entity, &ColorPickerPopover)>,
@@ -1177,11 +1175,13 @@ fn handle_trigger_click(
 
     tracker.open(popover_entity, trigger.entity);
 
+    commands
+        .spawn_scene(popover_header(PopoverHeaderProps::new(
+            "Color",
+            popover_entity,
+        )))
+        .insert(ChildOf(popover_entity));
     commands.entity(popover_entity).with_children(|parent| {
-        parent.spawn(popover_header(
-            PopoverHeaderProps::new("Color", popover_entity),
-            &asset_server,
-        ));
 
         parent.spawn((ColorPickerContent(picker_entity), popover_content()));
     });

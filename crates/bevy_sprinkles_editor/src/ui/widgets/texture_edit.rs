@@ -554,10 +554,10 @@ fn spawn_file_content(
     commands.entity(column).add_child(preview_wrapper);
 
     let btn = commands
-        .spawn((
-            SelectFileButton(variant_edit),
-            button(ButtonProps::new("Select file...").with_left_icon(ICON_FOLDER_OPEN)),
+        .spawn_scene(button(
+            ButtonProps::new("Select file...").with_left_icon(ICON_FOLDER_OPEN),
         ))
+        .insert(SelectFileButton(variant_edit))
         .id();
     commands.entity(column).add_child(btn);
 

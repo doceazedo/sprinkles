@@ -312,14 +312,12 @@ fn setup_gradient_edit(
             commands.entity(entity).add_child(label_entity);
 
             let trigger_entity = commands
-                .spawn((
-                    GradientEditTrigger(entity),
-                    button(
-                        ButtonProps::new("Gradient")
-                            .with_variant(ButtonVariant::Default)
-                            .align_left(),
-                    ),
+                .spawn_scene(button(
+                    ButtonProps::new("Gradient")
+                        .with_variant(ButtonVariant::Default)
+                        .align_left(),
                 ))
+                .insert(GradientEditTrigger(entity))
                 .id();
 
             commands.entity(entity).add_child(trigger_entity);
@@ -404,7 +402,7 @@ fn sync_trigger_swatch(
 fn handle_trigger_click(
     trigger: On<ButtonClickEvent>,
     mut commands: Commands,
-    asset_server: Res<AssetServer>,
+    _asset_server: Res<AssetServer>,
     triggers: Query<&GradientEditTrigger>,
     mut trackers: Query<&mut PopoverTracker>,
     configs: Query<&GradientEditConfig>,
@@ -451,12 +449,13 @@ fn handle_trigger_click(
         .and_then(|c| c.label.as_deref())
         .unwrap_or("Gradient");
 
+    commands
+        .spawn_scene(popover_header(PopoverHeaderProps::new(
+            header_title,
+            popover_entity,
+        )))
+        .insert(ChildOf(popover_entity));
     commands.entity(popover_entity).with_children(|parent| {
-        parent.spawn(popover_header(
-            PopoverHeaderProps::new(header_title, popover_entity),
-            &asset_server,
-        ));
-
         parent.spawn((
             GradientEditContent(edit_entity),
             Node {
@@ -734,7 +733,7 @@ fn spawn_stop_rows(
     parent: &mut ChildSpawnerCommands,
     gradient_edit: Entity,
     gradient: &ParticleGradient,
-    asset_server: &AssetServer,
+    _asset_server: &AssetServer,
 ) {
     for (i, stop) in gradient.stops.iter().enumerate() {
         let can_delete = gradient.stops.len() > 1;
@@ -774,13 +773,13 @@ fn spawn_stop_rows(
                     ButtonVariant::Disabled
                 };
 
-                row.spawn((
-                    DeleteStopButton(StopRef::new(gradient_edit, i)),
-                    icon_button(
+                let row_target = row.target_entity();
+                row.commands()
+                    .spawn_scene(icon_button(
                         IconButtonProps::new(ICON_CLOSE).variant(delete_variant),
-                        asset_server,
-                    ),
-                ));
+                    ))
+                    .insert(DeleteStopButton(StopRef::new(gradient_edit, i)))
+                    .insert(ChildOf(row_target));
             });
     }
 }
@@ -1283,14 +1282,16 @@ fn handle_handle_right_click(
             .id();
 
         commands.entity(popover_entity).with_children(|parent| {
-            parent.spawn((
-                RedistributeOption(handle.gradient_edit),
-                button(
+            let parent_target = parent.target_entity();
+            parent
+                .commands()
+                .spawn_scene(button(
                     ButtonProps::new("Redistribute stops")
                         .with_variant(ButtonVariant::Ghost)
                         .align_left(),
-                ),
-            ));
+                ))
+                .insert(RedistributeOption(handle.gradient_edit))
+                .insert(ChildOf(parent_target));
 
             parent.spawn((
                 Node {
@@ -1308,14 +1309,18 @@ fn handle_handle_right_click(
                 ButtonVariant::Disabled
             };
 
-            parent.spawn((
-                DeleteMenuOption(StopRef::new(handle.gradient_edit, handle.index)),
-                button(
+            parent
+                .commands()
+                .spawn_scene(button(
                     ButtonProps::new("Delete")
                         .with_variant(delete_variant)
                         .align_left(),
-                ),
-            ));
+                ))
+                .insert(DeleteMenuOption(StopRef::new(
+                    handle.gradient_edit,
+                    handle.index,
+                )))
+                .insert(ChildOf(parent_target));
         });
 
         break;

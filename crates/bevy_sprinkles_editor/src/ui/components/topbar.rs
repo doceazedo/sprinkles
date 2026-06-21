@@ -62,15 +62,15 @@ pub fn spawn_topbar(commands: &mut Commands, asset_server: &AssetServer, parent:
     let right = commands.spawn_scene(topbar_right()).insert(ChildOf(bar)).id();
     commands.spawn(seekbar(asset_server)).insert(ChildOf(right));
     commands
-        .spawn(playback_controls(asset_server))
+        .spawn_scene(playback_controls())
         .insert(ChildOf(right));
     commands
         .spawn_scene(EditorSeparator::vertical())
         .insert(ChildOf(right));
     commands
-        .spawn((
-            SaveButton,
-            button(ButtonProps::new("Save").with_variant(ButtonVariant::Primary)),
+        .spawn_scene(button(
+            ButtonProps::new("Save").with_variant(ButtonVariant::Primary),
         ))
+        .insert(SaveButton)
         .insert(ChildOf(right));
 }

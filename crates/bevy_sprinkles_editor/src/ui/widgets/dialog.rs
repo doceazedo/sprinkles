@@ -321,27 +321,34 @@ fn spawn_dialog(commands: &mut Commands, asset_server: &AssetServer, event: &Ope
     };
 
     let footer_id = if has_footer {
-        let mut footer = commands.spawn(Node {
-            padding: UiRect::all(px(24)),
-            column_gap: px(6),
-            justify_content: JustifyContent::End,
-            ..default()
-        });
+        let footer = commands
+            .spawn(Node {
+                padding: UiRect::all(px(24)),
+                column_gap: px(6),
+                justify_content: JustifyContent::End,
+                ..default()
+            })
+            .id();
 
         if let Some(cancel) = &event.cancel {
-            footer.with_child((DialogCancelButton, button(ButtonProps::new(cancel))));
+            let cancel_btn = commands
+                .spawn_scene(button(ButtonProps::new(cancel)))
+                .insert(DialogCancelButton)
+                .id();
+            commands.entity(footer).add_child(cancel_btn);
         }
 
         if let Some(action) = &event.action {
-            footer.with_child((
-                DialogActionButton,
-                button(
+            let action_btn = commands
+                .spawn_scene(button(
                     ButtonProps::new(action).with_variant(event.variant.action_button_variant()),
-                ),
-            ));
+                ))
+                .insert(DialogActionButton)
+                .id();
+            commands.entity(footer).add_child(action_btn);
         }
 
-        Some(footer.id())
+        Some(footer)
     } else {
         None
     };
@@ -387,21 +394,26 @@ fn spawn_dialog(commands: &mut Commands, asset_server: &AssetServer, event: &Ope
     }
 
     if event.has_close_button {
-        panel.with_child((
-            Node {
-                position_type: PositionType::Absolute,
-                top: px(20),
-                right: px(20),
-                ..default()
-            },
-            children![(
-                DialogCloseButton,
-                icon_button(
-                    IconButtonProps::new(ICON_CLOSE).variant(ButtonVariant::Ghost),
-                    asset_server,
-                ),
-            )],
-        ));
+        let panel_entity = panel.id();
+        let close_wrapper = panel
+            .commands()
+            .spawn((
+                Node {
+                    position_type: PositionType::Absolute,
+                    top: px(20),
+                    right: px(20),
+                    ..default()
+                },
+                ChildOf(panel_entity),
+            ))
+            .id();
+        panel
+            .commands()
+            .spawn_scene(icon_button(
+                IconButtonProps::new(ICON_CLOSE).variant(ButtonVariant::Ghost),
+            ))
+            .insert(DialogCloseButton)
+            .insert(ChildOf(close_wrapper));
     }
 
     let panel_id = panel.id();

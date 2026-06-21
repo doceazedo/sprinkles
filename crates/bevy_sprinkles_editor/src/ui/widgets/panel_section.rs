@@ -138,7 +138,7 @@ pub fn panel_section(props: PanelSectionProps, asset_server: &AssetServer) -> im
 
 fn setup_panel_section_buttons(
     mut commands: Commands,
-    asset_server: Res<AssetServer>,
+    _asset_server: Res<AssetServer>,
     new_sections: Query<(Entity, &PanelSectionState, &Children), Added<EditorPanelSection>>,
     headers: Query<&Children, With<PanelSectionHeader>>,
     containers: Query<Entity, With<PanelSectionButtonsContainer>>,
@@ -159,13 +159,10 @@ fn setup_panel_section_buttons(
 
         if state.has_add_button {
             let add_entity = commands
-                .spawn((
-                    PanelSectionAddButton(section_entity),
-                    icon_button(
-                        IconButtonProps::new(ICON_ADD).variant(ButtonVariant::Ghost),
-                        &asset_server,
-                    ),
+                .spawn_scene(icon_button(
+                    IconButtonProps::new(ICON_ADD).variant(ButtonVariant::Ghost),
                 ))
+                .insert(PanelSectionAddButton(section_entity))
                 .observe(on_add_click)
                 .id();
             commands.entity(container_entity).add_child(add_entity);
@@ -173,16 +170,15 @@ fn setup_panel_section_buttons(
 
         if state.collapsible {
             let collapse_entity = commands
-                .spawn((
+                .spawn_scene(icon_button(
+                    IconButtonProps::new(ICON_ARROW_DOWN).variant(ButtonVariant::Ghost),
+                ))
+                .insert((
                     PanelSectionCollapseButton(section_entity),
                     UiTransform {
                         rotation: Rot2::degrees(180.0),
                         ..default()
                     },
-                    icon_button(
-                        IconButtonProps::new(ICON_ARROW_DOWN).variant(ButtonVariant::Ghost),
-                        &asset_server,
-                    ),
                 ))
                 .observe(on_collapse_click)
                 .id();

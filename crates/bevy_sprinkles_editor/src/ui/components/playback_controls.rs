@@ -23,71 +23,67 @@ pub fn plugin(app: &mut App) {
     );
 }
 
-#[derive(Component)]
+#[derive(Component, Default, Clone)]
 pub struct EditorPlaybackControls;
 
-#[derive(Component)]
+#[derive(Component, Default, Clone)]
 pub struct PlayPauseButton;
 
-#[derive(Component)]
+#[derive(Component, Default, Clone)]
 pub struct StopButton;
 
-#[derive(Component)]
+#[derive(Component, Default, Clone)]
 pub struct LoopButton;
 
-pub fn playback_controls(asset_server: &AssetServer) -> impl Bundle {
-    (
-        EditorPlaybackControls,
+pub fn playback_controls() -> impl Scene {
+    bsn! {
+        EditorPlaybackControls
         Node {
-            align_items: AlignItems::Center,
+            align_items: { AlignItems::Center },
             column_gap: px(6),
-            ..default()
-        },
-        children![
-            play_pause_button(asset_server),
-            stop_button(asset_server),
-            loop_button(asset_server),
-        ],
-    )
+        }
+        Children [
+            play_pause_button(),
+            stop_button(),
+            loop_button(),
+        ]
+    }
 }
 
-fn play_pause_button(asset_server: &AssetServer) -> impl Bundle {
-    (
-        PlayPauseButton,
+fn play_pause_button() -> impl Scene {
+    bsn! {
+        PlayPauseButton
         icon_button(
             IconButtonProps::new(ICON_PAUSE)
                 .color(tailwind::GREEN_500)
                 .variant(ButtonVariant::Ghost)
                 .with_size(ButtonSize::Icon),
-            asset_server,
-        ),
-    )
+        )
+    }
 }
 
-fn stop_button(asset_server: &AssetServer) -> impl Bundle {
-    (
-        StopButton,
+fn stop_button() -> impl Scene {
+    bsn! {
+        StopButton
         icon_button(
             IconButtonProps::new(ICON_STOP)
                 .color(TEXT_BODY_COLOR)
                 .variant(ButtonVariant::Ghost)
                 .with_size(ButtonSize::Icon),
-            asset_server,
-        ),
-    )
+        )
+    }
 }
 
-fn loop_button(asset_server: &AssetServer) -> impl Bundle {
-    (
-        LoopButton,
+fn loop_button() -> impl Scene {
+    bsn! {
+        LoopButton
         icon_button(
             IconButtonProps::new(ICON_REPEAT)
                 .color(PRIMARY_COLOR)
                 .variant(ButtonVariant::Active)
                 .with_size(ButtonSize::Icon),
-            asset_server,
-        ),
-    )
+        )
+    }
 }
 
 fn handle_play_pause_click(

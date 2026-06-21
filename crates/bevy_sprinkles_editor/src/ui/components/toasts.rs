@@ -304,7 +304,7 @@ fn setup_toasts_container(mut commands: Commands) {
 fn on_toast_event(
     event: On<ToastEvent>,
     mut commands: Commands,
-    asset_server: Res<AssetServer>,
+    _asset_server: Res<AssetServer>,
     container: Query<Entity, With<ToastsContainer>>,
     mut existing_toasts: Query<
         (Entity, &mut ToastIndex),
@@ -335,8 +335,8 @@ fn on_toast_event(
     };
 
     let toast_entity = commands
-        .spawn((
-            toast(event.variant, &event.content, event.duration, &asset_server),
+        .spawn_scene(toast(event.variant, &event.content, event.duration))
+        .insert((
             ToastIndex(0),
             ToastPosition(0.0),
             ToastStackScale(1.0),

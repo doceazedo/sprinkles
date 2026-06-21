@@ -311,7 +311,8 @@ fn setup_variant_edit(
             .with_right_icon(ICON_MORE);
 
         let button_entity = commands
-            .spawn((VariantEditButton, button(button_props)))
+            .spawn_scene(button(button_props))
+            .insert(VariantEditButton)
             .id();
 
         if config.show_swatch_slot {
@@ -523,11 +524,13 @@ fn handle_variant_edit_click(
         .id();
 
     commands
+        .spawn_scene(popover_header(PopoverHeaderProps::new(
+            popover_title,
+            popover_entity,
+        )))
+        .insert(ChildOf(popover_entity));
+    commands
         .entity(popover_entity)
-        .with_child(popover_header(
-            PopoverHeaderProps::new(popover_title, popover_entity),
-            &asset_server,
-        ))
         .with_children(|parent| {
             parent
                 .spawn((

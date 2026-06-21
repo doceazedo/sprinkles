@@ -1,6 +1,7 @@
 use bevy::color::palettes::tailwind;
 use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
+use bevy::text::FontSourceTemplate;
 
 use crate::ui::tokens::{
     CORNER_RADIUS_LG, FONT_PATH, PRIMARY_COLOR, TEXT_BODY_COLOR, TEXT_DISPLAY_COLOR,
@@ -13,10 +14,10 @@ pub struct ButtonClickEvent {
 }
 
 pub fn plugin(app: &mut App) {
-    app.add_systems(Update, (setup_button, handle_hover, handle_button_click));
+    app.add_systems(Update, (handle_hover, handle_button_click));
 }
 
-#[derive(Component)]
+#[derive(Component, Default, Clone)]
 pub struct EditorButton;
 
 #[derive(Component, Default, Clone, Copy, PartialEq)]
@@ -121,15 +122,6 @@ impl ButtonSize {
     }
 }
 
-#[derive(Component)]
-struct ButtonConfig {
-    content: String,
-    left_icon: Option<String>,
-    right_icon: Option<String>,
-    subtitle: Option<String>,
-    initialized: bool,
-}
-
 #[derive(Default)]
 pub struct ButtonProps {
     pub content: String,
@@ -220,54 +212,58 @@ pub(crate) fn button_base(
     align_left: bool,
     direction: FlexDirection,
 ) -> impl Bundle {
-    let is_column = direction == FlexDirection::Column;
-
+    let (node, bg, border_color) = button_base_parts(variant, size, align_left, direction);
     (
         Button,
         EditorButton,
         variant,
         size,
         Hovered::default(),
-        Node {
-            width: if align_left {
-                percent(100)
-            } else {
-                size.width()
-            },
-            height: if is_column { Val::Auto } else { size.height() },
-            padding: UiRect::axes(size.padding(), if is_column { px(6.0) } else { px(0.0) }),
-            border: UiRect::all(variant.border()),
-            border_radius: BorderRadius::all(CORNER_RADIUS_LG),
-            flex_direction: direction,
-            column_gap: px(6.0),
-            row_gap: px(6.0),
-            justify_content: if align_left {
-                JustifyContent::Start
-            } else {
-                JustifyContent::Center
-            },
-            align_items: if is_column {
-                AlignItems::Start
-            } else {
-                AlignItems::Center
-            },
-            ..default()
-        },
-        BackgroundColor(
-            variant
-                .bg_color(false)
-                .with_alpha(variant.bg_opacity(false))
-                .into(),
-        ),
-        BorderColor::all(
-            variant
-                .border_color()
-                .with_alpha(variant.border_opacity(false)),
-        ),
+        node,
+        BackgroundColor(bg.into()),
+        BorderColor::all(border_color),
     )
 }
 
-pub fn button(props: ButtonProps) -> impl Bundle {
+fn button_base_parts(
+    variant: ButtonVariant,
+    size: ButtonSize,
+    align_left: bool,
+    direction: FlexDirection,
+) -> (Node, Srgba, Srgba) {
+    let is_column = direction == FlexDirection::Column;
+
+    let node = Node {
+        width: if align_left { percent(100) } else { size.width() },
+        height: if is_column { Val::Auto } else { size.height() },
+        padding: UiRect::axes(size.padding(), if is_column { px(6.0) } else { px(0.0) }),
+        border: UiRect::all(variant.border()),
+        border_radius: BorderRadius::all(CORNER_RADIUS_LG),
+        flex_direction: direction,
+        column_gap: px(6.0),
+        row_gap: px(6.0),
+        justify_content: if align_left {
+            JustifyContent::Start
+        } else {
+            JustifyContent::Center
+        },
+        align_items: if is_column {
+            AlignItems::Start
+        } else {
+            AlignItems::Center
+        },
+        ..default()
+    };
+
+    let bg = variant.bg_color(false).with_alpha(variant.bg_opacity(false));
+    let border_color = variant
+        .border_color()
+        .with_alpha(variant.border_opacity(false));
+
+    (node, bg, border_color)
+}
+
+pub fn button(props: ButtonProps) -> impl Scene {
     let ButtonProps {
         content,
         variant,
@@ -279,112 +275,92 @@ pub fn button(props: ButtonProps) -> impl Bundle {
         subtitle,
     } = props;
 
-    (
-        button_base(variant, size, align_left, direction),
-        ButtonConfig {
-            content,
-            left_icon,
-            right_icon,
-            subtitle,
-            initialized: false,
-        },
-    )
-}
+    let (mut node, bg, border_color) = button_base_parts(variant, size, align_left, direction);
+    let is_column = direction == FlexDirection::Column;
 
-fn setup_button(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    mut buttons: Query<
-        (
-            Entity,
-            &mut ButtonConfig,
-            &ButtonVariant,
-            &ButtonSize,
-            &mut Node,
-        ),
-        Added<ButtonConfig>,
-    >,
-) {
-    let font: Handle<Font> = asset_server.load(FONT_PATH);
+    let left_padding = if left_icon.is_some() || is_column {
+        px(6.0)
+    } else {
+        size.padding()
+    };
+    let right_padding = if right_icon.is_some() || is_column {
+        px(6.0)
+    } else {
+        size.padding()
+    };
+    node.padding = UiRect::axes(left_padding, node.padding.top);
+    node.padding.right = right_padding;
 
-    for (entity, mut config, variant, size, mut node) in &mut buttons {
-        if config.initialized {
-            continue;
-        }
-        config.initialized = true;
+    let text_color = variant.text_color();
+    let icon_size = size.icon_size();
 
-        let is_column = node.flex_direction == FlexDirection::Column;
-        let left_padding = if config.left_icon.is_some() || is_column {
-            px(6.0)
-        } else {
-            size.padding()
-        };
-        let right_padding = if config.right_icon.is_some() || is_column {
-            px(6.0)
-        } else {
-            size.padding()
-        };
-        node.padding = UiRect::axes(left_padding, node.padding.top);
-        node.padding.right = right_padding;
+    let mut children: Vec<Box<dyn SceneList>> = Vec::new();
 
-        commands.entity(entity).with_children(|parent| {
-            if let Some(ref icon_path) = config.left_icon {
-                parent.spawn((
-                    ImageNode::new(asset_server.load(icon_path))
-                        .with_color(variant.text_color().into()),
-                    Node {
-                        width: size.icon_size(),
-                        height: size.icon_size(),
-                        ..default()
-                    },
-                ));
+    if let Some(icon) = left_icon {
+        children.push(Box::new(bsn_list![(
+            ImageNode {
+                image: { icon },
+                color: { Color::Srgba(text_color) },
             }
-
-            if !config.content.is_empty() {
-                parent.spawn((
-                    Text::new(&config.content),
-                    TextFont {
-                        font: font.clone().into(),
-                        font_size: TEXT_SIZE.into(),
-                        weight: FontWeight::MEDIUM,
-                        ..default()
-                    },
-                    TextColor(variant.text_color().into()),
-                    Node {
-                        flex_grow: 1.0,
-                        ..default()
-                    },
-                ));
+            Node {
+                width: { icon_size },
+                height: { icon_size },
             }
+        )]) as Box<dyn SceneList>);
+    }
 
-            if let Some(ref subtitle) = config.subtitle {
-                parent.spawn((
-                    Text::new(subtitle),
-                    TextFont {
-                        font: font.clone().into(),
-                        font_size: TEXT_SIZE_SM.into(),
-                        ..default()
-                    },
-                    TextColor(TEXT_MUTED_COLOR.into()),
-                    Node {
-                        margin: UiRect::top(px(-6.0)),
-                        ..default()
-                    },
-                ));
+    if !content.is_empty() {
+        children.push(Box::new(bsn_list![(
+            Text({ content })
+            TextFont {
+                font: { FontSourceTemplate::Handle(FONT_PATH.into()) },
+                font_size: TEXT_SIZE,
+                weight: { FontWeight::MEDIUM },
             }
+            TextColor(text_color)
+            Node {
+                flex_grow: 1.0,
+            }
+        )]) as Box<dyn SceneList>);
+    }
 
-            if let Some(ref icon_path) = config.right_icon {
-                parent.spawn((
-                    ImageNode::new(asset_server.load(icon_path))
-                        .with_color(variant.text_color().into()),
-                    Node {
-                        width: size.icon_size(),
-                        height: size.icon_size(),
-                        ..default()
-                    },
-                ));
+    if let Some(subtitle) = subtitle {
+        children.push(Box::new(bsn_list![(
+            Text({ subtitle })
+            TextFont {
+                font: { FontSourceTemplate::Handle(FONT_PATH.into()) },
+                font_size: TEXT_SIZE_SM,
             }
-        });
+            TextColor(TEXT_MUTED_COLOR)
+            Node {
+                margin: { UiRect::top(px(-6.0)) },
+            }
+        )]) as Box<dyn SceneList>);
+    }
+
+    if let Some(icon) = right_icon {
+        children.push(Box::new(bsn_list![(
+            ImageNode {
+                image: { icon },
+                color: { Color::Srgba(text_color) },
+            }
+            Node {
+                width: { icon_size },
+                height: { icon_size },
+            }
+        )]) as Box<dyn SceneList>);
+    }
+
+    bsn! {
+        Button
+        EditorButton
+        template_value(variant)
+        template_value(size)
+        Hovered
+        template_value(node)
+        BackgroundColor({ bg })
+        template_value(BorderColor::all(border_color))
+        Children [ { children } ]
     }
 }
 
@@ -427,7 +403,7 @@ fn handle_button_click(
     }
 }
 
-pub fn icon_button(props: IconButtonProps, asset_server: &AssetServer) -> impl Bundle {
+pub fn icon_button(props: IconButtonProps) -> impl Scene {
     let IconButtonProps {
         icon,
         color,
@@ -437,18 +413,32 @@ pub fn icon_button(props: IconButtonProps, asset_server: &AssetServer) -> impl B
     } = props;
     let alpha = alpha.unwrap_or(1.0);
     let icon_color = color.unwrap_or(variant.text_color()).with_alpha(alpha);
+    let icon_size = size.icon_size();
 
-    (
-        button_base(variant, size, false, FlexDirection::Row),
-        children![(
-            ImageNode::new(asset_server.load(&icon)).with_color(Color::Srgba(icon_color)),
-            Node {
-                width: size.icon_size(),
-                height: size.icon_size(),
-                ..default()
-            },
-        )],
-    )
+    let (node, bg, border_color) = button_base_parts(variant, size, false, FlexDirection::Row);
+
+    bsn! {
+        Button
+        EditorButton
+        template_value(variant)
+        template_value(size)
+        Hovered
+        template_value(node)
+        BackgroundColor({ bg })
+        template_value(BorderColor::all(border_color))
+        Children [
+            (
+                ImageNode {
+                    image: { icon },
+                    color: { Color::Srgba(icon_color) },
+                }
+                Node {
+                    width: { icon_size },
+                    height: { icon_size },
+                }
+            )
+        ]
+    }
 }
 
 pub fn set_button_variant(

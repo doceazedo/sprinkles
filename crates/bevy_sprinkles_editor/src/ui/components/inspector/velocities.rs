@@ -216,7 +216,7 @@ fn setup_velocity_list(
 fn spawn_velocity_item(
     commands: &mut Commands,
     field_name: &str,
-    asset_server: &AssetServer,
+    _asset_server: &AssetServer,
 ) -> Entity {
     let label = name_to_label(field_name);
 
@@ -233,25 +233,20 @@ fn spawn_velocity_item(
         .id();
 
     let edit_btn = commands
-        .spawn((
-            VelocityEditButton(field_name.to_string()),
-            button(
-                ButtonProps::new(&label)
-                    .align_left()
-                    .with_right_icon(ICON_MORE),
-            ),
+        .spawn_scene(button(
+            ButtonProps::new(&label)
+                .align_left()
+                .with_right_icon(ICON_MORE),
         ))
+        .insert(VelocityEditButton(field_name.to_string()))
         .id();
     commands.entity(row).add_child(edit_btn);
 
     let delete_btn = commands
-        .spawn((
-            VelocityDeleteButton(field_name.to_string()),
-            icon_button(
-                IconButtonProps::new(ICON_CLOSE).variant(ButtonVariant::Ghost),
-                asset_server,
-            ),
+        .spawn_scene(icon_button(
+            IconButtonProps::new(ICON_CLOSE).variant(ButtonVariant::Ghost),
         ))
+        .insert(VelocityDeleteButton(field_name.to_string()))
         .id();
     commands.entity(row).add_child(delete_btn);
 
@@ -387,14 +382,14 @@ fn handle_add_button_click(
 
     for field_name in remaining {
         let label = name_to_label(field_name);
-        commands.entity(popover_entity).with_child((
-            AddVelocityOption(field_name.to_string()),
-            button(
+        commands
+            .spawn_scene(button(
                 ButtonProps::new(&label)
                     .with_variant(ButtonVariant::Ghost)
                     .align_left(),
-            ),
-        ));
+            ))
+            .insert(AddVelocityOption(field_name.to_string()))
+            .insert(ChildOf(popover_entity));
     }
 }
 
@@ -524,11 +519,13 @@ fn handle_velocity_edit(
         .id();
 
     commands
+        .spawn_scene(popover_header(PopoverHeaderProps::new(
+            &popover_title,
+            popover_entity,
+        )))
+        .insert(ChildOf(popover_entity));
+    commands
         .entity(popover_entity)
-        .with_child(popover_header(
-            PopoverHeaderProps::new(&popover_title, popover_entity),
-            &asset_server,
-        ))
         .with_children(|parent| {
             parent.spawn(popover_content()).with_children(|content| {
                 content.spawn(fields_row()).with_children(|row| {

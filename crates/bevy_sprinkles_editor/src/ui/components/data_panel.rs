@@ -244,10 +244,10 @@ fn spawn_items<'a>(
             .id();
 
         let button_entity = commands
-            .spawn((
-                ItemButton,
-                button(ButtonProps::new(name).with_variant(variant).align_left()),
+            .spawn_scene(button(
+                ButtonProps::new(name).with_variant(variant).align_left(),
             ))
+            .insert(ItemButton)
             .id();
 
         let menu_entity = commands

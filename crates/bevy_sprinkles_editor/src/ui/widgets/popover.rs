@@ -1,5 +1,6 @@
 use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
+use bevy::text::FontSourceTemplate;
 use bevy::ui::UiGlobalTransform;
 use bevy::window::PrimaryWindow;
 
@@ -364,7 +365,7 @@ fn is_nested_in_popover(
     false
 }
 
-#[derive(Component)]
+#[derive(Component, FromTemplate)]
 pub struct PopoverCloseButton(Entity);
 
 pub struct PopoverHeaderProps {
@@ -381,40 +382,34 @@ impl PopoverHeaderProps {
     }
 }
 
-pub fn popover_header(props: PopoverHeaderProps, asset_server: &AssetServer) -> impl Bundle {
+pub fn popover_header(props: PopoverHeaderProps) -> impl Scene {
     let PopoverHeaderProps { title, popover } = props;
-    let font: Handle<Font> = asset_server.load(FONT_PATH);
 
-    (
+    bsn! {
         Node {
             width: percent(100),
-            padding: UiRect::new(px(12.0), px(6.0), px(6.0), px(6.0)),
-            border: UiRect::bottom(px(1.0)),
-            justify_content: JustifyContent::SpaceBetween,
-            align_items: AlignItems::Center,
-            ..default()
-        },
-        BorderColor::all(BORDER_COLOR),
-        children![
+            padding: { UiRect::new(px(12.0), px(6.0), px(6.0), px(6.0)) },
+            border: { UiRect::bottom(px(1.0)) },
+            justify_content: { JustifyContent::SpaceBetween },
+            align_items: { AlignItems::Center },
+        }
+        template_value(BorderColor::all(BORDER_COLOR))
+        Children [
             (
-                Text::new(title),
+                Text({ title })
                 TextFont {
-                    font: font.into(),
-                    font_size: TEXT_SIZE.into(),
-                    weight: FontWeight::SEMIBOLD,
-                    ..default()
-                },
-                TextColor(TEXT_DISPLAY_COLOR.into()),
+                    font: { FontSourceTemplate::Handle(FONT_PATH.into()) },
+                    font_size: TEXT_SIZE,
+                    weight: { FontWeight::SEMIBOLD },
+                }
+                TextColor(TEXT_DISPLAY_COLOR)
             ),
             (
-                PopoverCloseButton(popover),
-                icon_button(
-                    IconButtonProps::new(ICON_CLOSE).variant(ButtonVariant::Ghost),
-                    asset_server,
-                ),
+                PopoverCloseButton(popover)
+                icon_button(IconButtonProps::new(ICON_CLOSE).variant(ButtonVariant::Ghost))
             ),
-        ],
-    )
+        ]
+    }
 }
 
 pub fn popover_content() -> impl Bundle {

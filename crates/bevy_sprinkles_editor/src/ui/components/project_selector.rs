@@ -129,14 +129,12 @@ fn setup_project_selector(
         state.initialized = true;
 
         let trigger = commands
-            .spawn((
-                ProjectSelectorTrigger(entity),
-                button(
-                    ButtonProps::new("Untitled")
-                        .with_variant(ButtonVariant::Ghost)
-                        .with_right_icon(ICON_ARROW_DOWN),
-                ),
+            .spawn_scene(button(
+                ButtonProps::new("Untitled")
+                    .with_variant(ButtonVariant::Ghost)
+                    .with_right_icon(ICON_ARROW_DOWN),
             ))
+            .insert(ProjectSelectorTrigger(entity))
             .id();
 
         commands.entity(entity).add_child(trigger);
@@ -229,34 +227,34 @@ fn handle_trigger_click(
             flex_direction: FlexDirection::Column,
             ..default()
         })
-        .with_child((
-            NewProjectButton,
-            button(
-                ButtonProps::new("New project...")
-                    .with_variant(ButtonVariant::Ghost)
-                    .align_left()
-                    .with_left_icon(ICON_FILE_ADD),
-            ),
-        ))
-        .with_child((
-            OpenProjectButton,
-            button(
-                ButtonProps::new("Open...")
-                    .with_variant(ButtonVariant::Ghost)
-                    .align_left()
-                    .with_left_icon(ICON_FOLDER_OPEN),
-            ),
-        ))
-        .with_child((
-            crate::ui::components::examples_dialog::ExamplesButton,
-            button(
-                ButtonProps::new("Examples")
-                    .with_variant(ButtonVariant::Ghost)
-                    .align_left()
-                    .with_left_icon(ICON_FOLDER_IMAGE),
-            ),
-        ))
         .id();
+    commands
+        .spawn_scene(button(
+            ButtonProps::new("New project...")
+                .with_variant(ButtonVariant::Ghost)
+                .align_left()
+                .with_left_icon(ICON_FILE_ADD),
+        ))
+        .insert(NewProjectButton)
+        .insert(ChildOf(actions_wrapper));
+    commands
+        .spawn_scene(button(
+            ButtonProps::new("Open...")
+                .with_variant(ButtonVariant::Ghost)
+                .align_left()
+                .with_left_icon(ICON_FOLDER_OPEN),
+        ))
+        .insert(OpenProjectButton)
+        .insert(ChildOf(actions_wrapper));
+    commands
+        .spawn_scene(button(
+            ButtonProps::new("Examples")
+                .with_variant(ButtonVariant::Ghost)
+                .align_left()
+                .with_left_icon(ICON_FOLDER_IMAGE),
+        ))
+        .insert(crate::ui::components::examples_dialog::ExamplesButton)
+        .insert(ChildOf(actions_wrapper));
 
     commands.entity(popover_entity).add_child(actions_wrapper);
 
@@ -313,16 +311,14 @@ fn handle_trigger_click(
             });
 
         let project_button = commands
-            .spawn((
-                RecentProjectButton(path_str.clone()),
-                button(
-                    ButtonProps::new(name)
-                        .with_variant(ButtonVariant::Ghost)
-                        .align_left()
-                        .with_direction(FlexDirection::Column)
-                        .with_subtitle(path_str),
-                ),
+            .spawn_scene(button(
+                ButtonProps::new(name)
+                    .with_variant(ButtonVariant::Ghost)
+                    .align_left()
+                    .with_direction(FlexDirection::Column)
+                    .with_subtitle(path_str),
             ))
+            .insert(RecentProjectButton(path_str.clone()))
             .id();
 
         commands
@@ -333,14 +329,13 @@ fn handle_trigger_click(
             });
 
         let remove_button = commands
-            .spawn((
+            .spawn_scene(icon_button(
+                IconButtonProps::new(ICON_CLOSE)
+                    .variant(ButtonVariant::Ghost)
+                    .with_size(ButtonSize::IconSM),
+            ))
+            .insert((
                 RemoveRecentProjectButton(path_str.clone()),
-                icon_button(
-                    IconButtonProps::new(ICON_CLOSE)
-                        .variant(ButtonVariant::Ghost)
-                        .with_size(ButtonSize::IconSM),
-                    &asset_server,
-                ),
                 Visibility::Hidden,
             ))
             .id();
@@ -595,15 +590,12 @@ fn setup_new_project_dialog_content(
         .id();
 
     let browse_button = commands
-        .spawn((
-            BrowseLocationButton,
-            icon_button(
-                IconButtonProps::new(ICON_FOLDER_OPEN)
-                    .variant(ButtonVariant::Ghost)
-                    .with_size(ButtonSize::IconSM),
-                &asset_server,
-            ),
+        .spawn_scene(icon_button(
+            IconButtonProps::new(ICON_FOLDER_OPEN)
+                .variant(ButtonVariant::Ghost)
+                .with_size(ButtonSize::IconSM),
         ))
+        .insert(BrowseLocationButton)
         .id();
 
     commands

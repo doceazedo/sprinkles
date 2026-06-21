@@ -121,7 +121,7 @@ fn spawn_file_path_field(
     parent: &mut ChildSpawnerCommands,
     path: &PathBuf,
     font: &Handle<Font>,
-    asset_server: &AssetServer,
+    _asset_server: &AssetServer,
 ) {
     let display_path = truncate_path(&path.display().to_string(), MAX_DISPLAY_PATH_LEN);
 
@@ -172,20 +172,22 @@ fn spawn_file_path_field(
                     },
                 ));
 
-                let mut browse = wrapper.spawn((
-                    RevealFileButton(path.clone()),
-                    icon_button(
+                let wrapper_target = wrapper.target_entity();
+                wrapper
+                    .commands()
+                    .spawn_scene(icon_button(
                         IconButtonProps::new(ICON_FOLDER_OPEN)
                             .variant(ButtonVariant::Ghost)
                             .with_size(ButtonSize::IconSM),
-                        asset_server,
-                    ),
-                ));
-                browse.entry::<Node>().and_modify(|mut node| {
-                    node.position_type = PositionType::Absolute;
-                    node.right = px(2.0);
-                    node.top = px(2.0);
-                });
+                    ))
+                    .insert(RevealFileButton(path.clone()))
+                    .insert(ChildOf(wrapper_target))
+                    .entry::<Node>()
+                    .and_modify(|mut node| {
+                        node.position_type = PositionType::Absolute;
+                        node.right = px(2.0);
+                        node.top = px(2.0);
+                    });
             });
         });
     });

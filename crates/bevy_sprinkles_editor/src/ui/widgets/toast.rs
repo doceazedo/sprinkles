@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use bevy::color::palettes::tailwind;
 use bevy::prelude::*;
+use bevy::text::FontSourceTemplate;
 
 use crate::ui::icons::{ICON_CHECKBOX_CIRCLE, ICON_CLOSE, ICON_CLOSE_CIRCLE, ICON_INFORMATION};
 use crate::ui::tokens::{CORNER_RADIUS, FONT_PATH, TEXT_BODY_COLOR, TEXT_SIZE};
@@ -10,16 +11,16 @@ use crate::ui::widgets::button::{ButtonVariant, IconButtonProps, icon_button};
 pub const TOAST_BOTTOM_OFFSET: f32 = 12.0;
 pub const DEFAULT_TOAST_DURATION: Duration = Duration::from_millis(3000);
 
-#[derive(Component)]
+#[derive(Component, Default, Clone)]
 pub struct EditorToast;
 
 #[derive(Component)]
 pub struct ToastCloseButton(pub Entity);
 
-#[derive(Component)]
+#[derive(Component, Default, Clone)]
 pub struct ToastIcon;
 
-#[derive(Component)]
+#[derive(Component, Default, Clone)]
 pub struct ToastText;
 
 #[derive(Component, Default, Clone, Copy)]
@@ -48,84 +49,81 @@ impl ToastVariant {
     }
 }
 
-#[derive(Component)]
+#[derive(Component, Default, Clone)]
 pub struct ToastDuration(pub Timer);
 
 pub fn toast(
     variant: ToastVariant,
     content: impl Into<String>,
     duration: Duration,
-    asset_server: &AssetServer,
-) -> impl Bundle {
-    let font: Handle<Font> = asset_server.load(FONT_PATH);
+) -> impl Scene {
+    let content: String = content.into();
+    let icon = variant.icon();
+    let bg = variant.bg_color().with_alpha(0.);
 
-    (
-        EditorToast,
-        variant,
-        Interaction::None,
-        ToastDuration(Timer::new(duration, TimerMode::Once)),
+    bsn! {
+        EditorToast
+        template_value(variant)
+        Interaction
+        template_value(ToastDuration(Timer::new(duration, TimerMode::Once)))
         Node {
-            position_type: PositionType::Absolute,
+            position_type: { PositionType::Absolute },
             left: percent(50),
             bottom: px(TOAST_BOTTOM_OFFSET),
             column_gap: px(12),
-            padding: UiRect::axes(px(12), px(6)),
-            border: UiRect::all(px(1)),
-            border_radius: BorderRadius::all(CORNER_RADIUS),
-            box_sizing: BoxSizing::BorderBox,
-            align_items: AlignItems::Center,
-            ..default()
-        },
-        UiTransform {
+            padding: { UiRect::axes(px(12), px(6)) },
+            border: { UiRect::all(px(1)) },
+            border_radius: { BorderRadius::all(CORNER_RADIUS) },
+            box_sizing: { BoxSizing::BorderBox },
+            align_items: { AlignItems::Center },
+        }
+        template_value(UiTransform {
             translation: Val2 {
                 x: percent(-50),
                 y: px(24),
             },
             scale: Vec2::splat(0.75),
             ..default()
-        },
-        BackgroundColor(variant.bg_color().with_alpha(0.).into()),
-        BorderColor::all(TEXT_BODY_COLOR.with_alpha(0.)),
-        children![
+        })
+        BackgroundColor({ bg })
+        template_value(BorderColor::all(TEXT_BODY_COLOR.with_alpha(0.)))
+        Children [
             (
-                ToastIcon,
-                ImageNode::new(asset_server.load(variant.icon()))
-                    .with_color(TEXT_BODY_COLOR.with_alpha(0.).into()),
+                ToastIcon
+                ImageNode {
+                    image: { icon },
+                    color: { TEXT_BODY_COLOR.with_alpha(0.) },
+                }
                 Node {
                     width: px(18),
                     height: px(18),
-                    ..default()
-                },
+                }
             ),
             (
-                ToastText,
-                Text::new(content),
+                ToastText
+                Text({ content })
                 TextFont {
-                    font: font.into(),
-                    font_size: TEXT_SIZE.into(),
-                    ..default()
-                },
-                TextColor(TEXT_BODY_COLOR.with_alpha(0.).into()),
+                    font: { FontSourceTemplate::Handle(FONT_PATH.into()) },
+                    font_size: TEXT_SIZE,
+                }
+                TextColor({ TEXT_BODY_COLOR.with_alpha(0.) })
             ),
             (
                 Node {
                     column_gap: px(6),
-                    align_items: AlignItems::Center,
-                    ..default()
-                },
-                children![
+                    align_items: { AlignItems::Center },
+                }
+                Children [
                     Node {
                         width: px(1),
-                        ..default()
                     },
                     icon_button(
                         IconButtonProps::new(ICON_CLOSE)
                             .variant(ButtonVariant::Ghost)
                             .with_alpha(0.),
-                        asset_server
                     ),
-                ],
+                ]
             ),
-        ],
-    )
+        ]
+    }
 }
