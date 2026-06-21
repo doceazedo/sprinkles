@@ -10,8 +10,9 @@ use crate::viewport::{
     CameraSettings, ViewportInputState, despawn_preview_on_project_change, draw_collider_gizmos,
     handle_playback_play_event, handle_playback_reset_event, handle_playback_seek_event,
     handle_respawn_colliders, handle_respawn_emitters, orbit_camera,
-    respawn_preview_on_emitter_change, setup_camera, setup_floor, spawn_preview_particle_system,
-    sync_playback_state, sync_viewport_settings, zoom_camera,
+    respawn_preview_on_emitter_change, setup_aabb_gizmo_config, setup_camera, setup_floor,
+    spawn_preview_particle_system, sync_inspected_emitter_aabb, sync_playback_state,
+    sync_viewport_settings, zoom_camera,
 };
 
 #[derive(Resource, Default)]
@@ -47,7 +48,15 @@ impl Plugin for SprinklesEditorPlugin {
             .add_observer(handle_playback_play_event)
             .add_observer(handle_playback_reset_event)
             .add_observer(handle_playback_seek_event)
-            .add_systems(Startup, (setup_camera, setup_floor, load_initial_project))
+            .add_systems(
+                Startup,
+                (
+                    setup_camera,
+                    setup_floor,
+                    load_initial_project,
+                    setup_aabb_gizmo_config,
+                ),
+            )
             .add_systems(
                 Update,
                 (
@@ -58,6 +67,7 @@ impl Plugin for SprinklesEditorPlugin {
                     sync_playback_state,
                     sync_viewport_settings,
                     draw_collider_gizmos,
+                    sync_inspected_emitter_aabb,
                 ),
             );
     }

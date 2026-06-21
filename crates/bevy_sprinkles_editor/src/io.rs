@@ -37,6 +37,10 @@ pub struct EditorSettings {
     pub bloom: Option<EditorBloom>,
     #[serde(default = "default_anti_aliasing")]
     pub anti_aliasing: Option<EditorSmaaPreset>,
+    #[serde(default = "default_show_aabb_gizmos")]
+    pub show_aabb_gizmos: bool,
+    #[serde(default = "default_frustum_culling")]
+    pub frustum_culling: bool,
 }
 
 fn default_show_fps() -> bool {
@@ -59,6 +63,14 @@ fn default_anti_aliasing() -> Option<EditorSmaaPreset> {
     Some(EditorSmaaPreset::High)
 }
 
+fn default_show_aabb_gizmos() -> bool {
+    true
+}
+
+fn default_frustum_culling() -> bool {
+    true
+}
+
 impl Default for EditorSettings {
     fn default() -> Self {
         Self {
@@ -67,6 +79,8 @@ impl Default for EditorSettings {
             tonemapping: default_tonemapping(),
             bloom: default_bloom(),
             anti_aliasing: default_anti_aliasing(),
+            show_aabb_gizmos: default_show_aabb_gizmos(),
+            frustum_culling: default_frustum_culling(),
         }
     }
 }

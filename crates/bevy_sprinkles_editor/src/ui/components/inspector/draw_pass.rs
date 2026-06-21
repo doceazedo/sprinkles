@@ -79,6 +79,25 @@ pub fn draw_pass_section() -> (impl Bundle, InspectorSection) {
     )
 }
 
+pub fn visibility_aabb_section() -> (impl Bundle, InspectorSection) {
+    (
+        (),
+        InspectorSection::from_fields(
+            "Visibility AABB",
+            vec![
+                InspectorFieldProps::new("draw_pass.visibility_aabb.center")
+                    .with_label("Position")
+                    .vector(VectorSuffixes::XYZ)
+                    .into(),
+                InspectorFieldProps::new("draw_pass.visibility_aabb.half_extents")
+                    .with_label("Size")
+                    .vector(VectorSuffixes::WHD)
+                    .into(),
+            ],
+        ),
+    )
+}
+
 fn transform_align_options() -> Vec<ComboBoxOptionData> {
     vec![
         ComboBoxOptionData::new("Disabled").with_value("Disabled"),

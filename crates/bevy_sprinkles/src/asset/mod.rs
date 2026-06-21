@@ -13,6 +13,7 @@ pub use particle_material::{
 
 use bevy::{
     asset::{AssetLoader, LoadContext, io::Reader},
+    math::Vec3A,
     prelude::*,
 };
 use bitflags::bitflags;
@@ -384,6 +385,9 @@ pub struct EmitterDrawPass {
     /// Defaults to `false`.
     #[serde(skip_serializing_if = "is_false")]
     pub use_local_coords: bool,
+    /// The axis-aligned bounding box used for the emitter's visibility.
+    #[serde(skip_serializing_if = "VisibilityAabb::is_default")]
+    pub visibility_aabb: VisibilityAabb,
 }
 
 impl Default for EmitterDrawPass {
@@ -395,7 +399,33 @@ impl Default for EmitterDrawPass {
             shadow_caster: true,
             transform_align: None,
             use_local_coords: false,
+            visibility_aabb: VisibilityAabb::default(),
         }
+    }
+}
+
+/// An axis-aligned bounding box, copied from Bevy's [`Aabb`](bevy::camera::primitives::Aabb).
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
+#[serde(default)]
+pub struct VisibilityAabb {
+    /// The center of the box.
+    pub center: Vec3A,
+    /// The distances from the center to each face along the axes.
+    pub half_extents: Vec3A,
+}
+
+impl Default for VisibilityAabb {
+    fn default() -> Self {
+        Self {
+            center: Vec3A::ZERO,
+            half_extents: Vec3A::splat(1.0),
+        }
+    }
+}
+
+impl VisibilityAabb {
+    fn is_default(&self) -> bool {
+        *self == Self::default()
     }
 }
 

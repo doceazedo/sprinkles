@@ -96,4 +96,26 @@ pub fn spawn_settings_properties_section(commands: &mut Commands, parent: Entity
             combobox_options_from_reflect::<EditorSmaaPreset>(),
         ))
         .insert(ChildOf(row));
+
+    let row = commands.spawn(fields_row()).insert(ChildOf(section)).id();
+    commands
+        .spawn_scene(checkbox(
+            CheckboxProps::new("Show AABB gizmos").checked(true),
+        ))
+        .insert(FieldBinding::editor_settings(
+            "show_aabb_gizmos",
+            FieldKind::Bool,
+        ))
+        .insert(ChildOf(row));
+
+    let row = commands.spawn(fields_row()).insert(ChildOf(section)).id();
+    commands
+        .spawn_scene(checkbox(
+            CheckboxProps::new("Frustum culling").checked(true),
+        ))
+        .insert(FieldBinding::editor_settings(
+            "frustum_culling",
+            FieldKind::Bool,
+        ))
+        .insert(ChildOf(row));
 }

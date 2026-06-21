@@ -3,6 +3,7 @@ mod swatch;
 mod sync;
 
 use bevy::ecs::system::SystemParam;
+use bevy::math::Vec3A;
 use bevy::prelude::*;
 use bevy::reflect::{
     PartialReflect, ReflectMut, ReflectRef, TypeInfo,
@@ -592,6 +593,9 @@ fn reflect_to_field_value(value: &dyn PartialReflect, kind: &FieldKind) -> Field
     if let Some(v) = value.try_downcast_ref::<Vec3>() {
         return FieldValue::Vec3(*v);
     }
+    if let Some(v) = value.try_downcast_ref::<Vec3A>() {
+        return FieldValue::Vec3(Vec3::from(*v));
+    }
     if let Some(v) = value.try_downcast_ref::<Option<u32>>() {
         return FieldValue::OptionalU32(*v);
     }
@@ -637,7 +641,13 @@ fn apply_field_value_to_reflect(target: &mut dyn PartialReflect, value: &FieldVa
         FieldValue::Bool(v) => apply_with_change_check(target, v),
         FieldValue::String(v) => apply_with_change_check(target, v),
         FieldValue::Vec2(v) => apply_with_change_check(target, v),
-        FieldValue::Vec3(v) => apply_with_change_check(target, v),
+        FieldValue::Vec3(v) => {
+            if target.try_downcast_ref::<Vec3A>().is_some() {
+                apply_with_change_check(target, &Vec3A::from(*v))
+            } else {
+                apply_with_change_check(target, v)
+            }
+        }
         FieldValue::Range(min, max) => apply_with_change_check(
             target,
             &ParticleRange {

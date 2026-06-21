@@ -4,6 +4,8 @@ use std::ops::Range;
 use bevy::anti_alias::smaa::{Smaa, SmaaPreset};
 use bevy::asset::RenderAssetUsages;
 use bevy::camera::RenderTarget;
+use bevy::camera::primitives::Aabb;
+use bevy::camera::visibility::NoFrustumCulling;
 use bevy::color::palettes::tailwind::{ZINC_200, ZINC_950};
 use bevy::core_pipeline::tonemapping::Tonemapping;
 use bevy::image::{ImageAddressMode, ImageLoaderSettings, ImageSampler, ImageSamplerDescriptor};
@@ -495,6 +497,65 @@ pub fn draw_collider_gizmos(
     }
 }
 
+pub fn setup_aabb_gizmo_config(mut config_store: ResMut<GizmoConfigStore>) {
+    let (_, aabb_config) = config_store.config_mut::<AabbGizmoConfigGroup>();
+    aabb_config.default_color = Some(Color::WHITE.with_alpha(0.1));
+}
+
+pub fn sync_inspected_emitter_aabb(
+    mut commands: Commands,
+    editor_state: Res<EditorState>,
+    editor_data: Res<EditorData>,
+    assets: Res<Assets<ParticlesAsset>>,
+    preview: Query<Entity, With<EditorParticlePreview>>,
+    emitters: Query<(Entity, &EmitterEntity, &EmitterRuntime)>,
+    new_emitters: Query<(), Added<EmitterEntity>>,
+) {
+    if !editor_state.is_changed()
+        && !editor_data.is_changed()
+        && !assets.is_changed()
+        && new_emitters.is_empty()
+    {
+        return;
+    }
+
+    let show_gizmos = editor_data.settings.show_aabb_gizmos;
+
+    let inspected = editor_state
+        .inspecting
+        .as_ref()
+        .filter(|i| i.kind == Inspectable::Emitter)
+        .map(|i| i.index as usize);
+
+    let visibility_aabb = inspected.and_then(|index| {
+        let handle = editor_state.current_project.as_ref()?;
+        let asset = assets.get(handle)?;
+        asset
+            .emitters
+            .get(index)
+            .map(|e| e.draw_pass.visibility_aabb)
+    });
+
+    for (entity, emitter, runtime) in &emitters {
+        let is_inspected =
+            inspected == Some(runtime.emitter_index) && preview.get(emitter.parent_system).is_ok();
+        let aabb = is_inspected.then_some(visibility_aabb).flatten();
+
+        if let Some(aabb) = aabb {
+            commands.entity(entity).insert(Aabb {
+                center: aabb.center,
+                half_extents: aabb.half_extents,
+            });
+        }
+
+        if aabb.is_some() && show_gizmos {
+            commands.entity(entity).insert(ShowAabbGizmo::default());
+        } else {
+            commands.entity(entity).remove::<ShowAabbGizmo>();
+        }
+    }
+}
+
 pub fn sync_playback_state(
     assets: Res<Assets<ParticlesAsset>>,
     drag_state: Query<&SeekbarDragState>,
@@ -682,5 +743,11 @@ pub fn sync_viewport_settings(
             commands.entity(entity).remove::<Smaa>();
         }
         (None, None) => {}
+    }
+
+    if settings.frustum_culling {
+        commands.entity(entity).remove::<NoFrustumCulling>();
+    } else {
+        commands.entity(entity).insert(NoFrustumCulling);
     }
 }

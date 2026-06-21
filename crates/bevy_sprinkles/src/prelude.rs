@@ -9,7 +9,7 @@ pub use crate::asset::{
     ParticleFlags, ParticleMesh, ParticlesAsset, ParticlesAuthors, ParticlesColliderShape3D,
     ParticlesDimension, QuadOrientation, Range as ParticleRange, RibbonTrailShape,
     SerializableAlphaMode, SerializableFace, SolidOrGradientColor, SprinklesEditorData,
-    StandardParticleMaterial, SubEmitterConfig, SubEmitterMode, TransformAlign,
+    StandardParticleMaterial, SubEmitterConfig, SubEmitterMode, TransformAlign, VisibilityAabb,
 };
 #[cfg(feature = "preset-textures")]
 pub use crate::textures::preset::PresetTexture;

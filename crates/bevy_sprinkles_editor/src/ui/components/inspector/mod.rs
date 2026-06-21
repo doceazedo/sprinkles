@@ -195,6 +195,10 @@ fn setup_inspector_panel(
                             .with_children(|emitter_content| {
                                 spawn_section(emitter_content, time::time_section());
                                 spawn_section(emitter_content, draw_pass::draw_pass_section());
+                                spawn_section(
+                                    emitter_content,
+                                    draw_pass::visibility_aabb_section(),
+                                );
                                 spawn_section(emitter_content, emission::emission_section());
                                 spawn_section(emitter_content, scale::scale_section());
                                 spawn_section(emitter_content, colors::colors_section());
