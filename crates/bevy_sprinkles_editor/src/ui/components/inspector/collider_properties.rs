@@ -9,8 +9,7 @@ use crate::ui::widgets::text_edit::{TextEditCommitEvent, TextEditProps, text_edi
 use crate::ui::widgets::vector_edit::{VectorEditProps, VectorSuffixes, vector_edit};
 
 use super::{
-    DynamicSectionContent, InspectorSection, inspector_section, section_needs_setup,
-    spawn_labeled_combobox,
+    DynamicSectionContent, InspectorSection, section_needs_setup, spawn_labeled_combobox,
 };
 use crate::ui::components::binding::{
     find_ancestor, find_ancestor_entity, format_f32, get_inspecting_collider,
@@ -38,10 +37,10 @@ pub fn plugin(app: &mut App) {
         );
 }
 
-pub fn collider_properties_section(asset_server: &AssetServer) -> impl Bundle {
+pub fn collider_properties_section() -> (impl Bundle, InspectorSection) {
     (
         ColliderPropertiesSection,
-        inspector_section(InspectorSection::new("Properties", vec![]), asset_server),
+        InspectorSection::new("Properties", vec![]),
     )
 }
 

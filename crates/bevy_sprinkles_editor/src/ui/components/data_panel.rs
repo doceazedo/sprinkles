@@ -49,7 +49,7 @@ struct LastLoadedProject {
     handle: Option<AssetId<ParticlesAsset>>,
 }
 
-#[derive(Component)]
+#[derive(Component, Default, Clone)]
 pub struct EditorDataPanel;
 
 #[derive(Component)]
@@ -94,48 +94,37 @@ struct AddEmitterEvent;
 #[derive(Event)]
 struct AddColliderEvent;
 
-pub fn data_panel(_asset_server: &AssetServer) -> impl Bundle {
-    (
-        EditorDataPanel,
+pub fn data_panel() -> impl Scene {
+    bsn! {
+        EditorDataPanel
         panel(
             PanelProps::new(PanelDirection::Left)
                 .with_width(224)
                 .with_min_width(160)
                 .with_max_width(320),
-        ),
-    )
+        )
+    }
 }
 
-fn setup_data_panel(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    panels: Query<Entity, Added<EditorDataPanel>>,
-) {
+fn setup_data_panel(mut commands: Commands, panels: Query<Entity, Added<EditorDataPanel>>) {
     for panel_entity in &panels {
         commands
             .entity(panel_entity)
-            .with_child(scrollbar(panel_entity))
-            .with_children(|parent| {
-                parent
-                    .spawn((
-                        EmittersSection,
-                        panel_section(
-                            PanelSectionProps::new("Emitters").with_add_button(),
-                            &asset_server,
-                        ),
-                    ))
-                    .observe(on_add_emitter_click);
+            .with_child(scrollbar(panel_entity));
 
-                parent
-                    .spawn((
-                        CollidersSection,
-                        panel_section(
-                            PanelSectionProps::new("Colliders").with_add_button(),
-                            &asset_server,
-                        ),
-                    ))
-                    .observe(on_add_collider_click);
-            });
+        commands
+            .spawn_scene(panel_section(
+                PanelSectionProps::new("Emitters").with_add_button(),
+            ))
+            .insert((EmittersSection, ChildOf(panel_entity)))
+            .observe(on_add_emitter_click);
+
+        commands
+            .spawn_scene(panel_section(
+                PanelSectionProps::new("Colliders").with_add_button(),
+            ))
+            .insert((CollidersSection, ChildOf(panel_entity)))
+            .observe(on_add_collider_click);
     }
 }
 

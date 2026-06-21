@@ -3,12 +3,13 @@ use bevy::prelude::*;
 use crate::ui::icons::{ICON_SEEDLING, ICON_TIME};
 use crate::ui::widgets::inspector_field::InspectorFieldProps;
 
-use super::{InspectorSection, inspector_section};
+use super::InspectorSection;
 
 pub fn plugin(_app: &mut App) {}
 
-pub fn time_section(asset_server: &AssetServer) -> impl Bundle {
-    inspector_section(
+pub fn time_section() -> (impl Bundle, InspectorSection) {
+    (
+        (),
         InspectorSection::new(
             "Time",
             vec![
@@ -51,6 +52,5 @@ pub fn time_section(asset_server: &AssetServer) -> impl Bundle {
                 vec![InspectorFieldProps::new("time.one_shot").bool().into()],
             ],
         ),
-        asset_server,
     )
 }

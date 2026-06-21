@@ -26,7 +26,7 @@ pub fn plugin(app: &mut App) {
 #[derive(Component)]
 pub struct EditorPopover;
 
-#[derive(Component, Default)]
+#[derive(Component, Default, Clone)]
 pub struct PopoverTracker {
     pub popover: Option<Entity>,
     pub trigger: Option<Entity>,

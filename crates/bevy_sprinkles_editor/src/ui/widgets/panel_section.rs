@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy::text::FontSourceTemplate;
 
 use crate::ui::icons::{ICON_ADD, ICON_ARROW_DOWN};
 use crate::ui::tokens::{BORDER_COLOR, FONT_PATH, TEXT_DISPLAY_COLOR, TEXT_SIZE};
@@ -8,13 +9,13 @@ pub fn plugin(app: &mut App) {
     app.add_systems(Update, setup_panel_section_buttons);
 }
 
-#[derive(Component)]
+#[derive(Component, Default, Clone)]
 pub struct EditorPanelSection;
 
-#[derive(Component)]
+#[derive(Component, Default, Clone)]
 struct PanelSectionHeader;
 
-#[derive(Component)]
+#[derive(Component, Default, Clone)]
 struct PanelSectionButtonsContainer;
 
 #[derive(Component)]
@@ -23,10 +24,10 @@ pub struct PanelSectionAddButton(pub Entity);
 #[derive(Component)]
 struct PanelSectionCollapseButton(Entity);
 
-#[derive(Component, Default)]
+#[derive(Component, Default, Clone)]
 struct Collapsed(bool);
 
-#[derive(Component)]
+#[derive(Component, Default, Clone)]
 struct PanelSectionState {
     has_add_button: bool,
     collapsible: bool,
@@ -80,60 +81,58 @@ impl PanelSectionProps {
     }
 }
 
-pub fn panel_section(props: PanelSectionProps, asset_server: &AssetServer) -> impl Bundle {
+pub fn panel_section(props: PanelSectionProps) -> impl Scene {
     let PanelSectionProps {
         title,
         size,
         has_add_button,
         collapsible,
     } = props;
-    let font: Handle<Font> = asset_server.load(FONT_PATH);
+    let padding = size.padding();
 
-    (
-        EditorPanelSection,
-        Collapsed::default(),
+    bsn! {
+        EditorPanelSection
+        Collapsed
         Node {
             width: percent(100),
-            flex_direction: FlexDirection::Column,
+            flex_direction: { FlexDirection::Column },
             row_gap: px(12),
-            padding: size.padding(),
-            border: UiRect::bottom(px(1)),
-            ..default()
-        },
-        BorderColor::all(BORDER_COLOR),
-        PanelSectionState {
+            padding: { padding },
+            border: { UiRect::bottom(px(1)) },
+        }
+        template_value(BorderColor::all(BORDER_COLOR))
+        template_value(PanelSectionState {
             has_add_button,
             collapsible,
-        },
-        children![(
-            PanelSectionHeader,
-            Node {
-                width: percent(100),
-                justify_content: JustifyContent::SpaceBetween,
-                align_items: AlignItems::Center,
-                ..default()
-            },
-            children![
-                (
-                    Text::new(title),
-                    TextFont {
-                        font: font.into(),
-                        font_size: TEXT_SIZE.into(),
-                        weight: FontWeight::SEMIBOLD,
-                        ..default()
-                    },
-                    TextColor(TEXT_DISPLAY_COLOR.into()),
-                ),
-                (
-                    PanelSectionButtonsContainer,
-                    Node {
-                        align_items: AlignItems::Center,
-                        ..default()
-                    },
-                ),
-            ],
-        )],
-    )
+        })
+        Children [
+            (
+                PanelSectionHeader
+                Node {
+                    width: percent(100),
+                    justify_content: { JustifyContent::SpaceBetween },
+                    align_items: { AlignItems::Center },
+                }
+                Children [
+                    (
+                        Text({ title })
+                        TextFont {
+                            font: { FontSourceTemplate::Handle(FONT_PATH.into()) },
+                            font_size: TEXT_SIZE,
+                            weight: { FontWeight::SEMIBOLD },
+                        }
+                        TextColor({ TEXT_DISPLAY_COLOR })
+                    ),
+                    (
+                        PanelSectionButtonsContainer
+                        Node {
+                            align_items: { AlignItems::Center },
+                        }
+                    ),
+                ]
+            )
+        ]
+    }
 }
 
 fn setup_panel_section_buttons(

@@ -570,21 +570,19 @@ fn spawn_file_content(
 
 fn spawn_local_texture_alert(commands: &mut Commands, parent: Entity, variant_edit: Entity) {
     let alert_entity = commands
-        .spawn((
-            TextureLocalAlert(variant_edit),
-            alert(
-                AlertVariant::Important,
-                vec![
-                    AlertSpan::Text("This texture is outside your game's ".into()),
-                    AlertSpan::Bold("\"assets\"".into()),
-                    AlertSpan::Text(" folder, and might not load in the actual game. ".into()),
-                    AlertSpan::Link {
-                        text: "Learn more.".into(),
-                        url: "https://docs.rs/bevy_sprinkles/latest/bevy_sprinkles/textures/preset/enum.TextureRef.html#variant.Local".into(),
-                    },
-                ],
-            ),
+        .spawn_scene(alert(
+            AlertVariant::Important,
+            vec![
+                AlertSpan::Text("This texture is outside your game's ".into()),
+                AlertSpan::Bold("\"assets\"".into()),
+                AlertSpan::Text(" folder, and might not load in the actual game. ".into()),
+                AlertSpan::Link {
+                    text: "Learn more.".into(),
+                    url: "https://docs.rs/bevy_sprinkles/latest/bevy_sprinkles/textures/preset/enum.TextureRef.html#variant.Local".into(),
+                },
+            ],
         ))
+        .insert(TextureLocalAlert(variant_edit))
         .id();
     commands.entity(parent).add_child(alert_entity);
 }

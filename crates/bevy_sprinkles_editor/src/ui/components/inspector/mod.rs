@@ -124,7 +124,7 @@ pub(super) fn update_inspected_collider_tracker(
     }
 }
 
-#[derive(Component)]
+#[derive(Component, Default, Clone)]
 pub struct EditorInspectorPanel;
 
 #[derive(Component)]
@@ -148,16 +148,16 @@ struct PanelTitleIcon;
 #[derive(Component)]
 pub(super) struct DynamicSectionContent;
 
-pub fn inspector_panel(_asset_server: &AssetServer) -> impl Bundle {
-    (
-        EditorInspectorPanel,
+pub fn inspector_panel() -> impl Scene {
+    bsn! {
+        EditorInspectorPanel
         panel(
             PanelProps::new(PanelDirection::Left)
                 .with_width(320)
                 .with_min_width(320)
                 .with_max_width(512),
-        ),
-    )
+        )
+    }
 }
 
 fn setup_inspector_panel(
@@ -193,25 +193,28 @@ fn setup_inspector_panel(
                                 },
                             ))
                             .with_children(|emitter_content| {
-                                emitter_content.spawn(time::time_section(&asset_server));
-                                emitter_content.spawn(draw_pass::draw_pass_section(&asset_server));
-                                emitter_content.spawn(emission::emission_section(&asset_server));
-                                emitter_content.spawn(scale::scale_section(&asset_server));
-                                emitter_content.spawn(colors::colors_section(&asset_server));
-                                emitter_content
-                                    .spawn(velocities::velocities_section(&asset_server));
-                                emitter_content.spawn(angle::angle_section(&asset_server));
-                                emitter_content
-                                    .spawn(accelerations::accelerations_section(&asset_server));
-                                emitter_content
-                                    .spawn(turbulence::turbulence_section(&asset_server));
-                                emitter_content.spawn(trail::trail_section(&asset_server));
-                                emitter_content.spawn(collision::collision_section(&asset_server));
-                                emitter_content
-                                    .spawn(sub_emitter::sub_emitter_section(&asset_server));
-                                emitter_content
-                                    .spawn(particle_flags::particle_flags_section(&asset_server));
-                                emitter_content.spawn(transform::transform_section(&asset_server));
+                                spawn_section(emitter_content, time::time_section());
+                                spawn_section(emitter_content, draw_pass::draw_pass_section());
+                                spawn_section(emitter_content, emission::emission_section());
+                                spawn_section(emitter_content, scale::scale_section());
+                                spawn_section(emitter_content, colors::colors_section());
+
+                                let (extra, section) = velocities::velocities_section();
+                                let props =
+                                    inspector_section_props(&section.title).with_add_button();
+                                spawn_section_with(emitter_content, props, extra, section);
+
+                                spawn_section(emitter_content, angle::angle_section());
+                                spawn_section(emitter_content, accelerations::accelerations_section());
+                                spawn_section(emitter_content, turbulence::turbulence_section());
+                                spawn_section(emitter_content, trail::trail_section());
+                                spawn_section(emitter_content, collision::collision_section());
+                                spawn_section(emitter_content, sub_emitter::sub_emitter_section());
+                                spawn_section(
+                                    emitter_content,
+                                    particle_flags::particle_flags_section(),
+                                );
+                                spawn_section(emitter_content, transform::transform_section());
                             });
 
                         content
@@ -225,10 +228,11 @@ fn setup_inspector_panel(
                                 },
                             ))
                             .with_children(|collider_content| {
-                                collider_content.spawn(
-                                    collider_properties::collider_properties_section(&asset_server),
+                                spawn_section(
+                                    collider_content,
+                                    collider_properties::collider_properties_section(),
                                 );
-                                collider_content.spawn(transform::transform_section(&asset_server));
+                                spawn_section(collider_content, transform::transform_section());
                             });
 
                         content
@@ -242,14 +246,18 @@ fn setup_inspector_panel(
                                 },
                             ))
                             .with_children(|project_content| {
-                                project_content.spawn(
-                                    project_properties::project_properties_section(&asset_server),
+                                spawn_section(
+                                    project_content,
+                                    project_properties::project_properties_section(),
                                 );
-                                project_content.spawn(project_properties::project_runtime_section(
-                                    &asset_server,
-                                ));
-                                project_content
-                                    .spawn(transform::asset_transform_section(&asset_server));
+                                spawn_section(
+                                    project_content,
+                                    project_properties::project_runtime_section(),
+                                );
+                                spawn_section(
+                                    project_content,
+                                    transform::asset_transform_section(),
+                                );
                             });
 
                         content
@@ -436,17 +444,33 @@ pub(super) fn section_needs_setup<S: Component, C: Component>(
     Some(entity)
 }
 
-pub fn inspector_section(section: InspectorSection, asset_server: &AssetServer) -> impl Bundle {
-    let title = section.title.clone();
-    (
-        section,
-        panel_section(
-            PanelSectionProps::new(title)
-                .collapsible()
-                .with_size(PanelSectionSize::XL),
-            asset_server,
-        ),
-    )
+fn inspector_section_props(title: &str) -> PanelSectionProps {
+    PanelSectionProps::new(title)
+        .collapsible()
+        .with_size(PanelSectionSize::XL)
+}
+
+pub(super) fn spawn_section(
+    content: &mut ChildSpawnerCommands,
+    parts: (impl Bundle, InspectorSection),
+) {
+    let (extra, section) = parts;
+    spawn_section_with(content, inspector_section_props(&section.title), extra, section);
+}
+
+pub(super) fn spawn_section_with(
+    content: &mut ChildSpawnerCommands,
+    props: PanelSectionProps,
+    extra: impl Bundle,
+    section: InspectorSection,
+) {
+    let target = content.target_entity();
+    content
+        .commands()
+        .spawn_scene(panel_section(props))
+        .insert(extra)
+        .insert(section)
+        .insert(ChildOf(target));
 }
 
 fn setup_inspector_section_fields(
@@ -471,10 +495,11 @@ fn setup_inspector_section_fields(
                                 spawn_inspector_field(row, props, &asset_server);
                             }
                             InspectorItem::Variant { path, props } => {
-                                row.spawn((
-                                    FieldBinding::emitter(&path, FieldKind::default()),
-                                    variant_edit(props),
-                                ));
+                                let row_target = row.target_entity();
+                                row.commands()
+                                    .spawn_scene(variant_edit(props))
+                                    .insert(FieldBinding::emitter(&path, FieldKind::default()))
+                                    .insert(ChildOf(row_target));
                             }
                         }
                     }

@@ -5,7 +5,7 @@ use crate::state::EditorState;
 use crate::ui::widgets::inspector_field::{InspectorFieldProps, fields_row, spawn_inspector_field};
 use crate::ui::widgets::vector_edit::VectorSuffixes;
 
-use super::{InspectorSection, inspector_section, section_needs_setup};
+use super::{InspectorSection, section_needs_setup};
 use crate::ui::components::binding::get_inspecting_emitter;
 
 #[derive(Component)]
@@ -21,17 +21,14 @@ pub fn plugin(app: &mut App) {
     );
 }
 
-pub fn turbulence_section(asset_server: &AssetServer) -> impl Bundle {
+pub fn turbulence_section() -> (impl Bundle, InspectorSection) {
     (
         TurbulenceSection,
-        inspector_section(
-            InspectorSection::new(
-                "Turbulence",
-                vec![vec![
-                    InspectorFieldProps::new("turbulence.enabled").bool().into(),
-                ]],
-            ),
-            asset_server,
+        InspectorSection::new(
+            "Turbulence",
+            vec![vec![
+                InspectorFieldProps::new("turbulence.enabled").bool().into(),
+            ]],
         ),
     )
 }

@@ -6,15 +6,16 @@ use crate::ui::widgets::variant_edit::{VariantDefinition, VariantEditProps};
 use crate::ui::widgets::vector_edit::VectorSuffixes;
 
 use super::utils::{VariantConfig, variants_from_reflect};
-use super::{InspectorItem, InspectorSection, inspector_section};
+use super::{InspectorItem, InspectorSection};
 use crate::ui::icons::{
     ICON_CUBE, ICON_EMPTY_AXIS, ICON_MESH_TORUS, ICON_MESH_UVSPHERE, ICON_SPHERE,
 };
 
 pub fn plugin(_app: &mut App) {}
 
-pub fn emission_section(asset_server: &AssetServer) -> impl Bundle {
-    inspector_section(
+pub fn emission_section() -> (impl Bundle, InspectorSection) {
+    (
+        (),
         InspectorSection::new(
             "Emission",
             vec![
@@ -40,7 +41,6 @@ pub fn emission_section(asset_server: &AssetServer) -> impl Bundle {
                 ],
             ],
         ),
-        asset_server,
     )
 }
 

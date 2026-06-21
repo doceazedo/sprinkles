@@ -13,7 +13,7 @@ use crate::ui::widgets::inspector_field::fields_row;
 use crate::ui::widgets::text_edit::{TextEditProps, text_edit};
 use crate::utils::{MAX_DISPLAY_PATH_LEN, truncate_path};
 
-use super::{DynamicSectionContent, InspectorSection, inspector_section, section_needs_setup};
+use super::{DynamicSectionContent, InspectorSection, section_needs_setup};
 use crate::ui::components::binding::FieldBinding;
 use crate::ui::components::inspector::FieldKind;
 
@@ -37,17 +37,17 @@ pub fn plugin(app: &mut App) {
         .add_observer(handle_reveal_file_click);
 }
 
-pub fn project_properties_section(asset_server: &AssetServer) -> impl Bundle {
+pub fn project_properties_section() -> (impl Bundle, InspectorSection) {
     (
         ProjectPropertiesSection,
-        inspector_section(InspectorSection::new("Properties", vec![]), asset_server),
+        InspectorSection::new("Properties", vec![]),
     )
 }
 
-pub fn project_runtime_section(asset_server: &AssetServer) -> impl Bundle {
+pub fn project_runtime_section() -> (impl Bundle, InspectorSection) {
     (
         ProjectRuntimeSection,
-        inspector_section(InspectorSection::new("Runtime", vec![]), asset_server),
+        InspectorSection::new("Runtime", vec![]),
     )
 }
 

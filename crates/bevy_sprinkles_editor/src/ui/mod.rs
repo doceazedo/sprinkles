@@ -78,14 +78,16 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                 min_height: px(0.0),
                 ..default()
             },
-            children![
-                data_panel(&asset_server),
-                inspector_panel(&asset_server),
-                viewport_container(),
-            ],
             ChildOf(root),
         ))
         .id();
+
+    let data_panel_entity = commands.spawn_scene(data_panel()).id();
+    let inspector_panel_entity = commands.spawn_scene(inspector_panel()).id();
+    let viewport = commands.spawn(viewport_container()).id();
+    commands
+        .entity(main_row)
+        .add_children(&[data_panel_entity, inspector_panel_entity, viewport]);
 
     let sidebar = commands.spawn_scene(sidebar()).id();
     commands.entity(main_row).insert_children(0, &[sidebar]);

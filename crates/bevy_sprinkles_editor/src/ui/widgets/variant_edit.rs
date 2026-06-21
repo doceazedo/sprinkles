@@ -143,10 +143,10 @@ pub fn plugin(app: &mut App) {
         .add_systems(Update, (setup_variant_edit, sync_variant_edit_button));
 }
 
-#[derive(Component)]
+#[derive(Component, Default, Clone)]
 pub struct EditorVariantEdit;
 
-#[derive(Component, Clone)]
+#[derive(Component, Default, Clone)]
 pub struct VariantEditConfig {
     pub path: String,
     pub label: Option<String>,
@@ -174,7 +174,7 @@ pub struct VariantFieldsContainer(pub Entity);
 #[derive(Component)]
 pub struct VariantComboBox(pub Entity);
 
-#[derive(Component, Default)]
+#[derive(Component, Default, Clone)]
 struct VariantEditState {
     last_synced_index: Option<usize>,
 }
@@ -225,7 +225,7 @@ impl VariantEditProps {
     }
 }
 
-pub fn variant_edit(props: VariantEditProps) -> impl Bundle {
+pub fn variant_edit(props: VariantEditProps) -> impl Scene {
     let VariantEditProps {
         path,
         label,
@@ -237,30 +237,31 @@ pub fn variant_edit(props: VariantEditProps) -> impl Bundle {
         show_swatch_slot,
     } = props;
 
-    (
-        EditorVariantEdit,
-        VariantEditConfig {
-            path,
-            label,
-            popover_title,
-            variants,
-            selected_index,
-            popover_width,
-            content_mode,
-            show_swatch_slot,
-            initialized: false,
-        },
-        VariantEditState::default(),
-        PopoverTracker::default(),
+    let config = VariantEditConfig {
+        path,
+        label,
+        popover_title,
+        variants,
+        selected_index,
+        popover_width,
+        content_mode,
+        show_swatch_slot,
+        initialized: false,
+    };
+
+    bsn! {
+        EditorVariantEdit
+        template_value(config)
+        VariantEditState
+        PopoverTracker
         Node {
-            flex_direction: FlexDirection::Column,
-            row_gap: px(3.0),
+            flex_direction: { FlexDirection::Column },
+            row_gap: px(3),
             flex_grow: 1.0,
             flex_shrink: 1.0,
-            flex_basis: px(0.0),
-            ..default()
-        },
-    )
+            flex_basis: px(0),
+        }
+    }
 }
 
 #[derive(Component)]
@@ -794,7 +795,7 @@ fn spawn_field_widget(
                 .with_label(label)
                 .with_variants(texture_ref_variants())
                 .with_content_mode(VariantContentMode::CustomContent);
-            commands.spawn((binding, variant_edit(props))).id()
+            commands.spawn_scene(variant_edit(props)).insert(binding).id()
         }
 
         FieldKind::String => commands

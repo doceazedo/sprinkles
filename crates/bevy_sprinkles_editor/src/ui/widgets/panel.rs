@@ -20,7 +20,7 @@ pub fn plugin(app: &mut App) {
     );
 }
 
-#[derive(Component)]
+#[derive(Component, Default, Clone)]
 pub struct EditorPanel;
 
 #[derive(Component, Default, Clone, Copy, PartialEq, Eq)]
@@ -29,7 +29,7 @@ pub enum PanelDirection {
     Left,
 }
 
-#[derive(Component)]
+#[derive(Component, Default, Clone)]
 pub struct PanelWidth {
     pub current: u32,
     pub min: u32,
@@ -90,7 +90,7 @@ impl PanelProps {
     }
 }
 
-pub fn panel(props: PanelProps) -> impl Bundle {
+pub fn panel(props: PanelProps) -> impl Scene {
     let PanelProps {
         direction,
         width,
@@ -105,29 +105,28 @@ pub fn panel(props: PanelProps) -> impl Bundle {
         PanelDirection::Left => UiRect::ZERO,
     };
 
-    (
-        EditorPanel,
-        direction,
-        PanelWidth {
+    bsn! {
+        EditorPanel
+        template_value(direction)
+        template_value(PanelWidth {
             current: width,
             min: min_width,
             max: max_width,
-        },
-        Hovered::default(),
+        })
+        Hovered
         Node {
             width: px(width),
             height: percent(100),
-            min_height: px(0.0),
-            flex_direction: FlexDirection::Column,
-            border,
-            margin,
-            position_type: PositionType::Relative,
-            overflow: Overflow::scroll_y(),
-            ..default()
-        },
-        BackgroundColor(BACKGROUND_COLOR.into()),
-        BorderColor::all(BORDER_COLOR),
-    )
+            min_height: px(0),
+            flex_direction: { FlexDirection::Column },
+            border: { border },
+            margin: { margin },
+            position_type: { PositionType::Relative },
+            overflow: { Overflow::scroll_y() },
+        }
+        BackgroundColor({ BACKGROUND_COLOR })
+        template_value(BorderColor::all(BORDER_COLOR))
+    }
 }
 
 fn spawn_resize_handles(

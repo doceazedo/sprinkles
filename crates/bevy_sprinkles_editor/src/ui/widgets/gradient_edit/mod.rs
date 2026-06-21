@@ -530,13 +530,10 @@ fn setup_gradient_edit_content(
         commands.entity(content_entity).add_child(bar_entity);
 
         let section_entity = commands
-            .spawn((
-                StopsSection(edit_entity),
-                panel_section(
-                    PanelSectionProps::new("Stops").with_add_button(),
-                    &asset_server,
-                ),
+            .spawn_scene(panel_section(
+                PanelSectionProps::new("Stops").with_add_button(),
             ))
+            .insert(StopsSection(edit_entity))
             .id();
 
         commands.entity(section_entity).insert(Node {

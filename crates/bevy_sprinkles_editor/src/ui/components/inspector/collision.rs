@@ -8,8 +8,7 @@ use crate::ui::widgets::inspector_field::{InspectorFieldProps, fields_row, spawn
 use crate::ui::widgets::text_edit::{TextEditProps, text_edit};
 
 use super::{
-    DynamicSectionContent, InspectorSection, inspector_section, section_needs_setup,
-    spawn_labeled_combobox,
+    DynamicSectionContent, InspectorSection, section_needs_setup, spawn_labeled_combobox,
 };
 use crate::ui::components::binding::{EmitterWriter, FieldBinding};
 use crate::ui::components::inspector::FieldKind;
@@ -30,11 +29,8 @@ pub fn plugin(app: &mut App) {
     );
 }
 
-pub fn collision_section(asset_server: &AssetServer) -> impl Bundle {
-    (
-        CollisionSection,
-        inspector_section(InspectorSection::new("Collision", vec![]), asset_server),
-    )
+pub fn collision_section() -> (impl Bundle, InspectorSection) {
+    (CollisionSection, InspectorSection::new("Collision", vec![]))
 }
 
 fn collision_mode_index(mode: &Option<EmitterCollisionMode>) -> usize {

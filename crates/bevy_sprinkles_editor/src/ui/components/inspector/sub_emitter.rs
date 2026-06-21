@@ -11,8 +11,7 @@ use crate::ui::widgets::inspector_field::fields_row;
 use crate::ui::widgets::text_edit::{TextEditProps, text_edit};
 
 use super::{
-    DynamicSectionContent, InspectorSection, inspector_section, section_needs_setup,
-    spawn_labeled_combobox,
+    DynamicSectionContent, InspectorSection, section_needs_setup, spawn_labeled_combobox,
 };
 use crate::ui::components::binding::{EmitterWriter, FieldBinding};
 use crate::ui::components::inspector::FieldKind;
@@ -38,10 +37,10 @@ pub fn plugin(app: &mut App) {
         );
 }
 
-pub fn sub_emitter_section(asset_server: &AssetServer) -> impl Bundle {
+pub fn sub_emitter_section() -> (impl Bundle, InspectorSection) {
     (
         SubEmitterSection,
-        inspector_section(InspectorSection::new("Sub-emitter", vec![]), asset_server),
+        InspectorSection::new("Sub-emitter", vec![]),
     )
 }
 
@@ -244,18 +243,22 @@ fn spawn_fields(
         .map(|e| e.emission.particles_amount)
         .unwrap_or(0);
 
-    parent.spawn(alert(
-        AlertVariant::Important,
-        vec![
-            AlertSpan::Text("A total of up to ".into()),
-            AlertSpan::Bold(format!("{target_amount}")),
-            AlertSpan::Text(
-                " particles can be spawned at once, limited by the sub-emitter's ".into(),
-            ),
-            AlertSpan::Bold("Particles amount".into()),
-            AlertSpan::Text(".".into()),
-        ],
-    ));
+    let parent_target = parent.target_entity();
+    parent
+        .commands()
+        .spawn_scene(alert(
+            AlertVariant::Important,
+            vec![
+                AlertSpan::Text("A total of up to ".into()),
+                AlertSpan::Bold(format!("{target_amount}")),
+                AlertSpan::Text(
+                    " particles can be spawned at once, limited by the sub-emitter's ".into(),
+                ),
+                AlertSpan::Bold("Particles amount".into()),
+                AlertSpan::Text(".".into()),
+            ],
+        ))
+        .insert(ChildOf(parent_target));
 }
 
 fn handle_sub_emitter_mode_change(

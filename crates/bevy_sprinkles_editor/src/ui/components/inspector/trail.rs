@@ -6,7 +6,7 @@ use crate::ui::icons::ICON_TIME;
 use crate::ui::widgets::alert::{AlertSpan, AlertVariant, alert};
 use crate::ui::widgets::inspector_field::{InspectorFieldProps, fields_row, spawn_inspector_field};
 
-use super::{InspectorSection, inspector_section, section_needs_setup};
+use super::{InspectorSection, section_needs_setup};
 use crate::ui::components::binding::get_inspecting_emitter;
 
 #[derive(Component)]
@@ -29,17 +29,14 @@ pub fn plugin(app: &mut App) {
     );
 }
 
-pub fn trail_section(asset_server: &AssetServer) -> impl Bundle {
+pub fn trail_section() -> (impl Bundle, InspectorSection) {
     (
         TrailSection,
-        inspector_section(
-            InspectorSection::new(
-                "Trail",
-                vec![vec![
-                    InspectorFieldProps::new("trail.enabled").bool().into(),
-                ]],
-            ),
-            asset_server,
+        InspectorSection::new(
+            "Trail",
+            vec![vec![
+                InspectorFieldProps::new("trail.enabled").bool().into(),
+            ]],
         ),
     )
 }
@@ -93,7 +90,7 @@ fn setup_trail_options(
                 });
             }
 
-            parent
+            let alert_wrapper = parent
                 .spawn((
                     TrailNoMeshAlert,
                     Node {
@@ -102,14 +99,18 @@ fn setup_trail_options(
                         ..default()
                     },
                 ))
-                .with_child(alert(
+                .id();
+            parent
+                .commands()
+                .spawn_scene(alert(
                     AlertVariant::Warning,
                     vec![
                         AlertSpan::Text("Select a different ".into()),
                         AlertSpan::Bold("Mesh".into()),
                         AlertSpan::Text(" for trails to work correctly.".into()),
                     ],
-                ));
+                ))
+                .insert(ChildOf(alert_wrapper));
         })
         .id();
 

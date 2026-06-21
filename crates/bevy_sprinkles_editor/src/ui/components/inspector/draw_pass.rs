@@ -15,7 +15,7 @@ use crate::ui::widgets::vector_edit::VectorSuffixes;
 
 use super::types::{FieldKind, VariantField};
 use super::utils::{VariantConfig, combobox_options_from_reflect, variants_from_reflect};
-use super::{InspectorItem, InspectorSection, inspector_section};
+use super::{InspectorItem, InspectorSection};
 use crate::ui::icons::{
     ICON_CONE, ICON_CUBE, ICON_MESH_CYLINDER, ICON_MESH_PLANE, ICON_MESH_UVSPHERE,
 };
@@ -36,12 +36,11 @@ pub fn plugin(app: &mut App) {
     );
 }
 
-pub fn draw_pass_section(asset_server: &AssetServer) -> impl Bundle {
+pub fn draw_pass_section() -> (impl Bundle, InspectorSection) {
     (
         DrawPassSection,
-        inspector_section(
-            InspectorSection::new(
-                "Draw pass",
+        InspectorSection::new(
+            "Draw pass",
                 vec![
                     vec![
                         InspectorItem::Variant {
@@ -77,8 +76,6 @@ pub fn draw_pass_section(asset_server: &AssetServer) -> impl Bundle {
                     ],
                 ],
             ),
-            asset_server,
-        ),
     )
 }
 
@@ -376,7 +373,9 @@ fn sync_trail_mesh_alert(
                             ..default()
                         },
                     ))
-                    .with_child(alert(
+                    .id();
+                commands
+                    .spawn_scene(alert(
                         AlertVariant::Warning,
                         vec![
                             AlertSpan::Text("You need to enable ".into()),
@@ -384,7 +383,7 @@ fn sync_trail_mesh_alert(
                             AlertSpan::Text(" to use this mesh correctly.".into()),
                         ],
                     ))
-                    .id();
+                    .insert(ChildOf(alert_entity));
                 commands
                     .entity(section_entity)
                     .insert_children(2, &[alert_entity]);

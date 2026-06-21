@@ -7,7 +7,7 @@ use crate::ui::tokens::{CORNER_RADIUS, FONT_PATH, TEXT_SIZE};
 use crate::ui::widgets::cursor::HoverCursor;
 use crate::ui::widgets::link::LinkHitbox;
 
-#[derive(Component)]
+#[derive(Component, Default, Clone)]
 pub struct EditorAlert;
 
 #[derive(Default, Clone, Copy)]
@@ -54,7 +54,7 @@ pub enum AlertSpan {
     Link { text: String, url: String },
 }
 
-#[derive(Component)]
+#[derive(Component, Default, Clone)]
 struct AlertConfig {
     variant: AlertVariant,
     spans: Vec<AlertSpan>,
@@ -64,21 +64,23 @@ pub fn plugin(app: &mut App) {
     app.add_systems(Update, setup_alert);
 }
 
-pub fn alert(variant: AlertVariant, spans: Vec<AlertSpan>) -> impl Bundle {
-    (
-        EditorAlert,
-        AlertConfig { variant, spans },
+pub fn alert(variant: AlertVariant, spans: Vec<AlertSpan>) -> impl Scene {
+    let bg = variant.bg_color();
+    let border = variant.border_color();
+
+    bsn! {
+        EditorAlert
+        template_value(AlertConfig { variant, spans })
         Node {
             width: percent(100),
-            padding: UiRect::all(px(12.0)),
-            border: UiRect::all(px(1.0)),
-            border_radius: BorderRadius::all(CORNER_RADIUS),
-            position_type: PositionType::Relative,
-            ..default()
-        },
-        BackgroundColor(variant.bg_color()),
-        BorderColor::all(variant.border_color()),
-    )
+            padding: { UiRect::all(px(12)) },
+            border: { UiRect::all(px(1)) },
+            border_radius: { BorderRadius::all(CORNER_RADIUS) },
+            position_type: { PositionType::Relative },
+        }
+        BackgroundColor({ bg })
+        template_value(BorderColor::all(border))
+    }
 }
 
 fn setup_alert(

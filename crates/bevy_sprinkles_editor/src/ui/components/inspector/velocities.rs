@@ -8,9 +8,7 @@ use crate::ui::widgets::button::{
     icon_button, set_button_variant,
 };
 use crate::ui::widgets::inspector_field::{InspectorFieldProps, fields_row, spawn_inspector_field};
-use crate::ui::widgets::panel_section::{
-    PanelSectionAddButton, PanelSectionProps, PanelSectionSize, panel_section,
-};
+use crate::ui::widgets::panel_section::PanelSectionAddButton;
 use crate::ui::widgets::popover::{
     PopoverHeaderProps, PopoverPlacement, PopoverProps, popover, popover_content, popover_header,
 };
@@ -70,7 +68,7 @@ struct AddVelocityPopover;
 #[derive(Component)]
 struct AddVelocityOption(String);
 
-pub fn velocities_section(asset_server: &AssetServer) -> impl Bundle {
+pub fn velocities_section() -> (impl Bundle, InspectorSection) {
     (
         VelocityList {
             added: Vec::new(),
@@ -100,13 +98,6 @@ pub fn velocities_section(asset_server: &AssetServer) -> impl Bundle {
                     InspectorFieldProps::new("velocities.flatness").into(),
                 ],
             ],
-        ),
-        panel_section(
-            PanelSectionProps::new("Velocities")
-                .with_add_button()
-                .collapsible()
-                .with_size(PanelSectionSize::XL),
-            asset_server,
         ),
     )
 }
