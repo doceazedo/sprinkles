@@ -1,5 +1,6 @@
 use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
+use bevy::text::FontSourceTemplate;
 
 use crate::ui::icons::ICON_CHECK;
 use crate::ui::tokens::{BORDER_COLOR, FONT_PATH, TEXT_BODY_COLOR, TEXT_SIZE};
@@ -21,18 +22,18 @@ pub fn plugin(app: &mut App) {
     );
 }
 
-#[derive(Component)]
+#[derive(Component, Default, Clone)]
 pub struct EditorCheckbox;
 
-#[derive(Component, Default)]
+#[derive(Component, Default, Clone)]
 pub struct CheckboxState {
     pub checked: bool,
 }
 
-#[derive(Component)]
+#[derive(Component, Default, Clone)]
 struct CheckboxIcon;
 
-#[derive(Component)]
+#[derive(Component, Default, Clone)]
 struct CheckboxBox;
 
 #[derive(Default)]
@@ -55,61 +56,60 @@ impl CheckboxProps {
     }
 }
 
-pub fn checkbox(props: CheckboxProps, asset_server: &AssetServer) -> impl Bundle {
+pub fn checkbox(props: CheckboxProps) -> impl Scene {
     let CheckboxProps { label, checked } = props;
-    let font: Handle<Font> = asset_server.load(FONT_PATH);
     let icon_display = if checked {
         Display::Flex
     } else {
         Display::None
     };
 
-    (
-        EditorCheckbox,
-        CheckboxState { checked },
-        Button,
-        Hovered::default(),
+    bsn! {
+        EditorCheckbox
+        template_value(CheckboxState { checked })
+        Button
+        Hovered
         Node {
-            align_items: AlignItems::Center,
+            align_items: { AlignItems::Center },
             column_gap: px(6),
-            ..default()
-        },
-        children![
+        }
+        Children [
             (
-                CheckboxBox,
+                CheckboxBox
                 Node {
                     width: px(16),
                     height: px(16),
-                    border: UiRect::all(px(1.0)),
-                    border_radius: BorderRadius::all(px(2.0)),
-                    justify_content: JustifyContent::Center,
-                    align_items: AlignItems::Center,
-                    ..default()
-                },
-                BorderColor::all(BORDER_COLOR),
-                children![(
-                    CheckboxIcon,
-                    ImageNode::new(asset_server.load(ICON_CHECK))
-                        .with_color(Color::Srgba(TEXT_BODY_COLOR)),
-                    Node {
-                        width: px(12),
-                        height: px(12),
-                        display: icon_display,
-                        ..default()
-                    },
-                )],
+                    border: { UiRect::all(px(1.0)) },
+                    border_radius: { BorderRadius::all(px(2.0)) },
+                    justify_content: { JustifyContent::Center },
+                    align_items: { AlignItems::Center },
+                }
+                template_value(BorderColor::all(BORDER_COLOR))
+                Children [
+                    (
+                        CheckboxIcon
+                        ImageNode {
+                            image: { ICON_CHECK },
+                            color: { Color::Srgba(TEXT_BODY_COLOR) },
+                        }
+                        Node {
+                            width: px(12),
+                            height: px(12),
+                            display: { icon_display },
+                        }
+                    )
+                ]
             ),
             (
-                Text::new(label),
+                Text({ label })
                 TextFont {
-                    font: font.into(),
-                    font_size: TEXT_SIZE.into(),
-                    ..default()
-                },
-                TextColor(TEXT_BODY_COLOR.into()),
+                    font: { FontSourceTemplate::Handle(FONT_PATH.into()) },
+                    font_size: TEXT_SIZE,
+                }
+                TextColor(TEXT_BODY_COLOR)
             ),
-        ],
-    )
+        ]
+    }
 }
 
 fn handle_checkbox_hover(

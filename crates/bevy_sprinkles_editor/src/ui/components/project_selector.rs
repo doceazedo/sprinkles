@@ -577,14 +577,14 @@ fn setup_new_project_dialog_content(
     let location_placeholder = format!("projects/{}", state.default_slug);
 
     let name_input = commands
-        .spawn((
-            NewProjectNameInput,
-            text_edit(TextEditProps::default().with_placeholder(&state.default_name)),
+        .spawn_scene(text_edit(
+            TextEditProps::default().with_placeholder(&state.default_name),
         ))
+        .insert(NewProjectNameInput)
         .id();
 
     let location_text_edit = commands
-        .spawn(text_edit(
+        .spawn_scene(text_edit(
             TextEditProps::default().with_placeholder(&location_placeholder),
         ))
         .id();

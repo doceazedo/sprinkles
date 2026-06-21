@@ -123,7 +123,7 @@ pub enum FilterType {
     Integer,
 }
 
-#[derive(Component)]
+#[derive(Component, Clone, Default)]
 struct TextEditConfig {
     label: Option<String>,
     variant: TextEditVariant,
@@ -230,7 +230,7 @@ impl TextEditProps {
     }
 }
 
-pub fn text_edit(props: TextEditProps) -> impl Bundle {
+pub fn text_edit(props: TextEditProps) -> impl Scene {
     let TextEditProps {
         label,
         placeholder,
@@ -245,16 +245,17 @@ pub fn text_edit(props: TextEditProps) -> impl Bundle {
         drag_bottom,
     } = props;
 
-    (
+    // NOTE: the input subtree is still built by the deferred `setup_text_edit_input`
+    // system (keyed on `TextEditConfig`); this scene just seeds the root node + config.
+    bsn! {
         Node {
-            flex_direction: FlexDirection::Column,
+            flex_direction: { FlexDirection::Column },
             row_gap: px(3),
             flex_grow: 1.0,
             flex_shrink: 1.0,
             flex_basis: px(0),
-            ..default()
-        },
-        TextEditConfig {
+        }
+        template_value(TextEditConfig {
             label,
             variant,
             filter,
@@ -267,8 +268,8 @@ pub fn text_edit(props: TextEditProps) -> impl Bundle {
             allow_empty,
             drag_bottom,
             initialized: false,
-        },
-    )
+        })
+    }
 }
 
 fn setup_text_edit_input(

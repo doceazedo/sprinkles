@@ -1112,7 +1112,10 @@ fn spawn_single_input_field(
             column_node,
         ))
         .with_children(|col| {
-            col.spawn(text_edit(props));
+            let col_target = col.target_entity();
+            col.commands()
+                .spawn_scene(text_edit(props))
+                .insert(ChildOf(col_target));
             col.spawn((
                 Text::new(config.label),
                 TextFont {

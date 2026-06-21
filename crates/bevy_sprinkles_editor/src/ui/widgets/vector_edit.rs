@@ -2,10 +2,10 @@ use crate::ui::tokens::{TEXT_SIZE, TEXT_SIZE_SM};
 use crate::ui::widgets::text_edit::{TextEditPrefix, TextEditProps, text_edit};
 use bevy::prelude::*;
 
-#[derive(Component)]
+#[derive(Component, Default, Clone)]
 pub struct EditorVectorEdit;
 
-#[derive(Component)]
+#[derive(Component, Default, Clone)]
 pub struct VectorComponentIndex(pub usize);
 
 #[derive(Default, Debug, Clone, Copy, PartialEq)]
@@ -127,7 +127,7 @@ impl VectorEditProps {
     }
 }
 
-pub fn vector_edit(props: VectorEditProps) -> impl Bundle {
+pub fn vector_edit(props: VectorEditProps) -> impl Scene {
     let VectorEditProps {
         label,
         size,
@@ -140,7 +140,7 @@ pub fn vector_edit(props: VectorEditProps) -> impl Bundle {
 
     let is_integer = suffixes.is_integer();
 
-    let children: Vec<_> = (0..size.count())
+    let children: Vec<Box<dyn SceneList>> = (0..size.count())
         .map(|i| {
             let mut text_edit_props = if is_integer {
                 TextEditProps::default().numeric_i32()
@@ -174,18 +174,20 @@ pub fn vector_edit(props: VectorEditProps) -> impl Bundle {
                 text_edit_props = text_edit_props.with_max(max);
             }
 
-            (VectorComponentIndex(i), text_edit(text_edit_props))
+            Box::new(bsn_list![(
+                VectorComponentIndex(i)
+                text_edit(text_edit_props)
+            )]) as Box<dyn SceneList>
         })
         .collect();
 
-    (
-        EditorVectorEdit,
+    bsn! {
+        EditorVectorEdit
         Node {
             width: percent(100),
             column_gap: px(12),
-            align_items: AlignItems::FlexEnd,
-            ..default()
-        },
-        Children::spawn(SpawnIter(children.into_iter())),
-    )
+            align_items: { AlignItems::FlexEnd },
+        }
+        Children [ { children } ]
+    }
 }

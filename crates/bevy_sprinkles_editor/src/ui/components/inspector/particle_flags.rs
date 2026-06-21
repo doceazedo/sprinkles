@@ -39,7 +39,7 @@ pub fn particle_flags_section(asset_server: &AssetServer) -> impl Bundle {
 
 fn setup_particle_flags_content(
     mut commands: Commands,
-    asset_server: Res<AssetServer>,
+    _asset_server: Res<AssetServer>,
     editor_state: Res<EditorState>,
     assets: Res<Assets<ParticlesAsset>>,
     sections: Query<(Entity, &InspectorSection), With<ParticleFlagsSection>>,
@@ -67,10 +67,11 @@ fn setup_particle_flags_content(
                 let label = name_to_label(name);
                 let checked = flags.contains(flag);
                 parent.spawn(fields_row()).with_children(|row| {
-                    row.spawn((
-                        ParticleFlagCheckbox { flag },
-                        checkbox(CheckboxProps::new(label).checked(checked), &asset_server),
-                    ));
+                    let row_target = row.target_entity();
+                    row.commands()
+                        .spawn_scene(checkbox(CheckboxProps::new(label).checked(checked)))
+                        .insert(ParticleFlagCheckbox { flag })
+                        .insert(ChildOf(row_target));
                 });
             }
         })

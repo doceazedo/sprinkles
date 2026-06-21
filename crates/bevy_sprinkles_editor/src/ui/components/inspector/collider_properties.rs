@@ -103,28 +103,30 @@ fn setup_collider_content(
             match &shape {
                 ParticlesColliderShape3D::Box { size } => {
                     parent.spawn(fields_row()).with_children(|row| {
-                        row.spawn((
-                            ColliderShapeField("size"),
-                            vector_edit(
+                        let row_target = row.target_entity();
+                        row.commands()
+                            .spawn_scene(vector_edit(
                                 VectorEditProps::default()
                                     .with_label("Size")
                                     .with_suffixes(VectorSuffixes::XYZ)
                                     .with_default_values(vec![size.x, size.y, size.z]),
-                            ),
-                        ));
+                            ))
+                            .insert(ColliderShapeField("size"))
+                            .insert(ChildOf(row_target));
                     });
                 }
                 ParticlesColliderShape3D::Sphere { radius } => {
                     parent.spawn(fields_row()).with_children(|row| {
-                        row.spawn((
-                            ColliderShapeField("radius"),
-                            text_edit(
+                        let row_target = row.target_entity();
+                        row.commands()
+                            .spawn_scene(text_edit(
                                 TextEditProps::default()
                                     .with_label("Radius")
                                     .with_default_value(format_f32(*radius))
                                     .numeric_f32(),
-                            ),
-                        ));
+                            ))
+                            .insert(ColliderShapeField("radius"))
+                            .insert(ChildOf(row_target));
                     });
                 }
             }

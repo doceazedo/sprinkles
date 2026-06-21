@@ -750,17 +750,18 @@ fn spawn_stop_rows(
                 },
             ))
             .with_children(|row| {
-                row.spawn((
-                    StopPositionInput(StopRef::new(gradient_edit, i)),
-                    text_edit(
+                let row_target = row.target_entity();
+                row.commands()
+                    .spawn_scene(text_edit(
                         TextEditProps::default()
                             .numeric_i32()
                             .with_min(0.0)
                             .with_max(100.0)
                             .with_suffix("%")
                             .with_default_value(position_percent.to_string()),
-                    ),
-                ));
+                    ))
+                    .insert(StopPositionInput(StopRef::new(gradient_edit, i)))
+                    .insert(ChildOf(row_target));
 
                 row.spawn((
                     StopColorPicker(StopRef::new(gradient_edit, i)),

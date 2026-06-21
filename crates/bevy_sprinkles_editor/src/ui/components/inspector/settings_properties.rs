@@ -42,56 +42,58 @@ fn settings_combobox(
     )
 }
 
-pub fn settings_properties_section(asset_server: &AssetServer) -> impl Bundle {
-    (
-        Node {
-            width: percent(100),
-            flex_direction: FlexDirection::Column,
-            row_gap: px(12),
-            padding: UiRect::all(px(24)),
-            border: UiRect::bottom(px(1)),
-            ..default()
-        },
-        BorderColor::all(BORDER_COLOR),
-        children![
-            (
-                fields_row(),
-                children![(
-                    FieldBinding::editor_settings("show_fps", FieldKind::Bool),
-                    checkbox(CheckboxProps::new(path_to_label("show_fps")), asset_server,),
-                )],
-            ),
-            (
-                fields_row(),
-                children![(
-                    FieldBinding::editor_settings("vsync", FieldKind::Bool),
-                    checkbox(CheckboxProps::new("V-Sync").checked(true), asset_server,),
-                )],
-            ),
-            (
-                fields_row(),
-                children![settings_combobox(
-                    "tonemapping",
-                    None,
-                    combobox_options_from_reflect_raw::<EditorTonemapping>(),
-                )],
-            ),
-            (
-                fields_row(),
-                children![settings_combobox(
-                    "bloom",
-                    None,
-                    combobox_options_from_reflect::<EditorBloom>(),
-                )],
-            ),
-            (
-                fields_row(),
-                children![settings_combobox(
-                    "anti_aliasing",
-                    Some("Anti-aliasing (SMAA)"),
-                    combobox_options_from_reflect::<EditorSmaaPreset>(),
-                )],
-            ),
-        ],
-    )
+pub fn spawn_settings_properties_section(commands: &mut Commands, parent: Entity) {
+    let section = commands
+        .spawn((
+            Node {
+                width: percent(100),
+                flex_direction: FlexDirection::Column,
+                row_gap: px(12),
+                padding: UiRect::all(px(24)),
+                border: UiRect::bottom(px(1)),
+                ..default()
+            },
+            BorderColor::all(BORDER_COLOR),
+            ChildOf(parent),
+        ))
+        .id();
+
+    let row = commands.spawn(fields_row()).insert(ChildOf(section)).id();
+    commands
+        .spawn_scene(checkbox(CheckboxProps::new(path_to_label("show_fps"))))
+        .insert(FieldBinding::editor_settings("show_fps", FieldKind::Bool))
+        .insert(ChildOf(row));
+
+    let row = commands.spawn(fields_row()).insert(ChildOf(section)).id();
+    commands
+        .spawn_scene(checkbox(CheckboxProps::new("V-Sync").checked(true)))
+        .insert(FieldBinding::editor_settings("vsync", FieldKind::Bool))
+        .insert(ChildOf(row));
+
+    let row = commands.spawn(fields_row()).insert(ChildOf(section)).id();
+    commands
+        .spawn(settings_combobox(
+            "tonemapping",
+            None,
+            combobox_options_from_reflect_raw::<EditorTonemapping>(),
+        ))
+        .insert(ChildOf(row));
+
+    let row = commands.spawn(fields_row()).insert(ChildOf(section)).id();
+    commands
+        .spawn(settings_combobox(
+            "bloom",
+            None,
+            combobox_options_from_reflect::<EditorBloom>(),
+        ))
+        .insert(ChildOf(row));
+
+    let row = commands.spawn(fields_row()).insert(ChildOf(section)).id();
+    commands
+        .spawn(settings_combobox(
+            "anti_aliasing",
+            Some("Anti-aliasing (SMAA)"),
+            combobox_options_from_reflect::<EditorSmaaPreset>(),
+        ))
+        .insert(ChildOf(row));
 }

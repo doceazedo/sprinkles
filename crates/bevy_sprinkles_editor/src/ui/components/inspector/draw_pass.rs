@@ -299,18 +299,18 @@ fn spawn_cutoff_row(
                 ..default()
             },
         ))
-        .with_child((
-            cutoff_binding,
-            text_edit(
-                TextEditProps::default()
-                    .with_label("Cutoff")
-                    .with_default_value(crate::ui::components::binding::format_f32(cutoff))
-                    .numeric_f32()
-                    .with_min(0.0)
-                    .with_max(1.0),
-            ),
-        ))
         .id();
+    commands
+        .spawn_scene(text_edit(
+            TextEditProps::default()
+                .with_label("Cutoff")
+                .with_default_value(crate::ui::components::binding::format_f32(cutoff))
+                .numeric_f32()
+                .with_min(0.0)
+                .with_max(1.0),
+        ))
+        .insert(cutoff_binding)
+        .insert(ChildOf(cutoff_row));
 
     commands
         .entity(container)

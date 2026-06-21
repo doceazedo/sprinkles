@@ -170,7 +170,8 @@ fn setup_inspector_panel(
             .entity(panel_entity)
             .with_child(scrollbar(panel_entity))
             .with_children(|parent| {
-                parent.spawn(panel_title(&asset_server));
+                let parent_target = parent.target_entity();
+                spawn_panel_title(&mut parent.commands(), &asset_server, parent_target);
 
                 parent
                     .spawn((
@@ -262,8 +263,10 @@ fn setup_inspector_panel(
                                 },
                             ))
                             .with_children(|settings_content| {
-                                settings_content.spawn(
-                                    settings_properties::settings_properties_section(&asset_server),
+                                let settings_target = settings_content.target_entity();
+                                settings_properties::spawn_settings_properties_section(
+                                    &mut settings_content.commands(),
+                                    settings_target,
                                 );
                             });
                     });
@@ -318,58 +321,66 @@ pub(crate) fn set_display_visible(node: &mut Node, visible: bool) {
     }
 }
 
-fn panel_title(asset_server: &AssetServer) -> impl Bundle {
+fn spawn_panel_title(commands: &mut Commands, asset_server: &AssetServer, parent: Entity) {
     let font: Handle<Font> = asset_server.load(FONT_PATH);
 
-    (
+    let title = commands
+        .spawn((
+            Node {
+                width: percent(100),
+                align_items: AlignItems::Center,
+                column_gap: px(12.0),
+                padding: UiRect::axes(px(24.0), px(20.0)),
+                border: UiRect::bottom(px(1.0)),
+                ..default()
+            },
+            BorderColor::all(BORDER_COLOR),
+            ChildOf(parent),
+        ))
+        .id();
+
+    let left = commands
+        .spawn((
+            Node {
+                align_items: AlignItems::Center,
+                column_gap: px(6.0),
+                flex_grow: 1.0,
+                ..default()
+            },
+            ChildOf(title),
+        ))
+        .id();
+
+    commands.spawn((
+        PanelTitleIcon,
+        ImageNode::new(asset_server.load(ICON_SHOWERS)).with_color(Color::Srgba(TEXT_BODY_COLOR)),
         Node {
-            width: percent(100),
-            align_items: AlignItems::Center,
-            column_gap: px(12.0),
-            padding: UiRect::axes(px(24.0), px(20.0)),
-            border: UiRect::bottom(px(1.0)),
+            width: px(16.0),
+            height: px(16.0),
             ..default()
         },
-        BorderColor::all(BORDER_COLOR),
-        children![
-            (
-                Node {
-                    align_items: AlignItems::Center,
-                    column_gap: px(6.0),
-                    flex_grow: 1.0,
-                    ..default()
-                },
-                children![
-                    (
-                        PanelTitleIcon,
-                        ImageNode::new(asset_server.load(ICON_SHOWERS))
-                            .with_color(Color::Srgba(TEXT_BODY_COLOR)),
-                        Node {
-                            width: px(16.0),
-                            height: px(16.0),
-                            ..default()
-                        },
-                    ),
-                    (
-                        PanelTitleText,
-                        Text::new(""),
-                        TextFont {
-                            font: font.into(),
-                            font_size: TEXT_SIZE_LG.into(),
-                            weight: FontWeight::SEMIBOLD,
-                            ..default()
-                        },
-                        TextColor(TEXT_BODY_COLOR.into()),
-                    ),
-                ],
-            ),
-            (
-                InspectorContentKind::EnabledCheckbox,
-                FieldBinding::emitter("enabled", FieldKind::Bool),
-                checkbox(CheckboxProps::new("Enabled").checked(true), asset_server)
-            ),
-        ],
-    )
+        ChildOf(left),
+    ));
+    commands.spawn((
+        PanelTitleText,
+        Text::new(""),
+        TextFont {
+            font: font.into(),
+            font_size: TEXT_SIZE_LG.into(),
+            weight: FontWeight::SEMIBOLD,
+            ..default()
+        },
+        TextColor(TEXT_BODY_COLOR.into()),
+        ChildOf(left),
+    ));
+
+    commands
+        .spawn_scene(checkbox(CheckboxProps::new("Enabled").checked(true)))
+        .insert((
+            InspectorContentKind::EnabledCheckbox,
+            FieldBinding::emitter("enabled", FieldKind::Bool),
+        ))
+        .insert(ChildOf(title));
 }
 
 pub enum InspectorItem {

@@ -82,21 +82,23 @@ fn setup_properties_content(
         ))
         .with_children(|parent| {
             parent.spawn(fields_row()).with_children(|row| {
-                row.spawn((
-                    FieldBinding::asset("name", FieldKind::String),
-                    text_edit(TextEditProps::default().with_label("Project name")),
-                ));
+                let row_target = row.target_entity();
+                row.commands()
+                    .spawn_scene(text_edit(TextEditProps::default().with_label("Project name")))
+                    .insert(FieldBinding::asset("name", FieldKind::String))
+                    .insert(ChildOf(row_target));
             });
 
             parent.spawn(fields_row()).with_children(|row| {
-                row.spawn((
-                    FieldBinding::asset("authors.submitted_by", FieldKind::String),
-                    text_edit(TextEditProps::default().with_label("Submitted by")),
-                ));
-                row.spawn((
-                    FieldBinding::asset("authors.inspired_by", FieldKind::String),
-                    text_edit(TextEditProps::default().with_label("Inspired by")),
-                ));
+                let row_target = row.target_entity();
+                row.commands()
+                    .spawn_scene(text_edit(TextEditProps::default().with_label("Submitted by")))
+                    .insert(FieldBinding::asset("authors.submitted_by", FieldKind::String))
+                    .insert(ChildOf(row_target));
+                row.commands()
+                    .spawn_scene(text_edit(TextEditProps::default().with_label("Inspired by")))
+                    .insert(FieldBinding::asset("authors.inspired_by", FieldKind::String))
+                    .insert(ChildOf(row_target));
             });
 
             if let Some(ref path) = file_path {
@@ -195,7 +197,7 @@ fn spawn_file_path_field(
 
 fn setup_runtime_content(
     mut commands: Commands,
-    asset_server: Res<AssetServer>,
+    _asset_server: Res<AssetServer>,
     editor_state: Res<EditorState>,
     sections: Query<(Entity, &InspectorSection), With<ProjectRuntimeSection>>,
     existing: Query<Entity, With<ProjectRuntimeContent>>,
@@ -221,10 +223,11 @@ fn setup_runtime_content(
         ))
         .with_children(|parent| {
             parent.spawn(fields_row()).with_children(|row| {
-                row.spawn((
-                    FieldBinding::asset("despawn_on_finish", FieldKind::Bool),
-                    checkbox(CheckboxProps::new("Despawn on finish"), &asset_server),
-                ));
+                let row_target = row.target_entity();
+                row.commands()
+                    .spawn_scene(checkbox(CheckboxProps::new("Despawn on finish")))
+                    .insert(FieldBinding::asset("despawn_on_finish", FieldKind::Bool))
+                    .insert(ChildOf(row_target));
             });
         })
         .id();

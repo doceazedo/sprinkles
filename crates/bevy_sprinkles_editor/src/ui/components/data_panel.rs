@@ -599,13 +599,11 @@ fn start_rename(commands: &mut Commands, item_entity: Entity, name: &str) {
     commands.entity(item_entity).insert(Renaming);
 
     let rename_entity = commands
-        .spawn((
-            RenameInput {
-                item_entity,
-                focused: false,
-            },
-            text_edit(TextEditProps::default().with_default_value(name)),
-        ))
+        .spawn_scene(text_edit(TextEditProps::default().with_default_value(name)))
+        .insert(RenameInput {
+            item_entity,
+            focused: false,
+        })
         .id();
 
     commands.entity(item_entity).add_child(rename_entity);

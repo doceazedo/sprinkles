@@ -881,16 +881,18 @@ fn setup_curve_edit_content(
                     );
                 });
 
-            parent.spawn((
-                RangeEdit(curve_edit_entity),
-                vector_edit(
+            let parent_target = parent.target_entity();
+            parent
+                .commands()
+                .spawn_scene(vector_edit(
                     VectorEditProps::default()
                         .with_label("Range")
                         .with_size(VectorSize::Vec2)
                         .with_suffixes(VectorSuffixes::Range)
                         .with_default_values(vec![channel.range.min, channel.range.max]),
-                ),
-            ));
+                ))
+                .insert(RangeEdit(curve_edit_entity))
+                .insert(ChildOf(parent_target));
         });
     }
 }

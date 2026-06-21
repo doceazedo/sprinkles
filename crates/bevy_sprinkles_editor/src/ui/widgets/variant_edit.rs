@@ -733,30 +733,29 @@ fn spawn_field_widget(
             if let Some(max) = field.max {
                 props = props.with_max(max);
             }
-            commands.spawn((binding, text_edit(props))).id()
+            commands.spawn_scene(text_edit(props)).insert(binding).id()
         }
 
         FieldKind::U32 | FieldKind::U32OrEmpty | FieldKind::OptionalU32 => commands
-            .spawn((
-                binding,
-                text_edit(TextEditProps::default().with_label(label).numeric_i32()),
+            .spawn_scene(text_edit(
+                TextEditProps::default().with_label(label).numeric_i32(),
             ))
+            .insert(binding)
             .id(),
 
         FieldKind::Bool => commands
-            .spawn((binding, checkbox(CheckboxProps::new(label), asset_server)))
+            .spawn_scene(checkbox(CheckboxProps::new(label)))
+            .insert(binding)
             .id(),
 
         FieldKind::Vector(suffixes) => commands
-            .spawn((
-                binding,
-                vector_edit(
-                    VectorEditProps::default()
-                        .with_label(label)
-                        .with_size(suffixes.vector_size())
-                        .with_suffixes(*suffixes),
-                ),
+            .spawn_scene(vector_edit(
+                VectorEditProps::default()
+                    .with_label(label)
+                    .with_size(suffixes.vector_size())
+                    .with_suffixes(*suffixes),
             ))
+            .insert(binding)
             .id(),
 
         FieldKind::ComboBox { options, .. } => {
@@ -799,10 +798,8 @@ fn spawn_field_widget(
         }
 
         FieldKind::String => commands
-            .spawn((
-                binding,
-                text_edit(TextEditProps::default().with_label(label)),
-            ))
+            .spawn_scene(text_edit(TextEditProps::default().with_label(label)))
+            .insert(binding)
             .id(),
 
         FieldKind::Curve | FieldKind::AnimatedVelocity => commands.spawn_empty().id(),

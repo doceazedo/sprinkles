@@ -188,7 +188,7 @@ impl InspectorFieldProps {
 pub fn spawn_inspector_field(
     spawner: &mut ChildSpawnerCommands,
     props: InspectorFieldProps,
-    asset_server: &AssetServer,
+    _asset_server: &AssetServer,
 ) {
     let field = match props.target {
         BindingTarget::Asset => FieldBinding::asset(&props.path, props.kind.clone()),
@@ -200,7 +200,12 @@ pub fn spawn_inspector_field(
     let label = props.inferred_label();
 
     if props.kind == FieldKind::Bool {
-        spawner.spawn((field, checkbox(CheckboxProps::new(label), asset_server)));
+        let spawner_target = spawner.target_entity();
+        spawner
+            .commands()
+            .spawn_scene(checkbox(CheckboxProps::new(label)))
+            .insert(field)
+            .insert(ChildOf(spawner_target));
         return;
     }
 
@@ -220,7 +225,12 @@ pub fn spawn_inspector_field(
             vec_props = vec_props.with_max(max as f64);
         }
 
-        spawner.spawn((field, vector_edit(vec_props)));
+        let spawner_target = spawner.target_entity();
+        spawner
+            .commands()
+            .spawn_scene(vector_edit(vec_props))
+            .insert(field)
+            .insert(ChildOf(spawner_target));
         return;
     }
 
@@ -274,7 +284,12 @@ pub fn spawn_inspector_field(
         text_props = text_props.allow_empty();
     }
 
-    spawner.spawn((field, text_edit(text_props)));
+    let spawner_target = spawner.target_entity();
+    spawner
+        .commands()
+        .spawn_scene(text_edit(text_props))
+        .insert(field)
+        .insert(ChildOf(spawner_target));
 }
 
 fn combobox_data_to_options(data: &[ComboBoxOptionData]) -> Vec<ComboBoxOption> {

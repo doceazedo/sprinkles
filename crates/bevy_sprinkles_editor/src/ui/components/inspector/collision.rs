@@ -112,26 +112,29 @@ fn setup_collision_content(
 
             if is_rigid {
                 parent.spawn(fields_row()).with_children(|row| {
-                    row.spawn((
-                        FieldBinding::emitter_variant_field(
-                            "collision.mode",
-                            "friction",
-                            FieldKind::F32,
-                        ),
-                        text_edit(
+                    let row_target = row.target_entity();
+                    row.commands()
+                        .spawn_scene(text_edit(
                             TextEditProps::default()
                                 .with_label("Friction")
                                 .numeric_f32(),
-                        ),
-                    ));
-                    row.spawn((
-                        FieldBinding::emitter_variant_field(
+                        ))
+                        .insert(FieldBinding::emitter_variant_field(
+                            "collision.mode",
+                            "friction",
+                            FieldKind::F32,
+                        ))
+                        .insert(ChildOf(row_target));
+                    row.commands()
+                        .spawn_scene(text_edit(
+                            TextEditProps::default().with_label("Bounce").numeric_f32(),
+                        ))
+                        .insert(FieldBinding::emitter_variant_field(
                             "collision.mode",
                             "bounce",
                             FieldKind::F32,
-                        ),
-                        text_edit(TextEditProps::default().with_label("Bounce").numeric_f32()),
-                    ));
+                        ))
+                        .insert(ChildOf(row_target));
                 });
             }
         })

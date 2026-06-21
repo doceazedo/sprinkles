@@ -162,7 +162,7 @@ fn spawn_fields(
     asset: &ParticlesAsset,
     current_emitter_index: usize,
     font: &Handle<Font>,
-    asset_server: &AssetServer,
+    _asset_server: &AssetServer,
 ) {
     let is_constant = config.mode == SubEmitterMode::Constant;
     let is_event = matches!(
@@ -185,43 +185,57 @@ fn spawn_fields(
 
     if is_constant {
         parent.spawn(fields_row()).with_children(|row| {
-            row.spawn((
-                FieldBinding::emitter_variant_field("sub_emitter", "frequency", FieldKind::F32),
-                text_edit(
+            let row_target = row.target_entity();
+            row.commands()
+                .spawn_scene(text_edit(
                     TextEditProps::default()
                         .with_label("Frequency (Hz)")
                         .with_default_value(&config.frequency.to_string())
                         .numeric_f32()
                         .with_min(0.01),
-                ),
-            ));
+                ))
+                .insert(FieldBinding::emitter_variant_field(
+                    "sub_emitter",
+                    "frequency",
+                    FieldKind::F32,
+                ))
+                .insert(ChildOf(row_target));
         });
     }
 
     if is_event {
         parent.spawn(fields_row()).with_children(|row| {
-            row.spawn((
-                FieldBinding::emitter_variant_field("sub_emitter", "amount", FieldKind::U32),
-                text_edit(
+            let row_target = row.target_entity();
+            row.commands()
+                .spawn_scene(text_edit(
                     TextEditProps::default()
                         .with_label("Amount")
                         .with_default_value(&config.amount.to_string())
                         .numeric_i32()
                         .with_min(1.0)
                         .with_max(32.0),
-                ),
-            ));
+                ))
+                .insert(FieldBinding::emitter_variant_field(
+                    "sub_emitter",
+                    "amount",
+                    FieldKind::U32,
+                ))
+                .insert(ChildOf(row_target));
         });
     }
 
     parent.spawn(fields_row()).with_children(|row| {
-        row.spawn((
-            FieldBinding::emitter_variant_field("sub_emitter", "keep_velocity", FieldKind::Bool),
-            checkbox(
+        let row_target = row.target_entity();
+        row.commands()
+            .spawn_scene(checkbox(
                 CheckboxProps::new("Keep velocity").checked(config.keep_velocity),
-                asset_server,
-            ),
-        ));
+            ))
+            .insert(FieldBinding::emitter_variant_field(
+                "sub_emitter",
+                "keep_velocity",
+                FieldKind::Bool,
+            ))
+            .insert(ChildOf(row_target));
     });
 
     let target_amount = asset
