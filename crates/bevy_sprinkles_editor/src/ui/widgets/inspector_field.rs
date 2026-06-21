@@ -352,7 +352,7 @@ pub fn setup_combobox_fields(
             ))
             .id();
 
-        let combobox_entity = commands.spawn(combobox(config.options.clone())).id();
+        let combobox_entity = commands.spawn_scene(combobox(config.options.clone())).id();
 
         commands
             .entity(entity)

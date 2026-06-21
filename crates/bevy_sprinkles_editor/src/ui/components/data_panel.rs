@@ -240,10 +240,8 @@ fn spawn_items<'a>(
             .id();
 
         let menu_entity = commands
-            .spawn((
-                ItemMenu,
-                combobox_icon(vec!["Duplicate", "Rename", "Delete"]),
-            ))
+            .spawn_scene(combobox_icon(vec!["Duplicate", "Rename", "Delete"]))
+            .insert(ItemMenu)
             .insert(Node {
                 position_type: PositionType::Absolute,
                 right: px(0.0),

@@ -357,18 +357,16 @@ fn handle_add_button_click(
     }
 
     let popover_entity = commands
-        .spawn((
-            AddVelocityPopover,
-            popover(
-                PopoverProps::new(anchor)
-                    .with_placement(PopoverPlacement::BottomEnd)
-                    .with_padding(4.0)
-                    .with_node(Node {
-                        min_width: px(120.0),
-                        ..default()
-                    }),
-            ),
+        .spawn_scene(popover(
+            PopoverProps::new(anchor)
+                .with_placement(PopoverPlacement::BottomEnd)
+                .with_padding(4.0)
+                .with_node(Node {
+                    min_width: px(120.0),
+                    ..default()
+                }),
         ))
+        .insert(AddVelocityPopover)
         .id();
 
     for field_name in remaining {
@@ -494,19 +492,17 @@ fn handle_velocity_edit(
     let curve_path = format!("velocities.{}.velocity_over_lifetime", field_name);
 
     let popover_entity = commands
-        .spawn((
-            VelocityEditPopover(trigger.entity),
-            popover(
-                PopoverProps::new(trigger.entity)
-                    .with_placement(PopoverPlacement::Right)
-                    .with_padding(0.0)
-                    .with_node(Node {
-                        width: px(256.0),
-                        min_width: px(256.0),
-                        ..default()
-                    }),
-            ),
+        .spawn_scene(popover(
+            PopoverProps::new(trigger.entity)
+                .with_placement(PopoverPlacement::Right)
+                .with_padding(0.0)
+                .with_node(Node {
+                    width: px(256.0),
+                    min_width: px(256.0),
+                    ..default()
+                }),
         ))
+        .insert(VelocityEditPopover(trigger.entity))
         .id();
 
     commands

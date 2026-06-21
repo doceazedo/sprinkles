@@ -607,7 +607,12 @@ pub(super) fn spawn_labeled_combobox(
                 },
                 TextColor(TEXT_MUTED_COLOR.into()),
             ));
-            wrapper.spawn((marker, combobox_with_selected(options, selected)));
+            let wrapper_target = wrapper.target_entity();
+            wrapper
+                .commands()
+                .spawn_scene(combobox_with_selected(options, selected))
+                .insert(marker)
+                .insert(ChildOf(wrapper_target));
         });
     });
 }

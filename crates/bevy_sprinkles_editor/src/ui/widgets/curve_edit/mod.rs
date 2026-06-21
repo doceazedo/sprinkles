@@ -684,18 +684,16 @@ fn handle_trigger_click(
     let axes_selected = if state.is_per_axis() { 1 } else { 0 };
 
     let popover_entity = commands
-        .spawn((
-            CurveEditPopover(curve_edit_entity),
-            popover(
-                PopoverProps::new(trigger.entity)
-                    .with_placement(PopoverPlacement::Right)
-                    .with_padding(0.0)
-                    .with_node(Node {
-                        width: px(256.0),
-                        ..default()
-                    }),
-            ),
+        .spawn_scene(popover(
+            PopoverProps::new(trigger.entity)
+                .with_placement(PopoverPlacement::Right)
+                .with_padding(0.0)
+                .with_node(Node {
+                    width: px(256.0),
+                    ..default()
+                }),
         ))
+        .insert(CurveEditPopover(curve_edit_entity))
         .id();
 
     tracker.open(popover_entity, trigger.entity);
@@ -725,14 +723,15 @@ fn handle_trigger_click(
                     BorderColor::all(BORDER_COLOR),
                 ))
                 .with_children(|row| {
-                    row.spawn((
-                        PresetComboBox(curve_edit_entity),
-                        combobox_with_label(presets, "Presets"),
-                    ));
-                    row.spawn((
-                        AxesComboBox(curve_edit_entity),
-                        combobox_with_selected(axes_options, axes_selected),
-                    ));
+                    let row_target = row.target_entity();
+                    row.commands()
+                        .spawn_scene(combobox_with_label(presets, "Presets"))
+                        .insert(PresetComboBox(curve_edit_entity))
+                        .insert(ChildOf(row_target));
+                    row.commands()
+                        .spawn_scene(combobox_with_selected(axes_options, axes_selected))
+                        .insert(AxesComboBox(curve_edit_entity))
+                        .insert(ChildOf(row_target));
                     let flip_wrapper = row
                         .spawn((Node {
                             flex_shrink: 0.0,
@@ -1791,15 +1790,13 @@ fn handle_point_right_click(
         let can_delete = channel.points.len() > 2;
 
         let popover_entity = commands
-            .spawn((
-                PointModeMenu,
-                popover(
-                    PopoverProps::new(handle_entity)
-                        .with_placement(PopoverPlacement::BottomStart)
-                        .with_padding(4.0)
-                        .with_z_index(300),
-                ),
+            .spawn_scene(popover(
+                PopoverProps::new(handle_entity)
+                    .with_placement(PopoverPlacement::BottomStart)
+                    .with_padding(4.0)
+                    .with_z_index(300),
             ))
+            .insert(PointModeMenu)
             .id();
 
         commands.entity(popover_entity).with_children(|parent| {

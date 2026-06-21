@@ -521,7 +521,8 @@ fn handle_variant_edit_click(
     };
 
     let popover_entity = commands
-        .spawn((VariantEditPopover, popover(popover_props)))
+        .spawn_scene(popover(popover_props))
+        .insert(VariantEditPopover)
         .id();
 
     commands
@@ -533,7 +534,7 @@ fn handle_variant_edit_click(
     commands
         .entity(popover_entity)
         .with_children(|parent| {
-            parent
+            let combo_wrapper = parent
                 .spawn((
                     Node {
                         width: percent(100),
@@ -547,10 +548,12 @@ fn handle_variant_edit_click(
                     },
                     BorderColor::all(BORDER_COLOR),
                 ))
-                .with_child((
-                    VariantComboBox(entity),
-                    combobox_with_selected(options, config.selected_index),
-                ));
+                .id();
+            parent
+                .commands()
+                .spawn_scene(combobox_with_selected(options, config.selected_index))
+                .insert(VariantComboBox(entity))
+                .insert(ChildOf(combo_wrapper));
 
             if show_fields_container {
                 let fields_container = parent
@@ -764,7 +767,7 @@ fn spawn_field_widget(
                 .iter()
                 .map(|o| ComboBoxOptionData::new(&o.label).with_value(&o.value))
                 .collect();
-            spawn_labeled_field(
+            spawn_labeled_field_scene(
                 commands,
                 asset_server,
                 &label,
@@ -830,6 +833,34 @@ fn spawn_labeled_field(
         ))
         .with_child((binding, widget))
         .id()
+}
+
+fn spawn_labeled_field_scene(
+    commands: &mut Commands,
+    asset_server: &AssetServer,
+    label: &str,
+    binding: FieldBinding,
+    widget: impl Scene,
+) -> Entity {
+    let font: Handle<Font> = asset_server.load(FONT_PATH);
+
+    let wrapper = commands.spawn(labeled_field_wrapper()).id();
+    commands.spawn((
+        Text::new(label),
+        TextFont {
+            font: font.into(),
+            font_size: TEXT_SIZE_SM.into(),
+            weight: FontWeight::MEDIUM,
+            ..default()
+        },
+        TextColor(TEXT_MUTED_COLOR.into()),
+        ChildOf(wrapper),
+    ));
+    commands
+        .spawn_scene(widget)
+        .insert(binding)
+        .insert(ChildOf(wrapper));
+    wrapper
 }
 
 fn labeled_field_wrapper() -> impl Bundle {

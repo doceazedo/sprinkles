@@ -204,20 +204,18 @@ fn handle_trigger_click(
     let font: Handle<Font> = asset_server.load(FONT_PATH);
 
     let popover_entity = commands
-        .spawn((
-            ProjectSelectorPopover,
-            popover(
-                PopoverProps::new(trigger.entity)
-                    .with_placement(PopoverPlacement::BottomStart)
-                    .with_padding(6.0)
-                    .with_gap(6.0)
-                    .with_z_index(200)
-                    .with_node(Node {
-                        min_width: px(200.0),
-                        ..default()
-                    }),
-            ),
+        .spawn_scene(popover(
+            PopoverProps::new(trigger.entity)
+                .with_placement(PopoverPlacement::BottomStart)
+                .with_padding(6.0)
+                .with_gap(6.0)
+                .with_z_index(200)
+                .with_node(Node {
+                    min_width: px(200.0),
+                    ..default()
+                }),
         ))
+        .insert(ProjectSelectorPopover)
         .id();
 
     state.popover = Some(popover_entity);

@@ -23,7 +23,7 @@ pub fn plugin(app: &mut App) {
     );
 }
 
-#[derive(Component)]
+#[derive(Component, Default, Clone)]
 pub struct EditorPopover;
 
 #[derive(Component, Default, Clone)]
@@ -59,10 +59,10 @@ pub fn deactivate_trigger(
     }
 }
 
-#[derive(Component)]
+#[derive(Component, FromTemplate)]
 pub struct PopoverAnchor(pub Entity);
 
-#[derive(Component, Default)]
+#[derive(Component, Default, Clone)]
 struct PopoverLayoutReady(bool);
 
 #[derive(Component, Default, Clone, Copy, PartialEq)]
@@ -187,7 +187,7 @@ impl PopoverProps {
     }
 }
 
-pub fn popover(props: PopoverProps) -> impl Bundle {
+pub fn popover(props: PopoverProps) -> impl Scene {
     let PopoverProps {
         placement,
         anchor,
@@ -198,28 +198,29 @@ pub fn popover(props: PopoverProps) -> impl Bundle {
     } = props;
 
     let base_node = node.unwrap_or_default();
+    let popover_node = Node {
+        position_type: PositionType::Absolute,
+        padding: UiRect::all(px(padding)),
+        row_gap: px(gap),
+        border: UiRect::all(px(1.0)),
+        border_radius: BorderRadius::all(CORNER_RADIUS_LG),
+        flex_direction: FlexDirection::Column,
+        ..base_node
+    };
 
-    (
-        EditorPopover,
-        PopoverAnchor(anchor),
-        PopoverLayoutReady::default(),
-        placement,
-        Hovered::default(),
-        Interaction::None,
-        Node {
-            position_type: PositionType::Absolute,
-            padding: UiRect::all(px(padding)),
-            row_gap: px(gap),
-            border: UiRect::all(px(1.0)),
-            border_radius: BorderRadius::all(CORNER_RADIUS_LG),
-            flex_direction: FlexDirection::Column,
-            ..base_node
-        },
-        Visibility::Hidden,
-        BackgroundColor(BACKGROUND_COLOR.into()),
-        BorderColor::all(BORDER_COLOR),
-        ZIndex(z_index),
-    )
+    bsn! {
+        EditorPopover
+        PopoverAnchor(anchor)
+        PopoverLayoutReady
+        template_value(placement)
+        Hovered
+        Interaction
+        template_value(popover_node)
+        template_value(Visibility::Hidden)
+        BackgroundColor({ BACKGROUND_COLOR })
+        template_value(BorderColor::all(BORDER_COLOR))
+        template_value(ZIndex(z_index))
+    }
 }
 
 fn handle_popover_position(

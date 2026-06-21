@@ -1031,7 +1031,7 @@ fn spawn_input_fields(
         true,
     );
 
-    parent
+    let field_wrapper = parent
         .spawn((
             ColorInputField {
                 picker: picker_entity,
@@ -1042,10 +1042,14 @@ fn spawn_input_fields(
                 ..default()
             },
         ))
-        .with_child(combobox_icon_with_selected(
+        .id();
+    parent
+        .commands()
+        .spawn_scene(combobox_icon_with_selected(
             vec!["Hex", "RGB", "HSB", "RAW"],
             state.input_mode.index(),
-        ));
+        ))
+        .insert(ChildOf(field_wrapper));
 }
 
 fn spawn_single_input_field(
@@ -1161,19 +1165,17 @@ fn handle_trigger_click(
     activate_trigger(trigger.entity, &mut button_styles);
 
     let popover_entity = commands
-        .spawn((
-            ColorPickerPopover(picker_entity),
-            popover(
-                PopoverProps::new(trigger.entity)
-                    .with_placement(PopoverPlacement::RightStart)
-                    .with_padding(0.0)
-                    .with_z_index(150)
-                    .with_node(Node {
-                        width: px(POPOVER_WIDTH),
-                        ..default()
-                    }),
-            ),
+        .spawn_scene(popover(
+            PopoverProps::new(trigger.entity)
+                .with_placement(PopoverPlacement::RightStart)
+                .with_padding(0.0)
+                .with_z_index(150)
+                .with_node(Node {
+                    width: px(POPOVER_WIDTH),
+                    ..default()
+                }),
         ))
+        .insert(ColorPickerPopover(picker_entity))
         .id();
 
     tracker.open(popover_entity, trigger.entity);

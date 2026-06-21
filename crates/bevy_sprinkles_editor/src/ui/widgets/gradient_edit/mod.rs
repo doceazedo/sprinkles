@@ -430,15 +430,13 @@ fn handle_trigger_click(
     activate_trigger(trigger.entity, &mut button_styles);
 
     let popover_entity = commands
-        .spawn((
-            GradientEditPopover(edit_entity),
-            popover(
-                PopoverProps::new(trigger.entity)
-                    .with_placement(PopoverPlacement::RightStart)
-                    .with_padding(0.0)
-                    .with_z_index(150),
-            ),
+        .spawn_scene(popover(
+            PopoverProps::new(trigger.entity)
+                .with_placement(PopoverPlacement::RightStart)
+                .with_padding(0.0)
+                .with_z_index(150),
         ))
+        .insert(GradientEditPopover(edit_entity))
         .id();
 
     tracker.open(popover_entity, trigger.entity);
@@ -822,15 +820,16 @@ fn on_handle_click(
     };
 
     let popover_entity = commands
-        .spawn((
-            HandleColorPopover(StopRef::new(handle.gradient_edit, handle.index)),
-            popover(
-                PopoverProps::new(event.event_target())
-                    .with_placement(PopoverPlacement::Top)
-                    .with_padding(12.0)
-                    .with_z_index(300),
-            ),
+        .spawn_scene(popover(
+            PopoverProps::new(event.event_target())
+                .with_placement(PopoverPlacement::Top)
+                .with_padding(12.0)
+                .with_z_index(300),
         ))
+        .insert(HandleColorPopover(StopRef::new(
+            handle.gradient_edit,
+            handle.index,
+        )))
         .id();
 
     commands.entity(popover_entity).with_children(|parent| {
@@ -1268,15 +1267,13 @@ fn handle_handle_right_click(
         let can_delete = state.gradient.stops.len() > 1;
 
         let popover_entity = commands
-            .spawn((
-                HandleMenu,
-                popover(
-                    PopoverProps::new(handle_entity)
-                        .with_placement(PopoverPlacement::BottomStart)
-                        .with_padding(4.0)
-                        .with_z_index(300),
-                ),
+            .spawn_scene(popover(
+                PopoverProps::new(handle_entity)
+                    .with_placement(PopoverPlacement::BottomStart)
+                    .with_padding(4.0)
+                    .with_z_index(300),
             ))
+            .insert(HandleMenu)
             .id();
 
         commands.entity(popover_entity).with_children(|parent| {
