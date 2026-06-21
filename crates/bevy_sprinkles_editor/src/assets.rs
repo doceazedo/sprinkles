@@ -3,6 +3,7 @@ use std::path::Path;
 
 use bevy::asset::embedded_asset;
 use bevy::prelude::*;
+use bevy::shader::load_shader_library;
 
 include!(concat!(env!("OUT_DIR"), "/bundled_examples.rs"));
 
@@ -51,7 +52,8 @@ pub fn plugin(app: &mut App) {
     embedded_asset!(app, "assets/icons/ri-stop-fill.png");
     embedded_asset!(app, "assets/icons/ri-time-line.png");
 
-    // shaders (except common.wgsl which uses load_internal_asset!)
+    // shaders
+    load_shader_library!(app, "assets/shaders/common.wgsl");
     embedded_asset!(app, "assets/shaders/color_picker_alpha.wgsl");
     embedded_asset!(app, "assets/shaders/color_picker_checkerboard.wgsl");
     embedded_asset!(app, "assets/shaders/color_picker_hsv_rect.wgsl");

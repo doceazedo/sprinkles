@@ -1,5 +1,5 @@
 #import bevy_ui::ui_vertex_output::UiVertexOutput
-#import bevy_ui_render::color_space::srgb_to_linear_rgb
+#import bevy_render::color_operations::srgb_to_linear_rgb
 #import bevy_sprinkles_editor::common::{checkerboard, rounded_box_sdf}
 
 const MAX_STOPS: u32 = 8u;
@@ -102,8 +102,8 @@ fn fragment(in: UiVertexOutput) -> @location(0) vec4<f32> {
     let checker_color_light = vec3<f32>(1.0, 1.0, 1.0);
     let checker_color_dark = srgb_to_linear_rgb(vec3<f32>(0.8, 0.8, 0.8));
 
-    let cell_count = in.size.x / uniforms.checkerboard_size;
-    let checker = checkerboard(in.uv, cell_count);
+    let cell_count = in.size.y / uniforms.checkerboard_size;
+    let checker = checkerboard(in.uv * vec2(in.size.x / in.size.y, 1.0), cell_count);
     let checker_rgb = mix(checker_color_dark, checker_color_light, checker);
 
     let final_rgb = mix(checker_rgb, srgb_to_linear_rgb(gradient_color.rgb), gradient_color.a);

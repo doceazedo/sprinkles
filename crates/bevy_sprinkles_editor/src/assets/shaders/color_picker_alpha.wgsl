@@ -1,5 +1,5 @@
 #import bevy_ui::ui_vertex_output::UiVertexOutput
-#import bevy_ui_render::color_space::srgb_to_linear_rgb
+#import bevy_render::color_operations::srgb_to_linear_rgb
 #import bevy_sprinkles_editor::common::{checkerboard, rounded_box_sdf}
 
 struct AlphaSliderUniforms {
