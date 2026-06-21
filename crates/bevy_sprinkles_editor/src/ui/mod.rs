@@ -84,7 +84,7 @@ fn setup_ui(mut commands: Commands) {
 
     let data_panel_entity = commands.spawn_scene(data_panel()).id();
     let inspector_panel_entity = commands.spawn_scene(inspector_panel()).id();
-    let viewport = commands.spawn(viewport_container()).id();
+    let viewport = commands.spawn_scene(viewport_container()).id();
     commands
         .entity(main_row)
         .add_children(&[data_panel_entity, inspector_panel_entity, viewport]);

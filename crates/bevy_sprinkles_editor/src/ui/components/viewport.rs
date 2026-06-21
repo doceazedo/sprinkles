@@ -4,22 +4,21 @@ use bevy::ui::widget::ViewportNode;
 
 use crate::viewport::EditorCamera;
 
-#[derive(Component)]
+#[derive(Component, Default, Clone)]
 pub struct EditorViewportContainer;
 
 #[derive(Component)]
 pub struct EditorViewport;
 
-pub fn viewport_container() -> impl Bundle {
-    (
-        EditorViewportContainer,
+pub fn viewport_container() -> impl Scene {
+    bsn! {
+        EditorViewportContainer
         Node {
             flex_grow: 1.0,
             height: percent(100),
-            ..default()
-        },
-        Hovered::default(),
-    )
+        }
+        Hovered
+    }
 }
 
 pub fn setup_viewport(
