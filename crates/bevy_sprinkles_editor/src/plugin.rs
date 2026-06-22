@@ -7,12 +7,13 @@ use crate::io::{EditorData, project_path, save_editor_data, working_dir};
 use crate::project::load_project_from_path;
 use crate::state::{DirtyState, EditorState, Inspectable, Inspecting};
 use crate::viewport::{
-    CameraSettings, ViewportInputState, despawn_preview_on_project_change, draw_collider_gizmos,
-    handle_playback_play_event, handle_playback_reset_event, handle_playback_seek_event,
-    handle_respawn_colliders, handle_respawn_emitters, orbit_camera,
-    respawn_preview_on_emitter_change, setup_aabb_gizmo_config, setup_camera, setup_floor,
-    spawn_preview_particle_system, sync_inspected_emitter_aabb, sync_playback_state,
-    sync_viewport_settings, zoom_camera,
+    AabbGeneration, CameraSettings, ViewportInputState, despawn_preview_on_project_change,
+    draw_collider_gizmos, handle_generate_aabb_request, handle_playback_play_event,
+    handle_playback_reset_event, handle_playback_seek_event, handle_respawn_colliders,
+    handle_respawn_emitters, orbit_camera, respawn_preview_on_emitter_change,
+    setup_aabb_gizmo_config, setup_camera, setup_floor, spawn_preview_particle_system,
+    sync_inspected_emitter_aabb, sync_playback_state, sync_viewport_settings, tick_aabb_generation,
+    zoom_camera,
 };
 
 #[derive(Resource, Default)]
@@ -41,6 +42,7 @@ impl Plugin for SprinklesEditorPlugin {
             .add_plugins(crate::project::plugin)
             .init_resource::<CameraSettings>()
             .init_resource::<ViewportInputState>()
+            .init_resource::<AabbGeneration>()
             .insert_resource(ClearColor(ZINC_950.into()))
             .add_observer(respawn_preview_on_emitter_change)
             .add_observer(handle_respawn_emitters)
@@ -48,6 +50,7 @@ impl Plugin for SprinklesEditorPlugin {
             .add_observer(handle_playback_play_event)
             .add_observer(handle_playback_reset_event)
             .add_observer(handle_playback_seek_event)
+            .add_observer(handle_generate_aabb_request)
             .add_systems(
                 Startup,
                 (
@@ -68,6 +71,7 @@ impl Plugin for SprinklesEditorPlugin {
                     sync_viewport_settings,
                     draw_collider_gizmos,
                     sync_inspected_emitter_aabb,
+                    tick_aabb_generation,
                 ),
             );
     }

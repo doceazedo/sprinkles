@@ -17,6 +17,7 @@ mod turbulence;
 pub mod types;
 pub mod utils;
 mod velocities;
+mod visibility_aabb;
 
 pub use types::{ComboBoxOption, FieldKind, VariantField};
 pub use utils::{name_to_label, path_to_label};
@@ -60,6 +61,7 @@ pub fn plugin(app: &mut App) {
             collider_properties::plugin,
         ))
         .add_plugins(project_properties::plugin)
+        .add_plugins(visibility_aabb::plugin)
         .add_systems(
             Update,
             (
@@ -197,7 +199,7 @@ fn setup_inspector_panel(
                                 spawn_section(emitter_content, draw_pass::draw_pass_section());
                                 spawn_section(
                                     emitter_content,
-                                    draw_pass::visibility_aabb_section(),
+                                    visibility_aabb::visibility_aabb_section(),
                                 );
                                 spawn_section(emitter_content, emission::emission_section());
                                 spawn_section(emitter_content, scale::scale_section());

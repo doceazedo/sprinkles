@@ -286,7 +286,10 @@ pub fn setup_particle_systems(
             let particles: Vec<ParticleData> =
                 (0..total_slots).map(|_| ParticleData::default()).collect();
 
-            let particle_buffer_handle = buffers.add(ShaderBuffer::from(particles.clone()));
+            let mut particle_buffer = ShaderBuffer::from(particles.clone());
+            particle_buffer.buffer_description.usage |=
+                bevy::render::render_resource::BufferUsages::COPY_SRC;
+            let particle_buffer_handle = buffers.add(particle_buffer);
 
             let indices: Vec<u32> = (0..total_slots).collect();
             let indices_buffer_handle = buffers.add(ShaderBuffer::from(indices));
@@ -562,7 +565,10 @@ pub(crate) fn sync_particle_buffers(
         let particles: Vec<ParticleData> =
             (0..new_total).map(|_| ParticleData::default()).collect();
 
-        let new_particle_buf = buffers.add(ShaderBuffer::from(particles.clone()));
+        let mut new_particle_buffer = ShaderBuffer::from(particles.clone());
+        new_particle_buffer.buffer_description.usage |=
+            bevy::render::render_resource::BufferUsages::COPY_SRC;
+        let new_particle_buf = buffers.add(new_particle_buffer);
         let new_indices_buf = buffers.add(ShaderBuffer::from((0..new_total).collect::<Vec<u32>>()));
         let new_sorted_buf = buffers.add(ShaderBuffer::from(particles));
 

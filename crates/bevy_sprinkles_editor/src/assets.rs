@@ -23,6 +23,7 @@ pub fn plugin(app: &mut App) {
     embedded_asset!(app, "assets/icons/blender-mesh-plane.png");
     embedded_asset!(app, "assets/icons/blender-mesh-torus.png");
     embedded_asset!(app, "assets/icons/blender-mesh-uvsphere.png");
+    embedded_asset!(app, "assets/icons/blender-pivot-boundbox.png");
     embedded_asset!(app, "assets/icons/blender-sphere.png");
     embedded_asset!(app, "assets/icons/blender-texture.png");
     embedded_asset!(app, "assets/icons/ri-add-line.png");

@@ -14,15 +14,20 @@ use bevy::math::Affine2;
 use bevy::picking::hover::Hovered;
 use bevy::post_process::bloom::Bloom;
 use bevy::prelude::*;
+use bevy::render::gpu_readback::{Readback, ReadbackComplete};
 use bevy::render::render_resource::{TextureDimension, TextureFormat, TextureUsages};
 use bevy::window::PresentMode;
 use bevy_sprinkles::prelude::*;
+use bevy_sprinkles::{ParticleBufferHandle, ParticleData};
 
 use crate::io::{EditorBloom, EditorData, EditorSmaaPreset, EditorTonemapping};
 
 use crate::state::{
-    EditorState, Inspectable, PlaybackPlayEvent, PlaybackResetEvent, PlaybackSeekEvent,
+    EditorState, GenerateAabbRequest, Inspectable, PlaybackPlayEvent, PlaybackResetEvent,
+    PlaybackSeekEvent,
 };
+use crate::ui::components::binding::EmitterWriter;
+use crate::ui::components::toasts::ToastEvent;
 use crate::ui::components::seekbar::SeekbarDragState;
 use crate::ui::components::viewport::EditorViewport;
 use crate::ui::tokens::PRIMARY_COLOR;
@@ -554,6 +559,195 @@ pub fn sync_inspected_emitter_aabb(
             commands.entity(entity).remove::<ShowAabbGizmo>();
         }
     }
+}
+
+#[derive(Component)]
+struct AabbReadback;
+
+#[derive(Resource, Default)]
+pub struct AabbGeneration {
+    active: bool,
+    readback_entity: Option<Entity>,
+    time_remaining: f32,
+    min: Vec3,
+    max: Vec3,
+    has_samples: bool,
+    to_local: Option<Mat4>,
+    restore_paused: bool,
+}
+
+impl AabbGeneration {
+    pub fn is_active(&self) -> bool {
+        self.active
+    }
+}
+
+pub fn handle_generate_aabb_request(
+    trigger: On<GenerateAabbRequest>,
+    assets: Res<Assets<ParticlesAsset>>,
+    editor_state: Res<EditorState>,
+    preview: Query<Entity, With<EditorParticlePreview>>,
+    mut systems: Query<(Entity, &mut ParticleSystemRuntime), With<EditorParticlePreview>>,
+    mut emitters: Query<(
+        &EmitterEntity,
+        &mut EmitterRuntime,
+        &GlobalTransform,
+        &ParticleBufferHandle,
+    )>,
+    mut generation: ResMut<AabbGeneration>,
+    mut commands: Commands,
+) {
+    if generation.active {
+        return;
+    }
+
+    let index = trigger.0;
+
+    let Some(handle) = editor_state.current_project.as_ref() else {
+        return;
+    };
+    let Some(asset) = assets.get(handle) else {
+        return;
+    };
+    let Some(emitter_data) = asset.emitters.get(index) else {
+        return;
+    };
+
+    let mut found = None;
+    for (emitter, mut runtime, global_transform, buffer) in emitters.iter_mut() {
+        if runtime.emitter_index == index && preview.get(emitter.parent_system).is_ok() {
+            runtime.restart(emitter_data.time.fixed_seed);
+            found = Some((
+                buffer.particle_buffer.clone(),
+                *global_transform,
+                emitter.parent_system,
+            ));
+            break;
+        }
+    }
+    let Some((particle_buffer, global_transform, parent_system)) = found else {
+        return;
+    };
+
+    let mut restore_paused = false;
+    for (system_entity, mut system_runtime) in systems.iter_mut() {
+        if system_entity == parent_system {
+            restore_paused = system_runtime.paused;
+            system_runtime.resume();
+        }
+    }
+
+    let to_local = if emitter_data.draw_pass.use_local_coords {
+        None
+    } else {
+        Some(global_transform.to_matrix().inverse())
+    };
+
+    let window = emitter_data.time.lifetime * (1.0 + emitter_data.time.lifetime_randomness)
+        + emitter_data.time.delay
+        + 0.5;
+    let window = if window.is_finite() && window > 0.0 {
+        window.clamp(0.5, 10.0)
+    } else {
+        2.0
+    };
+
+    let readback_entity = commands
+        .spawn((AabbReadback, Readback::buffer(particle_buffer)))
+        .observe(on_aabb_readback)
+        .id();
+
+    *generation = AabbGeneration {
+        active: true,
+        readback_entity: Some(readback_entity),
+        time_remaining: window,
+        min: Vec3::ZERO,
+        max: Vec3::ZERO,
+        has_samples: false,
+        to_local,
+        restore_paused,
+    };
+}
+
+fn on_aabb_readback(event: On<ReadbackComplete>, mut generation: ResMut<AabbGeneration>) {
+    if !generation.active {
+        return;
+    }
+
+    let to_local = generation.to_local;
+    let particles: Vec<ParticleData> = event.to_shader_type();
+
+    for particle in &particles {
+        if !particle.is_active() {
+            continue;
+        }
+
+        let mut position = Vec3::new(
+            particle.position[0],
+            particle.position[1],
+            particle.position[2],
+        );
+        if let Some(matrix) = to_local {
+            position = matrix.transform_point3(position);
+        }
+
+        if generation.has_samples {
+            generation.min = generation.min.min(position);
+            generation.max = generation.max.max(position);
+        } else {
+            generation.min = position;
+            generation.max = position;
+            generation.has_samples = true;
+        }
+    }
+}
+
+pub fn tick_aabb_generation(
+    time: Res<Time>,
+    mut generation: ResMut<AabbGeneration>,
+    mut systems: Query<&mut ParticleSystemRuntime, With<EditorParticlePreview>>,
+    mut emitter_writer: EmitterWriter,
+    mut commands: Commands,
+) {
+    if !generation.active {
+        return;
+    }
+
+    generation.time_remaining -= time.delta_secs();
+    if generation.time_remaining > 0.0 {
+        return;
+    }
+
+    if generation.has_samples {
+        let round = |v: Vec3| (v * 100.0).round() / 100.0;
+        let center = round((generation.min + generation.max) * 0.5);
+        let half_extents = round((generation.max - generation.min) * 0.5);
+        let emitter_name = emitter_writer.emitter().map(|emitter| emitter.name.clone());
+        emitter_writer.modify_emitter(|emitter| {
+            emitter.draw_pass.visibility_aabb = VisibilityAabb {
+                center: center.into(),
+                half_extents: half_extents.into(),
+            };
+            true
+        });
+        if let Some(name) = emitter_name {
+            commands.trigger(ToastEvent::success(format!(
+                "Visibility AABB generated for emitter \"{name}\""
+            )));
+        }
+    }
+
+    if let Some(entity) = generation.readback_entity.take() {
+        commands.entity(entity).despawn();
+    }
+
+    if generation.restore_paused {
+        for mut system_runtime in systems.iter_mut() {
+            system_runtime.pause();
+        }
+    }
+
+    *generation = AabbGeneration::default();
 }
 
 pub fn sync_playback_state(

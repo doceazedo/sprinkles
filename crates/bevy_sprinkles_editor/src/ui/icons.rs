@@ -28,6 +28,8 @@ pub const ICON_MESH_UVSPHERE: &str = "embedded://sprinkles/assets/icons/blender-
 pub const ICON_MORE: &str = "embedded://sprinkles/assets/icons/ri-more-fill.png";
 pub const ICON_NODE_TREE: &str = "embedded://sprinkles/assets/icons/ri-node-tree.png";
 pub const ICON_PAUSE: &str = "embedded://sprinkles/assets/icons/ri-pause-fill.png";
+pub const ICON_PIVOT_BOUNDBOX: &str =
+    "embedded://sprinkles/assets/icons/blender-pivot-boundbox.png";
 pub const ICON_PLAY: &str = "embedded://sprinkles/assets/icons/ri-play-fill.png";
 pub const ICON_REPEAT: &str = "embedded://sprinkles/assets/icons/ri-repeat-fill.png";
 pub const ICON_SEEDLING: &str = "embedded://sprinkles/assets/icons/ri-seedling-fill.png";

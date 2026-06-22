@@ -91,6 +91,9 @@ pub struct PlaybackPlayEvent;
 #[derive(Event)]
 pub struct PlaybackSeekEvent(pub f32);
 
+#[derive(Event)]
+pub struct GenerateAabbRequest(pub usize);
+
 fn update_window_title(
     editor_state: Res<EditorState>,
     dirty_state: Res<DirtyState>,
