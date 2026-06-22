@@ -1,6 +1,6 @@
 [package]
 name = "bevy_sprinkles_editor"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 description = "GPU particle system editor for Bevy"
@@ -18,7 +18,7 @@ workspace = true
 
 [dependencies]
 bevy = { workspace = true, features = ["jpeg", "file_watcher"] }
-bevy_sprinkles = { version = "0.2.0", path = "../bevy_sprinkles" }
+bevy_sprinkles = { version = "0.3.0", path = "../bevy_sprinkles" }
 serde = { workspace = true }
 ron = { workspace = true }
 rfd = "0.15"

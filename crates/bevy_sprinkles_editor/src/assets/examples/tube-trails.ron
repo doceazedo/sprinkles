@@ -1,5 +1,5 @@
 (
-    sprinkles_version: "0.2",
+    sprinkles_version: "0.3",
     name: "Tube Trails",
     dimension: D3,
     emitters: [

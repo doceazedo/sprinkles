@@ -288,5 +288,5 @@ fn test_unknown_version_fails_to_load() {
 
 #[test]
 fn test_current_format_version() {
-    assert_eq!(versions::current_format_version(), "0.2");
+    assert_eq!(versions::current_format_version(), "0.3");
 }

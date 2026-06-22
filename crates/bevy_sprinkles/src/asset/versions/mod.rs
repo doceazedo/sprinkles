@@ -5,7 +5,7 @@ use thiserror::Error;
 
 use super::ParticlesAsset;
 
-const CURRENT_FORMAT_VERSION: &str = "0.2";
+const CURRENT_FORMAT_VERSION: &str = "0.3";
 
 /// Returns the current asset format version string.
 pub fn current_format_version() -> &'static str {
@@ -47,6 +47,13 @@ pub fn migrate(bytes: &[u8]) -> Result<MigrationResult, MigrationError> {
             Ok(MigrationResult {
                 asset,
                 was_migrated: false,
+            })
+        }
+        "0.2" => {
+            let asset: ParticlesAsset = ron::de::from_bytes(bytes)?;
+            Ok(MigrationResult {
+                asset,
+                was_migrated: true,
             })
         }
         "0.1" => {
