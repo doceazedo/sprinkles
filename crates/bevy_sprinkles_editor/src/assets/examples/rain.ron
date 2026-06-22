@@ -24,6 +24,10 @@
                 )),
                 shadow_caster: false,
                 transform_align: Some(BillboardFixedY),
+                visibility_aabb: (
+                    center: (0.0, 4.75, -0.0),
+                    half_extents: (25.0, 6.25, 25.0),
+                ),
             ),
             emission: (
                 offset: (0.0, 10.0, 0.0),
@@ -114,6 +118,10 @@
                 )),
                 shadow_caster: false,
                 transform_align: Some(Billboard),
+                visibility_aabb: (
+                    center: (0.0, 4.75, -0.0),
+                    half_extents: (25.0, 6.25, 25.0),
+                ),
             ),
             emission: (
                 particles_amount: 1500,
