@@ -767,7 +767,8 @@ dependencies = [
 [[package]]
 name = "bevy_easings"
 version = "0.19.0"
-source = "git+https://github.com/vleue/bevy_easings?branch=bevy-0.19#a5c45f6a61f40ac11e399d83b1ed635c295d3b5f"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e3fca5384b61d0aa97d81e81b43222b4785cf255ed86a92ed5cebfa61453df94"
 dependencies = [
  "bevy_app",
  "bevy_color",
