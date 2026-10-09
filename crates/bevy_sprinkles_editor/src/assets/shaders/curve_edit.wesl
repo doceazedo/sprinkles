@@ -1,5 +1,5 @@
-#import bevy_ui::ui_vertex_output::UiVertexOutput
-#import bevy_sprinkles_editor::common::rounded_box_sdf
+import bevy_ui_render::ui_vertex_output::UiVertexOutput;
+import super::common::rounded_box_sdf;
 
 const CURVE_WIDTH: f32 = 2.0;
 const GRID_CURVE_WIDTH: f32 = 1.0;

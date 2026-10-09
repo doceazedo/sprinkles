@@ -7,15 +7,16 @@ use bevy::camera::RenderTarget;
 use bevy::camera::primitives::Aabb;
 use bevy::camera::visibility::NoFrustumCulling;
 use bevy::color::palettes::tailwind::{ZINC_200, ZINC_950};
-use bevy::core_pipeline::tonemapping::Tonemapping;
 use bevy::image::{ImageAddressMode, ImageLoaderSettings, ImageSampler, ImageSamplerDescriptor};
 use bevy::input::mouse::{AccumulatedMouseMotion, AccumulatedMouseScroll};
 use bevy::math::Affine2;
+use bevy::pbr::ScreenSpaceTransmission;
 use bevy::picking::hover::Hovered;
 use bevy::post_process::bloom::Bloom;
 use bevy::prelude::*;
 use bevy::render::gpu_readback::{Readback, ReadbackComplete};
 use bevy::render::render_resource::{TextureDimension, TextureFormat, TextureUsages};
+use bevy::render::view::Tonemapping;
 use bevy::window::PresentMode;
 use bevy_sprinkles::prelude::*;
 use bevy_sprinkles::{ParticleBufferHandle, ParticleData};
@@ -93,7 +94,7 @@ pub fn setup_camera(
         .tonemapping
         .as_ref()
         .map(to_bevy_tonemapping)
-        .unwrap_or(Tonemapping::None);
+        .unwrap_or(Tonemapping::Linear);
 
     let mut camera = commands.spawn((
         EditorCamera,
@@ -108,6 +109,7 @@ pub fn setup_camera(
         Transform::from_translation(initial_position).looking_at(ORBIT_TARGET, Vec3::Y),
         Msaa::Off,
         tonemapping,
+        ScreenSpaceTransmission::default(),
         DistanceFog {
             color: ZINC_950.into(),
             falloff: FogFalloff::Linear {
@@ -908,7 +910,7 @@ pub fn sync_viewport_settings(
         .tonemapping
         .as_ref()
         .map(to_bevy_tonemapping)
-        .unwrap_or(Tonemapping::None);
+        .unwrap_or(Tonemapping::Linear);
     *tonemapping = target_tonemapping;
 
     match (&settings.bloom, bloom) {

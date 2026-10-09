@@ -40,7 +40,7 @@ pub fn topbar() -> impl Scene {
             align_items: { AlignItems::Center },
         }
         BackgroundColor(BACKGROUND_COLOR)
-        template_value(BorderColor::all(BORDER_COLOR))
+        BorderColor::all(BORDER_COLOR)
     }
 }
 

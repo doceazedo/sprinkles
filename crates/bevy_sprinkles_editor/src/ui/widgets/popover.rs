@@ -212,14 +212,13 @@ pub fn popover(props: PopoverProps) -> impl Scene {
         EditorPopover
         PopoverAnchor(anchor)
         PopoverLayoutReady
-        template_value(placement)
+        placement
         Hovered
-        Interaction
-        template_value(popover_node)
-        template_value(Visibility::Hidden)
+        popover_node
+        Visibility::Hidden
         BackgroundColor({ BACKGROUND_COLOR })
-        template_value(BorderColor::all(BORDER_COLOR))
-        template_value(ZIndex(z_index))
+        BorderColor::all(BORDER_COLOR)
+        ZIndex(z_index)
     }
 }
 
@@ -394,21 +393,18 @@ pub fn popover_header(props: PopoverHeaderProps) -> impl Scene {
             justify_content: { JustifyContent::SpaceBetween },
             align_items: { AlignItems::Center },
         }
-        template_value(BorderColor::all(BORDER_COLOR))
+        BorderColor::all(BORDER_COLOR)
         Children [
-            (
-                Text({ title })
-                TextFont {
-                    font: { FontSourceTemplate::Handle(FONT_PATH.into()) },
-                    font_size: TEXT_SIZE,
-                    weight: { FontWeight::SEMIBOLD },
-                }
-                TextColor(TEXT_DISPLAY_COLOR)
-            ),
-            (
-                PopoverCloseButton(popover)
-                icon_button(IconButtonProps::new(ICON_CLOSE).variant(ButtonVariant::Ghost))
-            ),
+            Text({ title })
+            TextFont {
+                font: { FontSourceTemplate::Handle(FONT_PATH.into()) },
+                font_size: TEXT_SIZE,
+                weight: { FontWeight::SEMIBOLD },
+            }
+            TextColor(TEXT_DISPLAY_COLOR)
+            --
+            PopoverCloseButton(popover)
+            @icon_button(IconButtonProps::new(ICON_CLOSE).variant(ButtonVariant::Ghost))
         ]
     }
 }

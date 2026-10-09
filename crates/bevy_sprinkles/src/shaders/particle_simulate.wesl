@@ -1,5 +1,5 @@
-#import bevy_render::maths::PI
-#import bevy_sprinkles::common::{
+import bevy_render::maths::PI;
+import super::common::{
     Particle,
     CurveUniform,
     SubEmissionEntry,
@@ -17,7 +17,7 @@
     SUB_EMITTER_MODE_AT_START,
     hash,
     hash_to_float,
-}
+};
 
 struct AnimatedVelocity {
     min: f32,

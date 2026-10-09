@@ -97,7 +97,7 @@ struct AddColliderEvent;
 pub fn data_panel() -> impl Scene {
     bsn! {
         EditorDataPanel
-        panel(
+        @panel(
             PanelProps::new(PanelDirection::Left)
                 .with_width(224)
                 .with_min_width(160)
@@ -224,7 +224,6 @@ fn spawn_items<'a>(
             .spawn((
                 InspectableItem { kind, index },
                 Hovered::default(),
-                Interaction::None,
                 Node {
                     width: percent(100),
                     ..default()

@@ -1,6 +1,7 @@
 use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
 use bevy::text::FontSourceTemplate;
+use bevy::ui_widgets::{Activate, ActivateOnPress, Button};
 
 use crate::state::{ActiveSidebarTab, SidebarTab};
 use crate::ui::tokens::{
@@ -26,13 +27,9 @@ struct SidebarButtonImage;
 pub fn plugin(app: &mut App) {
     app.add_systems(
         Update,
-        (
-            setup_sidebar,
-            handle_sidebar_click,
-            update_sidebar_buttons,
-            toggle_data_panel,
-        ),
-    );
+        (setup_sidebar, update_sidebar_buttons, toggle_data_panel),
+    )
+    .add_observer(handle_sidebar_click);
 }
 
 pub fn sidebar() -> impl Scene {
@@ -46,7 +43,7 @@ pub fn sidebar() -> impl Scene {
             border: { UiRect::right(px(1)) },
         }
         BackgroundColor(BACKGROUND_COLOR)
-        template_value(BorderColor::all(BORDER_COLOR))
+        BorderColor::all(BORDER_COLOR)
     }
 }
 
@@ -54,6 +51,7 @@ fn sidebar_button(tab: SidebarTab) -> impl Scene {
     bsn! {
         SidebarButton(tab)
         Button
+        ActivateOnPress
         Hovered
         Node {
             width: percent(100),
@@ -62,40 +60,35 @@ fn sidebar_button(tab: SidebarTab) -> impl Scene {
             row_gap: px(2),
         }
         Children [
-            (
+            SidebarButton(tab)
+            SidebarButtonIcon
+            Node {
+                width: px(28),
+                height: px(28),
+                justify_content: { JustifyContent::Center },
+                align_items: { AlignItems::Center },
+                border_radius: { BorderRadius::all(CORNER_RADIUS_LG) },
+            }
+            BackgroundColor({ Color::NONE })
+            Children [
                 SidebarButton(tab)
-                SidebarButtonIcon
+                SidebarButtonImage
+                ImageNode {
+                    image: { tab.icon() },
+                    color: { Color::Srgba(TEXT_BODY_COLOR) },
+                }
                 Node {
-                    width: px(28),
-                    height: px(28),
-                    justify_content: { JustifyContent::Center },
-                    align_items: { AlignItems::Center },
-                    border_radius: { BorderRadius::all(CORNER_RADIUS_LG) },
+                    width: px(16),
+                    height: px(16),
                 }
-                BackgroundColor({ Color::NONE })
-                Children [
-                    (
-                        SidebarButton(tab)
-                        SidebarButtonImage
-                        ImageNode {
-                            image: { tab.icon() },
-                            color: { Color::Srgba(TEXT_BODY_COLOR) },
-                        }
-                        Node {
-                            width: px(16),
-                            height: px(16),
-                        }
-                    )
-                ]
-            ),
-            (
-                Text({ tab.label() })
-                TextFont {
-                    font: { FontSourceTemplate::Handle(FONT_PATH.into()) },
-                    font_size: TEXT_SIZE_SM,
-                }
-                TextColor(TEXT_BODY_COLOR)
-            )
+            ]
+            --
+            Text({ tab.label() })
+            TextFont {
+                font: { FontSourceTemplate::Handle(FONT_PATH.into()) },
+                font_size: TEXT_SIZE_SM,
+            }
+            TextColor(TEXT_BODY_COLOR)
         ]
     }
 }
@@ -118,13 +111,12 @@ fn setup_sidebar(mut commands: Commands, sidebars: Query<Entity, Added<EditorSid
 }
 
 fn handle_sidebar_click(
-    interactions: Query<(&Interaction, &SidebarButton), Changed<Interaction>>,
+    event: On<Activate>,
+    buttons: Query<&SidebarButton, With<Button>>,
     mut active_tab: ResMut<ActiveSidebarTab>,
 ) {
-    for (interaction, sidebar_btn) in &interactions {
-        if *interaction == Interaction::Pressed {
-            active_tab.0 = sidebar_btn.0;
-        }
+    if let Ok(sidebar_btn) = buttons.get(event.entity) {
+        active_tab.0 = sidebar_btn.0;
     }
 }
 

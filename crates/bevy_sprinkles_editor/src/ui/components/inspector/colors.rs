@@ -161,7 +161,6 @@ fn sync_alpha_disabled(
             .spawn((
                 AlphaDisabledOverlay,
                 Pickable::default(),
-                Button,
                 Node {
                     position_type: PositionType::Absolute,
                     width: percent(100),

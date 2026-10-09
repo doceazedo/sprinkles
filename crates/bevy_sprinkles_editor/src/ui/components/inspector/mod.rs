@@ -153,7 +153,7 @@ pub(super) struct DynamicSectionContent;
 pub fn inspector_panel() -> impl Scene {
     bsn! {
         EditorInspectorPanel
-        panel(
+        @panel(
             PanelProps::new(PanelDirection::Left)
                 .with_width(320)
                 .with_min_width(320)

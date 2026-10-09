@@ -3,7 +3,6 @@ mod presets;
 
 use bevy::color::palettes::tailwind;
 use bevy::input_focus::InputFocus;
-use bevy::picking::events::{Press, Release};
 use bevy::picking::hover::Hovered;
 use bevy::picking::pointer::PointerButton;
 use bevy::picking::prelude::Pickable;
@@ -233,8 +232,8 @@ pub fn curve_edit(props: CurveEditProps) -> impl Scene {
 
     bsn! {
         EditorCurveEdit
-        template_value(CurveEditLabel(label))
-        template_value(state)
+        CurveEditLabel(label)
+        state
         PopoverTracker
         Node {
             flex_direction: { FlexDirection::Column },
@@ -428,7 +427,7 @@ impl CurveControl for TensionHandle {
 }
 
 fn on_control_press<C: CurveControl>(
-    event: On<Pointer<Press>>,
+    event: On<PointerPress>,
     mut commands: Commands,
     controls: Query<&C>,
     canvases: Query<(&ComputedNode, &UiGlobalTransform), With<CurveCanvas>>,
@@ -447,7 +446,7 @@ fn on_control_press<C: CurveControl>(
         return;
     };
 
-    let cursor_pos = event.pointer_location.position / computed.inverse_scale_factor;
+    let cursor_pos = event.pointer.position / computed.inverse_scale_factor;
     let Some(normalized) = computed.normalize_point(*ui_transform, cursor_pos) else {
         return;
     };
@@ -464,7 +463,7 @@ fn on_control_press<C: CurveControl>(
 }
 
 fn on_control_release<C: CurveControl>(
-    event: On<Pointer<Release>>,
+    event: On<PointerRelease>,
     mut commands: Commands,
     controls: Query<&C, Without<Dragging>>,
     states: Query<&CurveEditState>,
@@ -486,7 +485,7 @@ fn on_control_release<C: CurveControl>(
 }
 
 fn on_control_drag_start<C: CurveControl>(
-    event: On<Pointer<DragStart>>,
+    event: On<PointerDragStart>,
     mut commands: Commands,
     controls: Query<&C>,
     canvases: Query<(&ComputedNode, &UiGlobalTransform), With<CurveCanvas>>,
@@ -509,7 +508,7 @@ fn on_control_drag_start<C: CurveControl>(
         return;
     };
 
-    let cursor_pos = event.pointer_location.position / computed.inverse_scale_factor;
+    let cursor_pos = event.pointer.position / computed.inverse_scale_factor;
     let Some(normalized) = computed.normalize_point(*ui_transform, cursor_pos) else {
         return;
     };
@@ -526,7 +525,7 @@ fn on_control_drag_start<C: CurveControl>(
 }
 
 fn on_control_drag<C: CurveControl>(
-    event: On<Pointer<Drag>>,
+    event: On<PointerDrag>,
     mut commands: Commands,
     controls: Query<&C, With<Dragging>>,
     canvases: Query<(&ComputedNode, &UiGlobalTransform), With<CurveCanvas>>,
@@ -545,7 +544,7 @@ fn on_control_drag<C: CurveControl>(
         return;
     };
 
-    let cursor_pos = event.pointer_location.position / computed.inverse_scale_factor;
+    let cursor_pos = event.pointer.position / computed.inverse_scale_factor;
     let Some(normalized) = computed.normalize_point(*ui_transform, cursor_pos) else {
         return;
     };
@@ -563,7 +562,7 @@ fn on_control_drag<C: CurveControl>(
 }
 
 fn on_control_drag_end<C: CurveControl>(
-    event: On<Pointer<DragEnd>>,
+    event: On<PointerDragEnd>,
     mut commands: Commands,
     controls: Query<&C>,
     states: Query<&CurveEditState>,
@@ -970,7 +969,6 @@ fn handle_style(x: f32, y: f32, size: f32, color: Srgba) -> impl Bundle {
     (
         Pickable::default(),
         Hovered::default(),
-        Interaction::None,
         Node {
             position_type: PositionType::Absolute,
             width: px(size),

@@ -21,7 +21,7 @@ use crate::compute::ParticleComputeLabel;
 use crate::extract::ExtractedParticleSystem;
 use crate::runtime::ParticleData;
 
-const SHADER_ASSET_PATH: &str = "embedded://bevy_sprinkles/shaders/particle_sort.wgsl";
+const SHADER_ASSET_PATH: &str = "embedded://bevy_sprinkles/shaders/particle_sort.wesl";
 const WORKGROUP_SIZE: u32 = 256;
 
 #[derive(Clone, Copy, Default, ShaderType)]
