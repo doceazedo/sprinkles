@@ -1,7 +1,7 @@
 use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
 use bevy::text::FontSourceTemplate;
-use bevy::ui_widgets::{Activate, ActivateOnPress, Button};
+use bevy::ui_widgets::{ControlOrientation, SelectedTab, Tab, TabActivation, TabList, ValueChange};
 
 use crate::state::{ActiveSidebarTab, SidebarTab};
 use crate::ui::tokens::{
@@ -25,13 +25,20 @@ struct SidebarButtonIcon;
 struct SidebarButtonImage;
 
 pub fn plugin(app: &mut App) {
-    app.add_systems(Update, (update_sidebar_buttons, toggle_data_panel))
-        .add_observer(handle_sidebar_click);
+    app.add_systems(
+        Update,
+        (sync_selected_tab, update_sidebar_buttons, toggle_data_panel),
+    );
 }
 
 pub fn sidebar() -> impl Scene {
     bsn! {
         EditorSidebar
+        TabList {
+            orientation: { ControlOrientation::Vertical },
+            activation: { TabActivation::Automatic },
+        }
+        on(on_sidebar_tab_change)
         Node {
             width: px(72),
             flex_direction: { FlexDirection::Column },
@@ -56,8 +63,7 @@ pub fn sidebar() -> impl Scene {
 fn sidebar_button(tab: SidebarTab) -> impl Scene {
     bsn! {
         SidebarButton(tab)
-        Button
-        ActivateOnPress
+        Tab
         Hovered
         Node {
             width: percent(100),
@@ -99,23 +105,38 @@ fn sidebar_button(tab: SidebarTab) -> impl Scene {
     }
 }
 
-fn handle_sidebar_click(
-    event: On<Activate>,
-    buttons: Query<&SidebarButton, With<Button>>,
+fn on_sidebar_tab_change(
+    change: On<ValueChange<Option<Entity>>>,
+    tabs: Query<&SidebarButton, With<Tab>>,
     mut active_tab: ResMut<ActiveSidebarTab>,
 ) {
-    if let Ok(sidebar_btn) = buttons.get(event.entity) {
+    if let Some(sidebar_btn) = change.value.and_then(|tab| tabs.get(tab).ok()) {
         active_tab.0 = sidebar_btn.0;
+    }
+}
+
+fn sync_selected_tab(
+    active_tab: Res<ActiveSidebarTab>,
+    mut sidebars: Query<(&mut SelectedTab, &Children), With<EditorSidebar>>,
+    tabs: Query<&SidebarButton, With<Tab>>,
+) {
+    for (mut selected, children) in &mut sidebars {
+        let active = children
+            .iter()
+            .find(|child| tabs.get(*child).is_ok_and(|btn| btn.0 == active_tab.0));
+        if selected.0 != active {
+            selected.0 = active;
+        }
     }
 }
 
 fn update_sidebar_buttons(
     active_tab: Res<ActiveSidebarTab>,
-    buttons: Query<(&SidebarButton, &Hovered), (With<Button>, Without<SidebarButtonIcon>)>,
+    buttons: Query<(&SidebarButton, &Hovered), (With<Tab>, Without<SidebarButtonIcon>)>,
     changed_hover: Query<(), (Changed<Hovered>, With<SidebarButton>)>,
     mut icon_containers: Query<
         (&SidebarButton, &mut BackgroundColor),
-        (With<SidebarButtonIcon>, Without<Button>),
+        (With<SidebarButtonIcon>, Without<Tab>),
     >,
     mut images: Query<(&SidebarButton, &mut ImageNode), With<SidebarButtonImage>>,
 ) {
