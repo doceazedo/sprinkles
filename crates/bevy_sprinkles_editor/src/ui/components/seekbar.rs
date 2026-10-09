@@ -12,7 +12,7 @@ const SEEKBAR_WIDTH: f32 = 192.0;
 const LABEL_SIZE: f32 = 12.0;
 
 pub fn plugin(app: &mut App) {
-    app.add_systems(Update, (update_seekbar, setup_seekbar_observers))
+    app.add_systems(Update, update_seekbar)
         .add_observer(on_seekbar_drag);
 }
 
@@ -91,6 +91,9 @@ pub fn seekbar() -> impl Scene {
                 --
                 SeekbarHitbox
                 SeekbarDragState
+                on(on_drag_start)
+                on(on_drag)
+                on(on_drag_end)
                 Node {
                     position_type: { PositionType::Absolute },
                     width: px(SEEKBAR_WIDTH),
@@ -120,16 +123,6 @@ fn format_time(seconds: f32) -> String {
 
 fn format_duration(seconds: f32) -> String {
     format!("{:.2}s", seconds)
-}
-
-fn setup_seekbar_observers(hitboxes: Query<Entity, Added<SeekbarHitbox>>, mut commands: Commands) {
-    for entity in &hitboxes {
-        commands
-            .entity(entity)
-            .observe(on_drag_start)
-            .observe(on_drag)
-            .observe(on_drag_end);
-    }
 }
 
 fn update_seekbar(

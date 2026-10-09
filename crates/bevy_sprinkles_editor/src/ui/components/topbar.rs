@@ -8,18 +8,8 @@ use crate::ui::tokens::{BACKGROUND_COLOR, BORDER_COLOR};
 use crate::ui::widgets::button::{ButtonClickEvent, ButtonProps, ButtonVariant, button};
 use crate::ui::widgets::separator::EditorSeparator;
 
-pub fn plugin(app: &mut App) {
-    app.add_systems(Update, setup_save_button_observer);
-}
-
-#[derive(Component)]
+#[derive(Component, Default, Clone)]
 pub struct SaveButton;
-
-fn setup_save_button_observer(buttons: Query<Entity, Added<SaveButton>>, mut commands: Commands) {
-    for entity in &buttons {
-        commands.entity(entity).observe(on_save_button_click);
-    }
-}
 
 fn on_save_button_click(_event: On<ButtonClickEvent>, mut commands: Commands) {
     commands.trigger(SaveProjectEvent);
@@ -41,39 +31,24 @@ pub fn topbar() -> impl Scene {
         }
         BackgroundColor(BACKGROUND_COLOR)
         BorderColor::all(BORDER_COLOR)
+        Children [
+            @project_selector()
+            --
+            Node {
+                column_gap: px(12),
+                align_items: { AlignItems::Center },
+            }
+            Children [
+                @seekbar()
+                --
+                @playback_controls()
+                --
+                @{EditorSeparator::vertical()}
+                --
+                SaveButton
+                @button(ButtonProps::new("Save").with_variant(ButtonVariant::Primary))
+                on(on_save_button_click)
+            ]
+        ]
     }
-}
-
-fn topbar_right() -> impl Scene {
-    bsn! {
-        Node {
-            column_gap: px(12),
-            align_items: { AlignItems::Center },
-        }
-    }
-}
-
-pub fn spawn_topbar(commands: &mut Commands, parent: Entity) {
-    let bar = commands.spawn_scene(topbar()).insert(ChildOf(parent)).id();
-
-    let selector = commands.spawn_scene(project_selector()).id();
-    commands.entity(bar).add_children(&[selector]);
-
-    let right = commands
-        .spawn_scene(topbar_right())
-        .insert(ChildOf(bar))
-        .id();
-    commands.spawn_scene(seekbar()).insert(ChildOf(right));
-    commands
-        .spawn_scene(playback_controls())
-        .insert(ChildOf(right));
-    commands
-        .spawn_scene(EditorSeparator::vertical())
-        .insert(ChildOf(right));
-    commands
-        .spawn_scene(button(
-            ButtonProps::new("Save").with_variant(ButtonVariant::Primary),
-        ))
-        .insert(SaveButton)
-        .insert(ChildOf(right));
 }

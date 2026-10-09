@@ -25,11 +25,8 @@ struct SidebarButtonIcon;
 struct SidebarButtonImage;
 
 pub fn plugin(app: &mut App) {
-    app.add_systems(
-        Update,
-        (setup_sidebar, update_sidebar_buttons, toggle_data_panel),
-    )
-    .add_observer(handle_sidebar_click);
+    app.add_systems(Update, (update_sidebar_buttons, toggle_data_panel))
+        .add_observer(handle_sidebar_click);
 }
 
 pub fn sidebar() -> impl Scene {
@@ -44,6 +41,15 @@ pub fn sidebar() -> impl Scene {
         }
         BackgroundColor(BACKGROUND_COLOR)
         BorderColor::all(BORDER_COLOR)
+        Children [
+            @sidebar_button(SidebarTab::Project)
+            --
+            @sidebar_button(SidebarTab::Outliner)
+            --
+            @{EditorSeparator::horizontal()}
+            --
+            @sidebar_button(SidebarTab::Settings)
+        ]
     }
 }
 
@@ -90,23 +96,6 @@ fn sidebar_button(tab: SidebarTab) -> impl Scene {
             }
             TextColor(TEXT_BODY_COLOR)
         ]
-    }
-}
-
-fn setup_sidebar(mut commands: Commands, sidebars: Query<Entity, Added<EditorSidebar>>) {
-    for entity in &sidebars {
-        commands
-            .spawn_scene(sidebar_button(SidebarTab::Project))
-            .insert(ChildOf(entity));
-        commands
-            .spawn_scene(sidebar_button(SidebarTab::Outliner))
-            .insert(ChildOf(entity));
-        commands
-            .spawn_scene(EditorSeparator::horizontal())
-            .insert(ChildOf(entity));
-        commands
-            .spawn_scene(sidebar_button(SidebarTab::Settings))
-            .insert(ChildOf(entity));
     }
 }
 

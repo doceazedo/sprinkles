@@ -23,6 +23,7 @@ pub use types::{ComboBoxOption, FieldKind, VariantField};
 pub use utils::{name_to_label, path_to_label};
 
 use bevy::prelude::*;
+use bevy::scene::Ready;
 use bevy_sprinkles::prelude::*;
 
 use crate::state::{ActiveSidebarTab, EditorState, Inspectable, SidebarTab};
@@ -71,7 +72,6 @@ pub fn plugin(app: &mut App) {
                 ),
                 (
                     cleanup_dynamic_sections,
-                    setup_inspector_panel,
                     update_panel_title,
                     setup_inspector_section_fields,
                     toggle_inspector_content,
@@ -159,136 +159,125 @@ pub fn inspector_panel() -> impl Scene {
                 .with_min_width(320)
                 .with_max_width(512),
         )
+        on(setup_inspector_panel)
     }
 }
 
-fn setup_inspector_panel(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    panels: Query<Entity, Added<EditorInspectorPanel>>,
-) {
-    for panel_entity in &panels {
-        commands
-            .entity(panel_entity)
-            .with_child(scrollbar(panel_entity))
-            .with_children(|parent| {
-                let parent_target = parent.target_entity();
-                spawn_panel_title(&mut parent.commands(), &asset_server, parent_target);
+fn setup_inspector_panel(ready: On<Ready>, mut commands: Commands, asset_server: Res<AssetServer>) {
+    let panel_entity = ready.entity;
+    commands
+        .entity(panel_entity)
+        .with_child(scrollbar(panel_entity))
+        .with_children(|parent| {
+            let parent_target = parent.target_entity();
+            spawn_panel_title(&mut parent.commands(), &asset_server, parent_target);
 
-                parent
-                    .spawn((
-                        InspectorPanelContent,
-                        Node {
-                            width: percent(100),
-                            flex_direction: FlexDirection::Column,
-                            ..default()
-                        },
-                    ))
-                    .with_children(|content| {
-                        content
-                            .spawn((
-                                InspectorContentKind::Emitter,
-                                Node {
-                                    width: percent(100),
-                                    flex_direction: FlexDirection::Column,
-                                    ..default()
-                                },
-                            ))
-                            .with_children(|emitter_content| {
-                                spawn_section(emitter_content, time::time_section());
-                                spawn_section(emitter_content, draw_pass::draw_pass_section());
-                                spawn_section(
-                                    emitter_content,
-                                    visibility_aabb::visibility_aabb_section(),
-                                );
-                                spawn_section(emitter_content, emission::emission_section());
-                                spawn_section(emitter_content, scale::scale_section());
-                                spawn_section(emitter_content, colors::colors_section());
+            parent
+                .spawn((
+                    InspectorPanelContent,
+                    Node {
+                        width: percent(100),
+                        flex_direction: FlexDirection::Column,
+                        ..default()
+                    },
+                ))
+                .with_children(|content| {
+                    content
+                        .spawn((
+                            InspectorContentKind::Emitter,
+                            Node {
+                                width: percent(100),
+                                flex_direction: FlexDirection::Column,
+                                ..default()
+                            },
+                        ))
+                        .with_children(|emitter_content| {
+                            spawn_section(emitter_content, time::time_section());
+                            spawn_section(emitter_content, draw_pass::draw_pass_section());
+                            spawn_section(
+                                emitter_content,
+                                visibility_aabb::visibility_aabb_section(),
+                            );
+                            spawn_section(emitter_content, emission::emission_section());
+                            spawn_section(emitter_content, scale::scale_section());
+                            spawn_section(emitter_content, colors::colors_section());
 
-                                let (extra, section) = velocities::velocities_section();
-                                let props =
-                                    inspector_section_props(&section.title).with_add_button();
-                                spawn_section_with(emitter_content, props, extra, section);
+                            let (extra, section) = velocities::velocities_section();
+                            let props = inspector_section_props(&section.title).with_add_button();
+                            spawn_section_with(emitter_content, props, extra, section);
 
-                                spawn_section(emitter_content, angle::angle_section());
-                                spawn_section(
-                                    emitter_content,
-                                    accelerations::accelerations_section(),
-                                );
-                                spawn_section(emitter_content, turbulence::turbulence_section());
-                                spawn_section(emitter_content, trail::trail_section());
-                                spawn_section(emitter_content, collision::collision_section());
-                                spawn_section(emitter_content, sub_emitter::sub_emitter_section());
-                                spawn_section(
-                                    emitter_content,
-                                    particle_flags::particle_flags_section(),
-                                );
-                                spawn_section(emitter_content, transform::transform_section());
-                            });
+                            spawn_section(emitter_content, angle::angle_section());
+                            spawn_section(emitter_content, accelerations::accelerations_section());
+                            spawn_section(emitter_content, turbulence::turbulence_section());
+                            spawn_section(emitter_content, trail::trail_section());
+                            spawn_section(emitter_content, collision::collision_section());
+                            spawn_section(emitter_content, sub_emitter::sub_emitter_section());
+                            spawn_section(
+                                emitter_content,
+                                particle_flags::particle_flags_section(),
+                            );
+                            spawn_section(emitter_content, transform::transform_section());
+                        });
 
-                        content
-                            .spawn((
-                                InspectorContentKind::Collider,
-                                Node {
-                                    width: percent(100),
-                                    flex_direction: FlexDirection::Column,
-                                    display: Display::None,
-                                    ..default()
-                                },
-                            ))
-                            .with_children(|collider_content| {
-                                spawn_section(
-                                    collider_content,
-                                    collider_properties::collider_properties_section(),
-                                );
-                                spawn_section(collider_content, transform::transform_section());
-                            });
+                    content
+                        .spawn((
+                            InspectorContentKind::Collider,
+                            Node {
+                                width: percent(100),
+                                flex_direction: FlexDirection::Column,
+                                display: Display::None,
+                                ..default()
+                            },
+                        ))
+                        .with_children(|collider_content| {
+                            spawn_section(
+                                collider_content,
+                                collider_properties::collider_properties_section(),
+                            );
+                            spawn_section(collider_content, transform::transform_section());
+                        });
 
-                        content
-                            .spawn((
-                                InspectorContentKind::Project,
-                                Node {
-                                    width: percent(100),
-                                    flex_direction: FlexDirection::Column,
-                                    display: Display::None,
-                                    ..default()
-                                },
-                            ))
-                            .with_children(|project_content| {
-                                spawn_section(
-                                    project_content,
-                                    project_properties::project_properties_section(),
-                                );
-                                spawn_section(
-                                    project_content,
-                                    project_properties::project_runtime_section(),
-                                );
-                                spawn_section(
-                                    project_content,
-                                    transform::asset_transform_section(),
-                                );
-                            });
+                    content
+                        .spawn((
+                            InspectorContentKind::Project,
+                            Node {
+                                width: percent(100),
+                                flex_direction: FlexDirection::Column,
+                                display: Display::None,
+                                ..default()
+                            },
+                        ))
+                        .with_children(|project_content| {
+                            spawn_section(
+                                project_content,
+                                project_properties::project_properties_section(),
+                            );
+                            spawn_section(
+                                project_content,
+                                project_properties::project_runtime_section(),
+                            );
+                            spawn_section(project_content, transform::asset_transform_section());
+                        });
 
-                        content
-                            .spawn((
-                                InspectorContentKind::Settings,
-                                Node {
-                                    width: percent(100),
-                                    flex_direction: FlexDirection::Column,
-                                    display: Display::None,
-                                    ..default()
-                                },
-                            ))
-                            .with_children(|settings_content| {
-                                let settings_target = settings_content.target_entity();
-                                settings_properties::spawn_settings_properties_section(
-                                    &mut settings_content.commands(),
-                                    settings_target,
-                                );
-                            });
-                    });
-            });
-    }
+                    content
+                        .spawn((
+                            InspectorContentKind::Settings,
+                            Node {
+                                width: percent(100),
+                                flex_direction: FlexDirection::Column,
+                                display: Display::None,
+                                ..default()
+                            },
+                        ))
+                        .with_children(|settings_content| {
+                            let settings_target = settings_content.target_entity();
+                            settings_properties::spawn_settings_properties_section(
+                                &mut settings_content.commands(),
+                                settings_target,
+                            );
+                        });
+                });
+        });
 }
 
 fn toggle_inspector_content(
