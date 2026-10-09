@@ -1,4 +1,5 @@
 mod assets;
+mod errors;
 mod io;
 mod plugin;
 mod project;
@@ -22,25 +23,29 @@ fn main() {
         PresentMode::AutoNoVsync
     };
 
-    App::new()
-        .add_plugins(
-            DefaultPlugins
-                .set(WindowPlugin {
-                    primary_window: Some(Window {
-                        title: "Sprinkles Editor".into(),
-                        resolution: WindowResolution::new(1366, 768),
-                        present_mode,
-                        ..default()
-                    }),
-                    ..default()
-                })
-                .set(AssetPlugin {
-                    unapproved_path_mode: UnapprovedPathMode::Allow,
+    let mut app = App::new();
+
+    #[cfg(not(debug_assertions))]
+    app.set_error_handler(errors::log_and_toast);
+
+    app.add_plugins(
+        DefaultPlugins
+            .set(WindowPlugin {
+                primary_window: Some(Window {
+                    title: "Sprinkles Editor".into(),
+                    resolution: WindowResolution::new(1366, 768),
+                    present_mode,
                     ..default()
                 }),
-        )
-        .add_plugins(bevy_easings::EasingsPlugin::default())
-        .add_plugins(SprinklesEditorPlugin)
-        .add_plugins(EditorUiPlugin)
-        .run();
+                ..default()
+            })
+            .set(AssetPlugin {
+                unapproved_path_mode: UnapprovedPathMode::Allow,
+                ..default()
+            }),
+    )
+    .add_plugins(bevy_easings::EasingsPlugin::default())
+    .add_plugins(SprinklesEditorPlugin)
+    .add_plugins(EditorUiPlugin)
+    .run();
 }
