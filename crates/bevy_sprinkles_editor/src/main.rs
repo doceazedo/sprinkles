@@ -3,6 +3,8 @@ mod errors;
 mod io;
 mod plugin;
 mod project;
+#[cfg(feature = "shuffle-schedules")]
+mod schedule_shuffle;
 mod state;
 mod ui;
 mod utils;
@@ -46,6 +48,10 @@ fn main() {
     )
     .add_plugins(bevy_easings::EasingsPlugin::default())
     .add_plugins(SprinklesEditorPlugin)
-    .add_plugins(EditorUiPlugin)
-    .run();
+    .add_plugins(EditorUiPlugin);
+
+    #[cfg(feature = "shuffle-schedules")]
+    app.add_plugins(schedule_shuffle::plugin);
+
+    app.run();
 }

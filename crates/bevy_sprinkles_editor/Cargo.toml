@@ -16,6 +16,9 @@ path = "src/main.rs"
 [lints]
 workspace = true
 
+[features]
+shuffle-schedules = ["bevy/debug"]
+
 [dependencies]
 bevy = { workspace = true, features = ["jpeg", "file_watcher"] }
 bevy_sprinkles = { version = "0.4.0", path = "../bevy_sprinkles" }
