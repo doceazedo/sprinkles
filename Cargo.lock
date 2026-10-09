@@ -915,6 +915,7 @@ dependencies = [
 [[package]]
 name = "bevy_easings"
 version = "0.19.0"
+source = "git+https://github.com/doceazedo/bevy_easings?branch=bevy-0.20#5a18b4922eada125502b2398c0cd6694e93e12c8"
 dependencies = [
  "bevy_app",
  "bevy_color",
