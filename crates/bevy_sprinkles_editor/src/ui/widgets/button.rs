@@ -2,6 +2,7 @@ use bevy::color::palettes::tailwind;
 use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
 use bevy::text::FontSourceTemplate;
+use bevy::ui_widgets::{Activate, ActivateOnPress, Button};
 
 use crate::ui::tokens::{
     CORNER_RADIUS_LG, FONT_PATH, PRIMARY_COLOR, TEXT_BODY_COLOR, TEXT_DISPLAY_COLOR,
@@ -14,7 +15,8 @@ pub struct ButtonClickEvent {
 }
 
 pub fn plugin(app: &mut App) {
-    app.add_systems(Update, (handle_hover, handle_button_click));
+    app.add_systems(Update, handle_hover)
+        .add_observer(handle_button_activate);
 }
 
 #[derive(Component, Default, Clone)]
@@ -215,6 +217,7 @@ pub(crate) fn button_base(
     let (node, bg, border_color) = button_base_parts(variant, size, align_left, direction);
     (
         Button,
+        ActivateOnPress,
         EditorButton,
         variant,
         size,
@@ -303,7 +306,7 @@ pub fn button(props: ButtonProps) -> impl Scene {
     let mut children: Vec<Box<dyn SceneList>> = Vec::new();
 
     if let Some(icon) = left_icon {
-        children.push(Box::new(bsn_list![(
+        children.push(Box::new(bsn_list! {
             ImageNode {
                 image: { icon },
                 color: { Color::Srgba(text_color) },
@@ -312,11 +315,11 @@ pub fn button(props: ButtonProps) -> impl Scene {
                 width: { icon_size },
                 height: { icon_size },
             }
-        )]) as Box<dyn SceneList>);
+        }) as Box<dyn SceneList>);
     }
 
     if !content.is_empty() {
-        children.push(Box::new(bsn_list![(
+        children.push(Box::new(bsn_list! {
             Text({ content })
             TextFont {
                 font: { FontSourceTemplate::Handle(FONT_PATH.into()) },
@@ -327,11 +330,11 @@ pub fn button(props: ButtonProps) -> impl Scene {
             Node {
                 flex_grow: 1.0,
             }
-        )]) as Box<dyn SceneList>);
+        }) as Box<dyn SceneList>);
     }
 
     if let Some(subtitle) = subtitle {
-        children.push(Box::new(bsn_list![(
+        children.push(Box::new(bsn_list! {
             Text({ subtitle })
             TextFont {
                 font: { FontSourceTemplate::Handle(FONT_PATH.into()) },
@@ -341,11 +344,11 @@ pub fn button(props: ButtonProps) -> impl Scene {
             Node {
                 margin: { UiRect::top(px(-6.0)) },
             }
-        )]) as Box<dyn SceneList>);
+        }) as Box<dyn SceneList>);
     }
 
     if let Some(icon) = right_icon {
-        children.push(Box::new(bsn_list![(
+        children.push(Box::new(bsn_list! {
             ImageNode {
                 image: { icon },
                 color: { Color::Srgba(text_color) },
@@ -354,18 +357,19 @@ pub fn button(props: ButtonProps) -> impl Scene {
                 width: { icon_size },
                 height: { icon_size },
             }
-        )]) as Box<dyn SceneList>);
+        }) as Box<dyn SceneList>);
     }
 
     bsn! {
         Button
+        ActivateOnPress
         EditorButton
-        template_value(variant)
-        template_value(size)
+        variant
+        size
         Hovered
-        template_value(node)
+        node
         BackgroundColor({ bg })
-        template_value(BorderColor::all(border_color))
+        BorderColor::all(border_color)
         Children [ { children } ]
     }
 }
@@ -395,17 +399,18 @@ fn handle_hover(
     }
 }
 
-fn handle_button_click(
-    interactions: Query<
-        (Entity, &Interaction, &ButtonVariant),
-        (Changed<Interaction>, With<EditorButton>),
-    >,
+fn handle_button_activate(
+    event: On<Activate>,
+    buttons: Query<&ButtonVariant, With<EditorButton>>,
     mut commands: Commands,
 ) {
-    for (entity, interaction, variant) in &interactions {
-        if *interaction == Interaction::Pressed && *variant != ButtonVariant::Disabled {
-            commands.trigger(ButtonClickEvent { entity });
-        }
+    if buttons
+        .get(event.entity)
+        .is_ok_and(|variant| *variant != ButtonVariant::Disabled)
+    {
+        commands.trigger(ButtonClickEvent {
+            entity: event.entity,
+        });
     }
 }
 
@@ -425,24 +430,23 @@ pub fn icon_button(props: IconButtonProps) -> impl Scene {
 
     bsn! {
         Button
+        ActivateOnPress
         EditorButton
-        template_value(variant)
-        template_value(size)
+        variant
+        size
         Hovered
-        template_value(node)
+        node
         BackgroundColor({ bg })
-        template_value(BorderColor::all(border_color))
+        BorderColor::all(border_color)
         Children [
-            (
-                ImageNode {
-                    image: { icon },
-                    color: { Color::Srgba(icon_color) },
-                }
-                Node {
-                    width: { icon_size },
-                    height: { icon_size },
-                }
-            )
+            ImageNode {
+                image: { icon },
+                color: { Color::Srgba(icon_color) },
+            }
+            Node {
+                width: { icon_size },
+                height: { icon_size },
+            }
         ]
     }
 }

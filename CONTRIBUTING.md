@@ -41,6 +41,16 @@ Make sure to state the default value on a new paragraph when applicable.
 - Make sure code is formatted with `cargo fmt`
 - Test your changes in the editor when applicable
 
+### Catching system ordering bugs
+
+Systems without explicit ordering may happen to run in the right order by accident. To shake those out, run the editor with randomized schedules:
+
+```sh
+cargo editor --features shuffle-schedules
+```
+
+The seed is printed on startup. Set `SPRINKLES_SHUFFLE_SEED` to reproduce a specific order.
+
 ## Adding new examples
 
 Want to add an example? Go for it! Just please make sure it looks interesting and adds something different from the ones we already have.

@@ -59,9 +59,8 @@ pub fn toast(variant: ToastVariant, content: impl Into<String>, duration: Durati
 
     bsn! {
         EditorToast
-        template_value(variant)
-        Interaction
-        template_value(ToastDuration(Timer::new(duration, TimerMode::Once)))
+        variant
+        ToastDuration(Timer::new(duration, TimerMode::Once))
         Node {
             position_type: { PositionType::Absolute },
             left: percent(50),
@@ -73,53 +72,49 @@ pub fn toast(variant: ToastVariant, content: impl Into<String>, duration: Durati
             box_sizing: { BoxSizing::BorderBox },
             align_items: { AlignItems::Center },
         }
-        template_value(UiTransform {
+        UiTransform {
             translation: Val2 {
                 x: percent(-50),
                 y: px(24),
             },
             scale: Vec2::splat(0.75),
-            ..default()
-        })
+        }
         BackgroundColor({ bg })
-        template_value(BorderColor::all(TEXT_BODY_COLOR.with_alpha(0.)))
+        BorderColor::all(TEXT_BODY_COLOR.with_alpha(0.))
         Children [
-            (
-                ToastIcon
-                ImageNode {
-                    image: { icon },
-                    color: { TEXT_BODY_COLOR.with_alpha(0.) },
-                }
+            ToastIcon
+            ImageNode {
+                image: { icon },
+                color: { TEXT_BODY_COLOR.with_alpha(0.) },
+            }
+            Node {
+                width: px(18),
+                height: px(18),
+            }
+            --
+            ToastText
+            Text({ content })
+            TextFont {
+                font: { FontSourceTemplate::Handle(FONT_PATH.into()) },
+                font_size: TEXT_SIZE,
+            }
+            TextColor({ TEXT_BODY_COLOR.with_alpha(0.) })
+            --
+            Node {
+                column_gap: px(6),
+                align_items: { AlignItems::Center },
+            }
+            Children [
                 Node {
-                    width: px(18),
-                    height: px(18),
+                    width: px(1),
                 }
-            ),
-            (
-                ToastText
-                Text({ content })
-                TextFont {
-                    font: { FontSourceTemplate::Handle(FONT_PATH.into()) },
-                    font_size: TEXT_SIZE,
-                }
-                TextColor({ TEXT_BODY_COLOR.with_alpha(0.) })
-            ),
-            (
-                Node {
-                    column_gap: px(6),
-                    align_items: { AlignItems::Center },
-                }
-                Children [
-                    Node {
-                        width: px(1),
-                    },
-                    icon_button(
-                        IconButtonProps::new(ICON_CLOSE)
-                            .variant(ButtonVariant::Ghost)
-                            .with_alpha(0.),
-                    ),
-                ]
-            ),
+                --
+                @icon_button(
+                    IconButtonProps::new(ICON_CLOSE)
+                        .variant(ButtonVariant::Ghost)
+                        .with_alpha(0.),
+                )
+            ]
         ]
     }
 }

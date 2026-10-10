@@ -3,28 +3,18 @@ pub mod icons;
 pub mod tokens;
 pub mod widgets;
 
-use bevy::asset::{load_internal_asset, uuid_handle};
 use bevy::prelude::*;
 
 use components::data_panel::data_panel;
 use components::inspector::inspector_panel;
 use components::sidebar::sidebar;
-use components::topbar::spawn_topbar;
+use components::topbar::topbar;
 use components::viewport::{setup_viewport, viewport_container};
-
-const SHADER_COMMON: Handle<Shader> = uuid_handle!("81dc1f0a-ec1e-4913-862a-1ec536a2a792");
 
 pub struct EditorUiPlugin;
 
 impl Plugin for EditorUiPlugin {
     fn build(&self, app: &mut App) {
-        load_internal_asset!(
-            app,
-            SHADER_COMMON,
-            "../assets/shaders/common.wgsl",
-            Shader::from_wgsl
-        );
-
         app.add_plugins(widgets::alert::plugin)
             .add_plugins(widgets::button::plugin)
             .add_plugins(widgets::link::plugin)
@@ -52,7 +42,6 @@ impl Plugin for EditorUiPlugin {
             .add_plugins(components::sidebar::plugin)
             .add_plugins(components::fps_overlay::plugin)
             .add_plugins(components::toasts::plugin)
-            .add_plugins(components::topbar::plugin)
             .add_systems(Startup, setup_ui)
             .add_systems(Update, setup_viewport);
     }
@@ -68,7 +57,7 @@ fn setup_ui(mut commands: Commands) {
         })
         .id();
 
-    spawn_topbar(&mut commands, root);
+    commands.spawn_scene(topbar()).insert(ChildOf(root));
 
     let main_row = commands
         .spawn((

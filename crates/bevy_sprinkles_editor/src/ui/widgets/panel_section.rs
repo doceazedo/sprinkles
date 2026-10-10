@@ -100,37 +100,32 @@ pub fn panel_section(props: PanelSectionProps) -> impl Scene {
             padding: { padding },
             border: { UiRect::bottom(px(1)) },
         }
-        template_value(BorderColor::all(BORDER_COLOR))
-        template_value(PanelSectionState {
+        BorderColor::all(BORDER_COLOR)
+        PanelSectionState {
             has_add_button,
             collapsible,
-        })
+        }
         Children [
-            (
-                PanelSectionHeader
+            PanelSectionHeader
+            Node {
+                width: percent(100),
+                justify_content: { JustifyContent::SpaceBetween },
+                align_items: { AlignItems::Center },
+            }
+            Children [
+                Text({ title })
+                TextFont {
+                    font: { FontSourceTemplate::Handle(FONT_PATH.into()) },
+                    font_size: TEXT_SIZE,
+                    weight: { FontWeight::SEMIBOLD },
+                }
+                TextColor({ TEXT_DISPLAY_COLOR })
+                --
+                PanelSectionButtonsContainer
                 Node {
-                    width: percent(100),
-                    justify_content: { JustifyContent::SpaceBetween },
                     align_items: { AlignItems::Center },
                 }
-                Children [
-                    (
-                        Text({ title })
-                        TextFont {
-                            font: { FontSourceTemplate::Handle(FONT_PATH.into()) },
-                            font_size: TEXT_SIZE,
-                            weight: { FontWeight::SEMIBOLD },
-                        }
-                        TextColor({ TEXT_DISPLAY_COLOR })
-                    ),
-                    (
-                        PanelSectionButtonsContainer
-                        Node {
-                            align_items: { AlignItems::Center },
-                        }
-                    ),
-                ]
-            )
+            ]
         ]
     }
 }

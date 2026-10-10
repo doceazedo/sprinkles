@@ -1,6 +1,7 @@
 use bevy::input_focus::{FocusCause, InputFocus};
 use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
+use bevy::scene::Ready;
 use bevy_sprinkles::prelude::*;
 
 use crate::state::{DirtyState, EditorState, Inspectable, Inspecting};
@@ -33,7 +34,6 @@ pub fn plugin(app: &mut App) {
         .add_systems(
             Update,
             (
-                setup_data_panel,
                 rebuild_lists,
                 update_items,
                 handle_item_right_click,
@@ -97,35 +97,35 @@ struct AddColliderEvent;
 pub fn data_panel() -> impl Scene {
     bsn! {
         EditorDataPanel
-        panel(
+        @panel(
             PanelProps::new(PanelDirection::Left)
                 .with_width(224)
                 .with_min_width(160)
                 .with_max_width(320),
         )
+        on(setup_data_panel)
     }
 }
 
-fn setup_data_panel(mut commands: Commands, panels: Query<Entity, Added<EditorDataPanel>>) {
-    for panel_entity in &panels {
-        commands
-            .entity(panel_entity)
-            .with_child(scrollbar(panel_entity));
+fn setup_data_panel(ready: On<Ready>, mut commands: Commands) {
+    let panel_entity = ready.entity;
+    commands
+        .entity(panel_entity)
+        .with_child(scrollbar(panel_entity));
 
-        commands
-            .spawn_scene(panel_section(
-                PanelSectionProps::new("Emitters").with_add_button(),
-            ))
-            .insert((EmittersSection, ChildOf(panel_entity)))
-            .observe(on_add_emitter_click);
+    commands
+        .spawn_scene(panel_section(
+            PanelSectionProps::new("Emitters").with_add_button(),
+        ))
+        .insert((EmittersSection, ChildOf(panel_entity)))
+        .observe(on_add_emitter_click);
 
-        commands
-            .spawn_scene(panel_section(
-                PanelSectionProps::new("Colliders").with_add_button(),
-            ))
-            .insert((CollidersSection, ChildOf(panel_entity)))
-            .observe(on_add_collider_click);
-    }
+    commands
+        .spawn_scene(panel_section(
+            PanelSectionProps::new("Colliders").with_add_button(),
+        ))
+        .insert((CollidersSection, ChildOf(panel_entity)))
+        .observe(on_add_collider_click);
 }
 
 fn rebuild_lists(
@@ -224,7 +224,6 @@ fn spawn_items<'a>(
             .spawn((
                 InspectableItem { kind, index },
                 Hovered::default(),
-                Interaction::None,
                 Node {
                     width: percent(100),
                     ..default()

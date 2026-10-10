@@ -4,6 +4,7 @@ use std::sync::{Arc, Mutex};
 use bevy::input_focus::{FocusCause, InputFocus};
 use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
+use bevy::scene::Ready;
 use bevy::tasks::IoTaskPool;
 use bevy::text::EditableText;
 
@@ -46,7 +47,6 @@ pub fn plugin(app: &mut App) {
         .add_systems(
             Update,
             (
-                setup_project_selector,
                 update_project_label,
                 handle_popover_closed,
                 setup_new_project_dialog_content,
@@ -68,7 +68,6 @@ struct ProjectSelectorTrigger(Entity);
 #[derive(Component, Default, Clone)]
 struct ProjectSelectorState {
     popover: Option<Entity>,
-    initialized: bool,
 }
 
 #[derive(Component)]
@@ -115,30 +114,21 @@ pub fn project_selector() -> impl Scene {
         ProjectSelector
         ProjectSelectorState
         Node
+        on(setup_project_selector)
     }
 }
 
-fn setup_project_selector(
-    mut commands: Commands,
-    mut selectors: Query<(Entity, &mut ProjectSelectorState)>,
-) {
-    for (entity, mut state) in &mut selectors {
-        if state.initialized {
-            continue;
-        }
-        state.initialized = true;
+fn setup_project_selector(ready: On<Ready>, mut commands: Commands) {
+    let trigger = commands
+        .spawn_scene(button(
+            ButtonProps::new("Untitled")
+                .with_variant(ButtonVariant::Ghost)
+                .with_right_icon(ICON_ARROW_DOWN),
+        ))
+        .insert(ProjectSelectorTrigger(ready.entity))
+        .id();
 
-        let trigger = commands
-            .spawn_scene(button(
-                ButtonProps::new("Untitled")
-                    .with_variant(ButtonVariant::Ghost)
-                    .with_right_icon(ICON_ARROW_DOWN),
-            ))
-            .insert(ProjectSelectorTrigger(entity))
-            .id();
-
-        commands.entity(entity).add_child(trigger);
-    }
+    commands.entity(ready.entity).add_child(trigger);
 }
 
 fn update_project_label(
