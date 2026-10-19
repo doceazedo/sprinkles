@@ -6,21 +6,15 @@ use crate::state::{PlaybackPlayEvent, PlaybackResetEvent};
 use crate::ui::icons::{ICON_PAUSE, ICON_PLAY, ICON_REPEAT, ICON_STOP};
 use crate::ui::tokens::{PRIMARY_COLOR, TEXT_BODY_COLOR};
 use crate::ui::widgets::button::{
-    ButtonSize, ButtonVariant, IconButtonProps, icon_button, set_button_variant,
+    ButtonClickEvent, ButtonSize, ButtonVariant, IconButtonProps, icon_button, set_button_variant,
 };
 use crate::viewport::EditorParticlePreview;
 
 pub fn plugin(app: &mut App) {
-    app.add_systems(
-        Update,
-        (
-            handle_play_pause_click,
-            handle_stop_click,
-            handle_loop_click,
-            update_play_pause_icon,
-            update_loop_button_style,
-        ),
-    );
+    app.add_systems(Update, (update_play_pause_icon, update_loop_button_style))
+        .add_observer(handle_play_pause_click)
+        .add_observer(handle_stop_click)
+        .add_observer(handle_loop_click);
 }
 
 #[derive(Component, Default, Clone)]
@@ -43,9 +37,11 @@ pub fn playback_controls() -> impl Scene {
             column_gap: px(6),
         }
         Children [
-            play_pause_button(),
-            stop_button(),
-            loop_button(),
+            @play_pause_button()
+            --
+            @stop_button()
+            --
+            @loop_button()
         ]
     }
 }
@@ -53,7 +49,7 @@ pub fn playback_controls() -> impl Scene {
 fn play_pause_button() -> impl Scene {
     bsn! {
         PlayPauseButton
-        icon_button(
+        @icon_button(
             IconButtonProps::new(ICON_PAUSE)
                 .color(tailwind::GREEN_500)
                 .variant(ButtonVariant::Ghost)
@@ -65,7 +61,7 @@ fn play_pause_button() -> impl Scene {
 fn stop_button() -> impl Scene {
     bsn! {
         StopButton
-        icon_button(
+        @icon_button(
             IconButtonProps::new(ICON_STOP)
                 .color(TEXT_BODY_COLOR)
                 .variant(ButtonVariant::Ghost)
@@ -77,7 +73,7 @@ fn stop_button() -> impl Scene {
 fn loop_button() -> impl Scene {
     bsn! {
         LoopButton
-        icon_button(
+        @icon_button(
             IconButtonProps::new(ICON_REPEAT)
                 .color(PRIMARY_COLOR)
                 .variant(ButtonVariant::Active)
@@ -87,43 +83,42 @@ fn loop_button() -> impl Scene {
 }
 
 fn handle_play_pause_click(
+    event: On<ButtonClickEvent>,
     mut commands: Commands,
     mut runtime_query: Query<&mut ParticleSystemRuntime, With<EditorParticlePreview>>,
-    button_query: Query<&Interaction, (Changed<Interaction>, With<PlayPauseButton>)>,
+    button_query: Query<(), With<PlayPauseButton>>,
 ) {
-    for interaction in &button_query {
-        if *interaction == Interaction::Pressed {
-            for mut runtime in &mut runtime_query {
-                runtime.toggle();
-                if !runtime.paused {
-                    commands.trigger(PlaybackPlayEvent);
-                }
-            }
+    if !button_query.contains(event.entity) {
+        return;
+    }
+    for mut runtime in &mut runtime_query {
+        runtime.toggle();
+        if !runtime.paused {
+            commands.trigger(PlaybackPlayEvent);
         }
     }
 }
 
 fn handle_stop_click(
+    event: On<ButtonClickEvent>,
     mut commands: Commands,
-    button_query: Query<&Interaction, (Changed<Interaction>, With<StopButton>)>,
+    button_query: Query<(), With<StopButton>>,
 ) {
-    for interaction in &button_query {
-        if *interaction == Interaction::Pressed {
-            commands.trigger(PlaybackResetEvent);
-        }
+    if button_query.contains(event.entity) {
+        commands.trigger(PlaybackResetEvent);
     }
 }
 
 fn handle_loop_click(
+    event: On<ButtonClickEvent>,
     mut runtime_query: Query<&mut ParticleSystemRuntime, With<EditorParticlePreview>>,
-    button_query: Query<&Interaction, (Changed<Interaction>, With<LoopButton>)>,
+    button_query: Query<(), With<LoopButton>>,
 ) {
-    for interaction in &button_query {
-        if *interaction == Interaction::Pressed {
-            for mut runtime in &mut runtime_query {
-                runtime.force_loop = !runtime.force_loop;
-            }
-        }
+    if !button_query.contains(event.entity) {
+        return;
+    }
+    for mut runtime in &mut runtime_query {
+        runtime.force_loop = !runtime.force_loop;
     }
 }
 

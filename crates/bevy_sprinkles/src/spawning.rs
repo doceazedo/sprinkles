@@ -287,8 +287,7 @@ pub fn setup_particle_systems(
                 (0..total_slots).map(|_| ParticleData::default()).collect();
 
             let mut particle_buffer = ShaderBuffer::from(particles.clone());
-            particle_buffer.buffer_description.usage |=
-                bevy::render::render_resource::BufferUsages::COPY_SRC;
+            particle_buffer.buffer_usage |= bevy::render::render_resource::BufferUsages::COPY_SRC;
             let particle_buffer_handle = buffers.add(particle_buffer);
 
             let indices: Vec<u32> = (0..total_slots).collect();
@@ -308,9 +307,8 @@ pub fn setup_particle_systems(
                 transform_align: transform_align_to_u32(emitter.draw_pass.transform_align),
                 ..default()
             };
-            let mut emitter_uniforms_ssbo = ShaderBuffer::default();
-            emitter_uniforms_ssbo.set_data(emitter_uniforms);
-            let emitter_uniforms_buffer_handle = buffers.add(emitter_uniforms_ssbo);
+            let emitter_uniforms_buffer_handle =
+                buffers.add(ShaderBuffer::from(vec![emitter_uniforms]));
 
             let current_mesh = emitter.draw_pass.mesh.clone();
             let current_material = emitter.draw_pass.material.clone();
@@ -381,8 +379,7 @@ pub fn setup_particle_systems(
                 let mut initial_data = vec![0u32; buffer_len];
                 initial_data[1] = target_amount;
                 let mut buffer = ShaderBuffer::from(initial_data);
-                buffer.buffer_description.usage |=
-                    bevy::render::render_resource::BufferUsages::COPY_DST;
+                buffer.buffer_usage |= bevy::render::render_resource::BufferUsages::COPY_DST;
 
                 let buffer_handle = buffers.add(buffer);
                 let target_entity = emitter_entities[target_index];
@@ -566,8 +563,7 @@ pub(crate) fn sync_particle_buffers(
             (0..new_total).map(|_| ParticleData::default()).collect();
 
         let mut new_particle_buffer = ShaderBuffer::from(particles.clone());
-        new_particle_buffer.buffer_description.usage |=
-            bevy::render::render_resource::BufferUsages::COPY_SRC;
+        new_particle_buffer.buffer_usage |= bevy::render::render_resource::BufferUsages::COPY_SRC;
         let new_particle_buf = buffers.add(new_particle_buffer);
         let new_indices_buf = buffers.add(ShaderBuffer::from((0..new_total).collect::<Vec<u32>>()));
         let new_sorted_buf = buffers.add(ShaderBuffer::from(particles));
@@ -580,9 +576,7 @@ pub(crate) fn sync_particle_buffers(
             trail_thickness_curve: bake_thickness_curve(&emitter_data.trail),
             ..default()
         };
-        let mut emitter_uniforms_ssbo = ShaderBuffer::default();
-        emitter_uniforms_ssbo.set_data(emitter_uniforms);
-        let new_uniforms_buf = buffers.add(emitter_uniforms_ssbo);
+        let new_uniforms_buf = buffers.add(ShaderBuffer::from(vec![emitter_uniforms]));
 
         buffer_handle.particle_buffer = new_particle_buf;
         buffer_handle.indices_buffer = new_indices_buf;
@@ -653,10 +647,15 @@ pub fn write_emitter_uniforms(
             trail_size,
             transform_align: transform_align_to_u32(emitter_data.draw_pass.transform_align),
             trail_thickness_curve,
+            ..default()
         };
 
-        if let Some(mut buffer) = buffers.get_mut(&buffer_handle.emitter_uniforms_buffer) {
-            buffer.set_data(uniforms);
+        if let Some(mut buffer) = buffers.get_mut(&buffer_handle.emitter_uniforms_buffer)
+            && let Some(slot) = buffer
+                .cast_slice_mut::<ParticleEmitterUniforms>()
+                .and_then(|slice| slice.first_mut())
+        {
+            *slot = uniforms;
         }
     }
 }

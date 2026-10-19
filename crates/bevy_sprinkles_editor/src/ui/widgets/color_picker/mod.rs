@@ -3,7 +3,6 @@ pub mod materials;
 
 use crate::ui::widgets::text_edit::set_text_input_value;
 use bevy::input_focus::InputFocus;
-use bevy::picking::events::{Press, Release};
 use bevy::picking::prelude::Pickable;
 use bevy::prelude::*;
 use bevy::text::EditableText;
@@ -199,8 +198,8 @@ pub fn color_picker(props: ColorPickerProps) -> impl Scene {
 
     bsn! {
         EditorColorPicker
-        template_value(ColorPickerState::from_rgba(color))
-        template_value(ColorPickerConfig { inline })
+        ColorPickerState::from_rgba(color)
+        ColorPickerConfig { inline }
         PopoverTracker
         Node {
             flex_direction: { FlexDirection::Column },
@@ -435,7 +434,7 @@ impl PickerControl for AlphaSlider {
 }
 
 fn on_control_press<C: PickerControl>(
-    event: On<Pointer<Press>>,
+    event: On<PointerPress>,
     mut commands: Commands,
     controls: Query<(&C, &ComputedNode, &UiGlobalTransform)>,
     mut pickers: Query<&mut ColorPickerState>,
@@ -445,7 +444,7 @@ fn on_control_press<C: PickerControl>(
     };
     let picker_entity = control.picker_entity();
 
-    let cursor_pos = event.pointer_location.position / computed.inverse_scale_factor;
+    let cursor_pos = event.pointer.position / computed.inverse_scale_factor;
     let Some(normalized) = computed.normalize_point(*ui_transform, cursor_pos) else {
         return;
     };
@@ -463,7 +462,7 @@ fn on_control_press<C: PickerControl>(
 }
 
 fn on_control_release<C: PickerControl>(
-    event: On<Pointer<Release>>,
+    event: On<PointerRelease>,
     mut commands: Commands,
     controls: Query<&C, Without<Dragging>>,
     pickers: Query<&ColorPickerState>,
@@ -482,7 +481,7 @@ fn on_control_release<C: PickerControl>(
 }
 
 fn on_control_drag_start<C: PickerControl>(
-    event: On<Pointer<DragStart>>,
+    event: On<PointerDragStart>,
     mut commands: Commands,
     controls: Query<(&C, &ComputedNode, &UiGlobalTransform)>,
     mut pickers: Query<&mut ColorPickerState>,
@@ -494,7 +493,7 @@ fn on_control_drag_start<C: PickerControl>(
 
     commands.entity(event.event_target()).insert(Dragging);
 
-    let cursor_pos = event.pointer_location.position / computed.inverse_scale_factor;
+    let cursor_pos = event.pointer.position / computed.inverse_scale_factor;
     let Some(normalized) = computed.normalize_point(*ui_transform, cursor_pos) else {
         return;
     };
@@ -512,7 +511,7 @@ fn on_control_drag_start<C: PickerControl>(
 }
 
 fn on_control_drag<C: PickerControl>(
-    event: On<Pointer<Drag>>,
+    event: On<PointerDrag>,
     mut commands: Commands,
     controls: Query<(&C, &ComputedNode, &UiGlobalTransform), With<Dragging>>,
     mut pickers: Query<&mut ColorPickerState>,
@@ -522,7 +521,7 @@ fn on_control_drag<C: PickerControl>(
     };
     let picker_entity = control.picker_entity();
 
-    let cursor_pos = event.pointer_location.position / computed.inverse_scale_factor;
+    let cursor_pos = event.pointer.position / computed.inverse_scale_factor;
     let Some(normalized) = computed.normalize_point(*ui_transform, cursor_pos) else {
         return;
     };
@@ -540,7 +539,7 @@ fn on_control_drag<C: PickerControl>(
 }
 
 fn on_control_drag_end<C: PickerControl>(
-    event: On<Pointer<DragEnd>>,
+    event: On<PointerDragEnd>,
     mut commands: Commands,
     controls: Query<&C>,
     pickers: Query<&ColorPickerState>,

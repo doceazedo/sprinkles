@@ -1,6 +1,7 @@
 use bevy::color::palettes::tailwind;
 use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
+use bevy::ui_widgets::{ActivateOnPress, Button};
 use bevy::window::SystemCursorIcon;
 
 use crate::ui::tokens::{CORNER_RADIUS, FONT_PATH, TEXT_SIZE};
@@ -70,7 +71,7 @@ pub fn alert(variant: AlertVariant, spans: Vec<AlertSpan>) -> impl Scene {
 
     bsn! {
         EditorAlert
-        template_value(AlertConfig { variant, spans })
+        AlertConfig { variant, spans }
         Node {
             width: percent(100),
             padding: { UiRect::all(px(12)) },
@@ -79,7 +80,7 @@ pub fn alert(variant: AlertVariant, spans: Vec<AlertSpan>) -> impl Scene {
             position_type: { PositionType::Relative },
         }
         BackgroundColor({ bg })
-        template_value(BorderColor::all(border))
+        BorderColor::all(border)
     }
 }
 
@@ -147,6 +148,7 @@ fn setup_alert(
             let hitbox = commands
                 .spawn((
                     Button,
+                    ActivateOnPress,
                     Hovered::default(),
                     HoverCursor(SystemCursorIcon::Pointer),
                     LinkHitbox {

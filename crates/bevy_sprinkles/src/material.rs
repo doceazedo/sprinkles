@@ -4,21 +4,22 @@ use bevy::{
     prelude::*,
     render::{
         render_resource::{
-            AsBindGroup, CompareFunction, RenderPipelineDescriptor, ShaderType,
-            SpecializedMeshPipelineError,
+            AsBindGroup, CompareFunction, RenderPipelineDescriptor, SpecializedMeshPipelineError,
         },
         storage::ShaderBuffer,
     },
     shader::ShaderRef,
 };
+use bytemuck::{Pod, Zeroable};
 
-const SHADER_ASSET_PATH: &str = "embedded://bevy_sprinkles/shaders/particle_material.wgsl";
+const SHADER_ASSET_PATH: &str = "embedded://bevy_sprinkles/shaders/particle_material.wesl";
 
 /// Number of samples in the baked trail thickness curve LUT.
 pub const TRAIL_THICKNESS_CURVE_SAMPLES: usize = 16;
 
 /// GPU-side per-emitter uniforms passed to the particle material shader.
-#[derive(Clone, Copy, ShaderType)]
+#[derive(Clone, Copy, Pod, Zeroable)]
+#[repr(C)]
 pub struct ParticleEmitterUniforms {
     /// World-space transform matrix for the emitter.
     pub emitter_transform: Mat4,
@@ -40,6 +41,7 @@ pub struct ParticleEmitterUniforms {
     pub transform_align: u32,
     /// Baked trail thickness curve samples.
     pub trail_thickness_curve: [f32; TRAIL_THICKNESS_CURVE_SAMPLES],
+    pub(crate) _pad: [u32; 3],
 }
 
 impl Default for ParticleEmitterUniforms {
@@ -52,6 +54,7 @@ impl Default for ParticleEmitterUniforms {
             trail_size: 1,
             transform_align: 0,
             trail_thickness_curve: [1.0; TRAIL_THICKNESS_CURVE_SAMPLES],
+            _pad: [0; 3],
         }
     }
 }
@@ -88,6 +91,10 @@ impl MaterialExtension for ParticleMaterialExtension {
         SHADER_ASSET_PATH.into()
     }
 
+    fn enable_oit() -> bool {
+        false
+    }
+
     fn specialize(
         _pipeline: &MaterialExtensionPipeline,
         descriptor: &mut RenderPipelineDescriptor,
@@ -112,5 +119,16 @@ impl MaterialExtension for ParticleMaterialExtension {
         descriptor.primitive.cull_mode = None;
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn emitter_uniforms_match_wgsl_layout() {
+        assert_eq!(size_of::<ParticleEmitterUniforms>(), 160);
+        assert_eq!(size_of::<ParticleEmitterUniforms>() % 16, 0);
     }
 }

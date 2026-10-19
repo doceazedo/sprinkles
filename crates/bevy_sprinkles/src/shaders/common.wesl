@@ -1,5 +1,3 @@
-#define_import_path bevy_sprinkles::common
-
 struct Particle {
     position: vec4<f32>,       // xyz, scale
     velocity: vec4<f32>,       // xyz, lifetime

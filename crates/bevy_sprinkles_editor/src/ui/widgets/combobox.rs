@@ -124,7 +124,7 @@ pub fn combobox_with_selected(
 
     bsn! {
         EditorComboBox
-        template_value(config)
+        config
         ComboBoxState
         Node { width: percent(100) }
     }
@@ -146,7 +146,7 @@ pub fn combobox_with_label(
 
     bsn! {
         EditorComboBox
-        template_value(config)
+        config
         ComboBoxState
         Node { width: percent(100) }
     }
@@ -165,7 +165,7 @@ pub fn combobox_icon(options: Vec<impl Into<ComboBoxOptionData>>) -> impl Scene 
 
     bsn! {
         EditorComboBox
-        template_value(config)
+        config
         ComboBoxState
         Node
     }
@@ -187,7 +187,7 @@ pub fn combobox_icon_with_selected(
 
     bsn! {
         EditorComboBox
-        template_value(config)
+        config
         ComboBoxState
         Node
     }

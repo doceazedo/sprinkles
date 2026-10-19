@@ -107,12 +107,12 @@ pub fn panel(props: PanelProps) -> impl Scene {
 
     bsn! {
         EditorPanel
-        template_value(direction)
-        template_value(PanelWidth {
+        direction
+        PanelWidth {
             current: width,
             min: min_width,
             max: max_width,
-        })
+        }
         Hovered
         Node {
             width: px(width),
@@ -125,7 +125,7 @@ pub fn panel(props: PanelProps) -> impl Scene {
             overflow: { Overflow::scroll_y() },
         }
         BackgroundColor({ BACKGROUND_COLOR })
-        template_value(BorderColor::all(BORDER_COLOR))
+        BorderColor::all(BORDER_COLOR)
     }
 }
 

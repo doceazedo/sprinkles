@@ -1,6 +1,7 @@
 use bevy::{
     prelude::*,
     render::{
+        RenderApp,
         extract_resource::ExtractResource,
         render_resource::{Extent3d, TextureDimension, TextureFormat, TextureUsages},
     },
@@ -127,6 +128,7 @@ fn lerp_color(a: [f32; 4], b: [f32; 4], t: f32) -> [f32; 4] {
 
 /// A 1x1 white fallback texture used when no gradient texture is available.
 #[derive(Resource, Clone, ExtractResource)]
+#[extract_app(RenderApp)]
 pub struct FallbackGradientTexture {
     /// Handle to the fallback image.
     pub handle: Handle<Image>,
@@ -208,6 +210,7 @@ fn bake_curve_texture(curve: &CurveTexture) -> Image {
 
 /// A 1x1 white fallback texture used when no curve texture is available.
 #[derive(Resource, Clone, ExtractResource)]
+#[extract_app(RenderApp)]
 pub struct FallbackCurveTexture {
     /// Handle to the fallback image.
     pub handle: Handle<Image>,

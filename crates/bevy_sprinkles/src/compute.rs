@@ -37,7 +37,7 @@ pub struct ColliderArray {
     pub colliders: [ColliderUniform; MAX_COLLIDERS],
 }
 
-const SHADER_ASSET_PATH: &str = "embedded://bevy_sprinkles/shaders/particle_simulate.wgsl";
+const SHADER_ASSET_PATH: &str = "embedded://bevy_sprinkles/shaders/particle_simulate.wesl";
 const WORKGROUP_SIZE: u32 = 64;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]

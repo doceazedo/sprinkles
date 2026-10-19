@@ -113,7 +113,6 @@ fn sync_generate_aabb_button(
                 .spawn((
                     GenerateAabbOverlay,
                     Pickable::default(),
-                    Button,
                     Node {
                         position_type: PositionType::Absolute,
                         left: px(0.0),

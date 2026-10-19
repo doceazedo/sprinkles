@@ -1,6 +1,7 @@
 use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
 use bevy::text::FontSourceTemplate;
+use bevy::ui_widgets::{Activate, ActivateOnPress, Button};
 
 use crate::ui::icons::ICON_CHECK;
 use crate::ui::tokens::{BORDER_COLOR, FONT_PATH, TEXT_BODY_COLOR, TEXT_SIZE};
@@ -12,14 +13,8 @@ pub struct CheckboxCommitEvent {
 }
 
 pub fn plugin(app: &mut App) {
-    app.add_systems(
-        Update,
-        (
-            handle_checkbox_hover,
-            handle_checkbox_click,
-            sync_checkbox_icon,
-        ),
-    );
+    app.add_systems(Update, (handle_checkbox_hover, sync_checkbox_icon))
+        .add_observer(handle_checkbox_click);
 }
 
 #[derive(Component, Default, Clone)]
@@ -66,48 +61,44 @@ pub fn checkbox(props: CheckboxProps) -> impl Scene {
 
     bsn! {
         EditorCheckbox
-        template_value(CheckboxState { checked })
+        CheckboxState { checked }
         Button
+        ActivateOnPress
         Hovered
         Node {
             align_items: { AlignItems::Center },
             column_gap: px(6),
         }
         Children [
-            (
-                CheckboxBox
+            CheckboxBox
+            Node {
+                width: px(16),
+                height: px(16),
+                border: { UiRect::all(px(1.0)) },
+                border_radius: { BorderRadius::all(px(2.0)) },
+                justify_content: { JustifyContent::Center },
+                align_items: { AlignItems::Center },
+            }
+            BorderColor::all(BORDER_COLOR)
+            Children [
+                CheckboxIcon
+                ImageNode {
+                    image: { ICON_CHECK },
+                    color: { Color::Srgba(TEXT_BODY_COLOR) },
+                }
                 Node {
-                    width: px(16),
-                    height: px(16),
-                    border: { UiRect::all(px(1.0)) },
-                    border_radius: { BorderRadius::all(px(2.0)) },
-                    justify_content: { JustifyContent::Center },
-                    align_items: { AlignItems::Center },
+                    width: px(12),
+                    height: px(12),
+                    display: { icon_display },
                 }
-                template_value(BorderColor::all(BORDER_COLOR))
-                Children [
-                    (
-                        CheckboxIcon
-                        ImageNode {
-                            image: { ICON_CHECK },
-                            color: { Color::Srgba(TEXT_BODY_COLOR) },
-                        }
-                        Node {
-                            width: px(12),
-                            height: px(12),
-                            display: { icon_display },
-                        }
-                    )
-                ]
-            ),
-            (
-                Text({ label })
-                TextFont {
-                    font: { FontSourceTemplate::Handle(FONT_PATH.into()) },
-                    font_size: TEXT_SIZE,
-                }
-                TextColor(TEXT_BODY_COLOR)
-            ),
+            ]
+            --
+            Text({ label })
+            TextFont {
+                font: { FontSourceTemplate::Handle(FONT_PATH.into()) },
+                font_size: TEXT_SIZE,
+            }
+            TextColor(TEXT_BODY_COLOR)
         ]
     }
 }
@@ -135,48 +126,44 @@ fn handle_checkbox_hover(
 }
 
 fn handle_checkbox_click(
+    event: On<Activate>,
     mut commands: Commands,
-    mut checkboxes: Query<
-        (Entity, &Interaction, &mut CheckboxState, &Children),
-        (Changed<Interaction>, With<EditorCheckbox>),
-    >,
+    mut checkboxes: Query<(&mut CheckboxState, &Children), With<EditorCheckbox>>,
     boxes: Query<&Children, With<CheckboxBox>>,
     mut icons: Query<&mut Node, With<CheckboxIcon>>,
 ) {
-    for (checkbox_entity, interaction, mut state, checkbox_children) in &mut checkboxes {
-        if *interaction != Interaction::Pressed {
-            continue;
-        }
+    let Ok((mut state, checkbox_children)) = checkboxes.get_mut(event.entity) else {
+        return;
+    };
 
-        state.checked = !state.checked;
+    state.checked = !state.checked;
 
-        commands.trigger(CheckboxCommitEvent {
-            entity: checkbox_entity,
-            checked: state.checked,
-        });
+    commands.trigger(CheckboxCommitEvent {
+        entity: event.entity,
+        checked: state.checked,
+    });
 
-        let Some(&box_entity) = checkbox_children.first() else {
-            continue;
-        };
+    let Some(&box_entity) = checkbox_children.first() else {
+        return;
+    };
 
-        let Ok(box_children) = boxes.get(box_entity) else {
-            continue;
-        };
+    let Ok(box_children) = boxes.get(box_entity) else {
+        return;
+    };
 
-        let Some(&icon_entity) = box_children.first() else {
-            continue;
-        };
+    let Some(&icon_entity) = box_children.first() else {
+        return;
+    };
 
-        let Ok(mut icon_node) = icons.get_mut(icon_entity) else {
-            continue;
-        };
+    let Ok(mut icon_node) = icons.get_mut(icon_entity) else {
+        return;
+    };
 
-        icon_node.display = if state.checked {
-            Display::Flex
-        } else {
-            Display::None
-        };
-    }
+    icon_node.display = if state.checked {
+        Display::Flex
+    } else {
+        Display::None
+    };
 }
 
 fn sync_checkbox_icon(

@@ -25,7 +25,7 @@ pub enum SerializableAlphaMode {
     /// with the color behind it.
     #[default]
     Blend,
-    /// Similar to [`AlphaMode::Blend`](bevy::render::alpha::AlphaMode::Blend), however
+    /// Similar to [`AlphaMode::Blend`](bevy::material::AlphaMode::Blend), however
     /// assumes RGB channel values are premultiplied.
     ///
     /// For otherwise constant RGB values, behaves more like `Blend` for alpha values
@@ -319,6 +319,9 @@ pub struct StandardParticleMaterial {
     ///
     /// The material's [`base_color`](Self::base_color) also modulates the
     /// transmitted light.
+    ///
+    /// Requires the [`ScreenSpaceTransmission`](bevy::pbr::ScreenSpaceTransmission)
+    /// component on the rendering camera.
     #[serde(default, skip_serializing_if = "is_zero_f32")]
     pub specular_transmission: f32,
 

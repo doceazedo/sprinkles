@@ -1,6 +1,6 @@
-#import bevy_ui::ui_vertex_output::UiVertexOutput
-#import bevy_render::color_operations::hsv_to_linear_rgb
-#import bevy_sprinkles_editor::common::rounded_box_sdf
+import bevy_ui_render::ui_vertex_output::UiVertexOutput;
+import bevy_render::color_operations::hsv_to_linear_rgb;
+import super::common::rounded_box_sdf;
 
 struct HsvRectUniforms {
     hue: f32,

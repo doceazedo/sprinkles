@@ -251,7 +251,7 @@ pub fn variant_edit(props: VariantEditProps) -> impl Scene {
 
     bsn! {
         EditorVariantEdit
-        template_value(config)
+        config
         VariantEditState
         PopoverTracker
         Node {

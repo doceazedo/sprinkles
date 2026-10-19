@@ -1,6 +1,7 @@
 use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
 use bevy::text::TextLayoutInfo;
+use bevy::ui_widgets::{Activate, ActivateOnPress, Button};
 use bevy::window::SystemCursorIcon;
 
 use crate::ui::widgets::cursor::HoverCursor;
@@ -17,10 +18,8 @@ pub struct LinkHitbox {
 }
 
 pub fn plugin(app: &mut App) {
-    app.add_systems(
-        Update,
-        (position_link_hitboxes, handle_link_click, update_link_hover),
-    );
+    app.add_systems(Update, (position_link_hitboxes, update_link_hover))
+        .add_observer(handle_link_click);
 }
 
 pub fn spawn_link_hitbox(
@@ -34,6 +33,7 @@ pub fn spawn_link_hitbox(
     commands
         .spawn((
             Button,
+            ActivateOnPress,
             Hovered::default(),
             HoverCursor(SystemCursorIcon::Pointer),
             LinkHitbox {
@@ -68,7 +68,7 @@ fn position_link_hitboxes(
         let mut found = false;
 
         for glyph in &layout.glyphs {
-            if glyph.section_index == hitbox.link_span_index {
+            if glyph.section_index as usize == hitbox.link_span_index {
                 let size = glyph.atlas_info.rect.size();
                 let w = size.x * scale;
                 let h = size.y * scale;
@@ -93,11 +93,9 @@ fn position_link_hitboxes(
     }
 }
 
-fn handle_link_click(interactions: Query<(&Interaction, &LinkHitbox), Changed<Interaction>>) {
-    for (interaction, hitbox) in &interactions {
-        if *interaction == Interaction::Pressed {
-            let _ = open::that(&hitbox.url);
-        }
+fn handle_link_click(event: On<Activate>, hitboxes: Query<&LinkHitbox>) {
+    if let Ok(hitbox) = hitboxes.get(event.entity) {
+        let _ = open::that(&hitbox.url);
     }
 }
 

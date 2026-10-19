@@ -1,5 +1,5 @@
-#import bevy_ui::ui_vertex_output::UiVertexOutput
-#import bevy_sprinkles_editor::common::{checkerboard, rounded_box_sdf}
+import bevy_ui_render::ui_vertex_output::UiVertexOutput;
+import super::common::{checkerboard, rounded_box_sdf};
 
 struct CheckerboardUniforms {
     color: vec4<f32>,

@@ -174,10 +174,10 @@ pub fn vector_edit(props: VectorEditProps) -> impl Scene {
                 text_edit_props = text_edit_props.with_max(max);
             }
 
-            Box::new(bsn_list![(
+            Box::new(bsn_list! {
                 VectorComponentIndex(i)
-                text_edit(text_edit_props)
-            )]) as Box<dyn SceneList>
+                @text_edit(text_edit_props)
+            }) as Box<dyn SceneList>
         })
         .collect();
 

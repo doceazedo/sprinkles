@@ -1,4 +1,4 @@
-#import bevy_sprinkles::common::{Particle, PARTICLE_FLAG_ACTIVE}
+import super::common::{Particle, PARTICLE_FLAG_ACTIVE};
 
 const DRAW_ORDER_INDEX: u32 = 0u;
 const DRAW_ORDER_LIFETIME: u32 = 1u;
