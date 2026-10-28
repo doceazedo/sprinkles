@@ -27,7 +27,7 @@ bevy = { version = "0.19", default-features = false, features = [
     # "reflect_auto_register",
 ] }
 serde = { version = "1", features = ["derive"] }
-ron = "0.10"
+ron = "0.12"
 thiserror = "2"
 bytemuck = { version = "1.14", features = ["derive"] }
 bitflags = { version = "2", features = ["serde"] }
