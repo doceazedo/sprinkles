@@ -650,7 +650,18 @@ pub fn write_emitter_uniforms(
             ..default()
         };
 
-        if let Some(mut buffer) = buffers.get_mut(&buffer_handle.emitter_uniforms_buffer)
+        // get_mut makes bevy copy and write the buffer to the GPU again; most emitters don't move
+        let unchanged = buffers
+            .get(&buffer_handle.emitter_uniforms_buffer)
+            .and_then(|buffer| {
+                buffer
+                    .cast_slice::<ParticleEmitterUniforms>()?
+                    .first()
+                    .copied()
+            })
+            .is_some_and(|current| bytemuck::bytes_of(&current) == bytemuck::bytes_of(&uniforms));
+        if !unchanged
+            && let Some(mut buffer) = buffers.get_mut(&buffer_handle.emitter_uniforms_buffer)
             && let Some(slot) = buffer
                 .cast_slice_mut::<ParticleEmitterUniforms>()
                 .and_then(|slice| slice.first_mut())
