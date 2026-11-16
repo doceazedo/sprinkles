@@ -17,7 +17,7 @@ default = ["preset-textures"]
 preset-textures = []
 
 [dependencies]
-bevy = { version = "0.19", default-features = false, features = [
+bevy = { version = "0.20", default-features = false, features = [
     "std",
     "bevy_asset",
     "bevy_core_pipeline",
