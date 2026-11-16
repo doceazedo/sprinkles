@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy::ui::InteractionDisabled;
 use bevy_sprinkles::prelude::*;
 
 use crate::state::EditorState;
@@ -289,9 +290,9 @@ fn set_add_button_disabled(
     }
 
     if disabled {
-        commands.entity(btn_entity).remove::<Interaction>();
+        commands.entity(btn_entity).insert(InteractionDisabled);
     } else {
-        commands.entity(btn_entity).insert(Interaction::None);
+        commands.entity(btn_entity).remove::<InteractionDisabled>();
     }
 }
 

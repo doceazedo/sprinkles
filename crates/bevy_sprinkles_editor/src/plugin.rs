@@ -40,6 +40,7 @@ impl Plugin for SprinklesEditorPlugin {
             .add_plugins(crate::io::plugin)
             .add_plugins(crate::state::plugin)
             .add_plugins(crate::project::plugin)
+            .add_plugins(crate::errors::plugin)
             .init_resource::<CameraSettings>()
             .init_resource::<ViewportInputState>()
             .init_resource::<AabbGeneration>()

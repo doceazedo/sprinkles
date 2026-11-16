@@ -26,13 +26,13 @@ pub fn plugin(app: &mut App) {
         .add_observer(on_cancel_button_click)
         .add_observer(on_close_button_click)
         .add_observer(on_close_dialog)
+        .add_observer(handle_backdrop_click)
         .add_systems(
             Update,
             (
                 bevy_easings::custom_ease_system::<(), DialogVisual>,
                 sync_dialog_visual,
                 sync_children_slot_visibility,
-                handle_backdrop_click,
                 handle_esc_key,
                 handle_dialog_despawn,
             ),
@@ -280,66 +280,61 @@ fn dialog_scene(event: &OpenDialogEvent) -> impl Scene {
 
     let mut panel_children: Vec<Box<dyn SceneList>> = Vec::new();
     if event.title.is_some() || event.description.is_some() {
-        panel_children.push(Box::new(bsn_list![
-            (dialog_header(event.title.clone(), event.description.clone()))
-        ]) as Box<dyn SceneList>);
+        panel_children.push(Box::new(bsn_list! {
+            @dialog_header(event.title.clone(), event.description.clone())
+        }) as Box<dyn SceneList>);
     }
-    panel_children.push(
-        Box::new(bsn_list![(dialog_children_slot(event.content_padding))]) as Box<dyn SceneList>,
-    );
+    panel_children.push(Box::new(bsn_list! {
+        @dialog_children_slot(event.content_padding)
+    }) as Box<dyn SceneList>);
     if event.action.is_some() || event.cancel.is_some() {
-        panel_children.push(Box::new(bsn_list![
-            (dialog_footer(event.cancel.clone(), event.action.clone(), variant))
-        ]) as Box<dyn SceneList>);
+        panel_children.push(Box::new(bsn_list! {
+            @dialog_footer(event.cancel.clone(), event.action.clone(), variant)
+        }) as Box<dyn SceneList>);
     }
     if event.has_close_button {
-        panel_children.push(Box::new(bsn_list![(dialog_close())]) as Box<dyn SceneList>);
+        panel_children.push(Box::new(bsn_list! {
+            @dialog_close()
+        }) as Box<dyn SceneList>);
     }
 
     bsn! {
         EditorDialog
-        template_value(variant)
-        template_value(config)
+        variant
+        config
         Node {
             width: percent(100),
             height: percent(100),
             position_type: { PositionType::Absolute },
         }
-        template_value(GlobalZIndex(200))
-        template_value(Pickable::IGNORE)
+        GlobalZIndex(200)
+        Pickable::IGNORE
         Children [
-            (
-                DialogBackdrop
-                Interaction
+            DialogBackdrop
+            Node {
+                width: percent(100),
+                height: percent(100),
+                position_type: { PositionType::Absolute },
+                justify_content: { JustifyContent::Center },
+                align_items: { AlignItems::Center },
+            }
+            BackgroundColor({ Color::BLACK.with_alpha(0.0) })
+            Children [
+                DialogPanel
                 Node {
                     width: percent(100),
-                    height: percent(100),
-                    position_type: { PositionType::Absolute },
-                    justify_content: { JustifyContent::Center },
-                    align_items: { AlignItems::Center },
+                    max_width: { max_width },
+                    border: { UiRect::all(px(1)) },
+                    border_radius: { BorderRadius::all(px(6)) },
+                    flex_direction: { FlexDirection::Column },
                 }
-                BackgroundColor({ Color::BLACK.with_alpha(0.0) })
-                Children [
-                    (
-                        DialogPanel
-                        Interaction
-                        Node {
-                            width: percent(100),
-                            max_width: { max_width },
-                            border: { UiRect::all(px(1)) },
-                            border_radius: { BorderRadius::all(px(6)) },
-                            flex_direction: { FlexDirection::Column },
-                        }
-                        BackgroundColor({ BACKGROUND_COLOR.with_alpha(0.0) })
-                        template_value(BorderColor::all(BORDER_COLOR.with_alpha(0.0)))
-                        template_value(UiTransform {
-                            scale: Vec2::splat(0.9),
-                            ..default()
-                        })
-                        Children [ { panel_children } ]
-                    )
-                ]
-            )
+                BackgroundColor({ BACKGROUND_COLOR.with_alpha(0.0) })
+                BorderColor::all(BORDER_COLOR.with_alpha(0.0))
+                UiTransform {
+                    scale: Vec2::splat(0.9),
+                }
+                Children [ { panel_children } ]
+            ]
         ]
     }
 }
@@ -347,7 +342,7 @@ fn dialog_scene(event: &OpenDialogEvent) -> impl Scene {
 fn dialog_header(title: Option<String>, description: Option<String>) -> impl Scene {
     let mut texts: Vec<Box<dyn SceneList>> = Vec::new();
     if let Some(title) = title {
-        texts.push(Box::new(bsn_list![(
+        texts.push(Box::new(bsn_list! {
             Text({ title })
             TextFont {
                 font: { FontSourceTemplate::Handle(FONT_PATH.into()) },
@@ -355,17 +350,17 @@ fn dialog_header(title: Option<String>, description: Option<String>) -> impl Sce
                 weight: { FontWeight::SEMIBOLD },
             }
             TextColor({ TEXT_DISPLAY_COLOR.with_alpha(0.0) })
-        )]) as Box<dyn SceneList>);
+        }) as Box<dyn SceneList>);
     }
     if let Some(description) = description {
-        texts.push(Box::new(bsn_list![(
+        texts.push(Box::new(bsn_list! {
             Text({ description })
             TextFont {
                 font: { FontSourceTemplate::Handle(FONT_PATH.into()) },
                 font_size: TEXT_SIZE_LG,
             }
             TextColor({ TEXT_MUTED_COLOR.with_alpha(0.0) })
-        )]) as Box<dyn SceneList>);
+        }) as Box<dyn SceneList>);
     }
 
     bsn! {
@@ -375,7 +370,7 @@ fn dialog_header(title: Option<String>, description: Option<String>) -> impl Sce
             flex_direction: { FlexDirection::Column },
             row_gap: px(6),
         }
-        template_value(BorderColor::all(BORDER_COLOR.with_alpha(0.0)))
+        BorderColor::all(BORDER_COLOR.with_alpha(0.0))
         Children [ { texts } ]
     }
 }
@@ -390,7 +385,7 @@ fn dialog_children_slot(content_padding: UiRect) -> impl Scene {
             flex_direction: { FlexDirection::Column },
             row_gap: px(12),
         }
-        template_value(BorderColor::all(BORDER_COLOR.with_alpha(0.0)))
+        BorderColor::all(BORDER_COLOR.with_alpha(0.0))
     }
 }
 
@@ -401,17 +396,17 @@ fn dialog_footer(
 ) -> impl Scene {
     let mut buttons: Vec<Box<dyn SceneList>> = Vec::new();
     if let Some(cancel) = cancel {
-        buttons.push(Box::new(bsn_list![(
+        buttons.push(Box::new(bsn_list! {
             DialogCancelButton
-            button(ButtonProps::new(cancel))
-        )]) as Box<dyn SceneList>);
+            @button(ButtonProps::new(cancel))
+        }) as Box<dyn SceneList>);
     }
     if let Some(action) = action {
         let action_variant = variant.action_button_variant();
-        buttons.push(Box::new(bsn_list![(
+        buttons.push(Box::new(bsn_list! {
             DialogActionButton
-            button(ButtonProps::new(action).with_variant(action_variant))
-        )]) as Box<dyn SceneList>);
+            @button(ButtonProps::new(action).with_variant(action_variant))
+        }) as Box<dyn SceneList>);
     }
 
     bsn! {
@@ -432,10 +427,8 @@ fn dialog_close() -> impl Scene {
             right: px(20),
         }
         Children [
-            (
-                DialogCloseButton
-                icon_button(IconButtonProps::new(ICON_CLOSE).variant(ButtonVariant::Ghost))
-            )
+            DialogCloseButton
+            @icon_button(IconButtonProps::new(ICON_CLOSE).variant(ButtonVariant::Ghost))
         ]
     }
 }
@@ -607,28 +600,24 @@ fn sync_children_slot_visibility(
 }
 
 fn handle_backdrop_click(
-    interactions: Query<(&Interaction, &ChildOf), (Changed<Interaction>, With<DialogBackdrop>)>,
-    panels: Query<&Interaction, With<DialogPanel>>,
+    event: On<PointerPress>,
+    backdrops: Query<&ChildOf, With<DialogBackdrop>>,
     dialogs: Query<(&DialogConfig, &DialogVisual), (With<EditorDialog>, Without<DespawningDialog>)>,
     mut commands: Commands,
 ) {
-    for (interaction, child_of) in &interactions {
-        if *interaction != Interaction::Pressed {
-            continue;
-        }
+    if event.entity != event.original_event_target() {
+        return;
+    }
 
-        let Ok((config, visual)) = dialogs.get(child_of.parent()) else {
-            continue;
-        };
+    let Ok(child_of) = backdrops.get(event.entity) else {
+        return;
+    };
 
-        if !config.close_on_click_outside {
-            continue;
-        }
+    let Ok((config, visual)) = dialogs.get(child_of.parent()) else {
+        return;
+    };
 
-        if panels.iter().any(|i| *i == Interaction::Pressed) {
-            continue;
-        }
-
+    if config.close_on_click_outside {
         dismiss_dialog(&mut commands, child_of.parent(), visual);
     }
 }

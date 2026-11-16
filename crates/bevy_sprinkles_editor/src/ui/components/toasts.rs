@@ -5,7 +5,9 @@ use crate::ui::widgets::toast::{
     DEFAULT_TOAST_DURATION, EditorToast, TOAST_BOTTOM_OFFSET, ToastCloseButton, ToastDuration,
     ToastIcon, ToastText, ToastVariant, toast,
 };
+use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
+use bevy::ui_widgets::Button;
 use bevy_easings::{CustomComponentEase, EaseFunction, EasingComponent, EasingType, Lerp};
 use std::time::Duration;
 
@@ -276,7 +278,7 @@ fn setup_toasts_container(mut commands: Commands) {
         .with_children(|parent| {
             parent.spawn((
                 ToastsHitbox,
-                Interaction::None,
+                Hovered::default(),
                 Pickable {
                     should_block_lower: false,
                     is_hoverable: true,
@@ -469,14 +471,14 @@ fn update_hitbox_size(
 }
 
 fn update_expanded_state(
-    hitbox: Query<&Interaction, With<ToastsHitbox>>,
+    hitbox: Query<&Hovered, With<ToastsHitbox>>,
     mut expanded: ResMut<ToastsExpanded>,
 ) {
-    let Ok(interaction) = hitbox.single() else {
+    let Ok(hovered) = hitbox.single() else {
         return;
     };
 
-    let is_hovered = matches!(interaction, Interaction::Hovered | Interaction::Pressed);
+    let is_hovered = hovered.get();
     if expanded.0 != is_hovered {
         expanded.0 = is_hovered;
     }
