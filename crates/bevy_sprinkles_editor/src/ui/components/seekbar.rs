@@ -12,7 +12,7 @@ const SEEKBAR_WIDTH: f32 = 192.0;
 const LABEL_SIZE: f32 = 12.0;
 
 pub fn plugin(app: &mut App) {
-    app.add_systems(Update, (update_seekbar, setup_seekbar_observers))
+    app.add_systems(Update, update_seekbar)
         .add_observer(on_seekbar_drag);
 }
 
@@ -56,69 +56,63 @@ pub fn seekbar() -> impl Scene {
             column_gap: px(6),
         }
         Children [
-            (
-                SeekbarElapsed
-                Text("0.00")
-                TextFont {
-                    font: { FontSourceTemplate::Handle(FONT_PATH.into()) },
-                    font_size: LABEL_SIZE,
-                    font_features: { tabular_figures.clone() },
-                    weight: { FontWeight::MEDIUM },
-                }
-                TextColor({ TEXT_MUTED_COLOR })
-            ),
-            (
+            SeekbarElapsed
+            Text("0.00")
+            TextFont {
+                font: { FontSourceTemplate::Handle(FONT_PATH.into()) },
+                font_size: LABEL_SIZE,
+                font_features: { tabular_figures.clone() },
+                weight: { FontWeight::MEDIUM },
+            }
+            TextColor({ TEXT_MUTED_COLOR })
+            --
+            Node {
+                width: px(SEEKBAR_WIDTH),
+                height: px(SEEKBAR_HEIGHT),
+            }
+            Children [
+                SeekbarTrack
                 Node {
-                    width: px(SEEKBAR_WIDTH),
-                    height: px(SEEKBAR_HEIGHT),
+                    width: percent(100),
+                    height: percent(100),
+                    border_radius: { BorderRadius::all(Val::Percent(100.0)) },
+                    overflow: { Overflow::clip() },
                 }
+                BackgroundColor({ tailwind::ZINC_700 })
                 Children [
-                    (
-                        SeekbarTrack
-                        Node {
-                            width: percent(100),
-                            height: percent(100),
-                            border_radius: { BorderRadius::all(Val::Percent(100.0)) },
-                            overflow: { Overflow::clip() },
-                        }
-                        BackgroundColor({ tailwind::ZINC_700 })
-                        Children [
-                            (
-                                SeekbarFill
-                                Node {
-                                    width: percent(0),
-                                    height: percent(100),
-                                    border_radius: { BorderRadius::all(Val::Percent(100.0)) },
-                                }
-                                BackgroundColor({ tailwind::ZINC_200 })
-                            )
-                        ]
-                    ),
-                    (
-                        SeekbarHitbox
-                        SeekbarDragState
-                        Node {
-                            position_type: { PositionType::Absolute },
-                            width: px(SEEKBAR_WIDTH),
-                            height: px(SEEKBAR_HEIGHT * 3.),
-                            top: px(-SEEKBAR_HEIGHT),
-                            justify_content: { JustifyContent::Center },
-                            align_items: { AlignItems::Center },
-                        }
-                    ),
+                    SeekbarFill
+                    Node {
+                        width: percent(0),
+                        height: percent(100),
+                        border_radius: { BorderRadius::all(Val::Percent(100.0)) },
+                    }
+                    BackgroundColor({ tailwind::ZINC_200 })
                 ]
-            ),
-            (
-                SeekbarDuration
-                Text("0.00s")
-                TextFont {
-                    font: { FontSourceTemplate::Handle(FONT_PATH.into()) },
-                    font_size: LABEL_SIZE,
-                    font_features: { tabular_figures },
-                    weight: { FontWeight::MEDIUM },
+                --
+                SeekbarHitbox
+                SeekbarDragState
+                on(on_drag_start)
+                on(on_drag)
+                on(on_drag_end)
+                Node {
+                    position_type: { PositionType::Absolute },
+                    width: px(SEEKBAR_WIDTH),
+                    height: px(SEEKBAR_HEIGHT * 3.),
+                    top: px(-SEEKBAR_HEIGHT),
+                    justify_content: { JustifyContent::Center },
+                    align_items: { AlignItems::Center },
                 }
-                TextColor({ TEXT_MUTED_COLOR })
-            ),
+            ]
+            --
+            SeekbarDuration
+            Text("0.00s")
+            TextFont {
+                font: { FontSourceTemplate::Handle(FONT_PATH.into()) },
+                font_size: LABEL_SIZE,
+                font_features: { tabular_figures },
+                weight: { FontWeight::MEDIUM },
+            }
+            TextColor({ TEXT_MUTED_COLOR })
         ]
     }
 }
@@ -129,16 +123,6 @@ fn format_time(seconds: f32) -> String {
 
 fn format_duration(seconds: f32) -> String {
     format!("{:.2}s", seconds)
-}
-
-fn setup_seekbar_observers(hitboxes: Query<Entity, Added<SeekbarHitbox>>, mut commands: Commands) {
-    for entity in &hitboxes {
-        commands
-            .entity(entity)
-            .observe(on_drag_start)
-            .observe(on_drag)
-            .observe(on_drag_end);
-    }
 }
 
 fn update_seekbar(
@@ -212,7 +196,7 @@ fn update_seekbar(
 }
 
 fn on_drag_start(
-    event: On<Pointer<DragStart>>,
+    event: On<PointerDragStart>,
     mut hitboxes: Query<&mut SeekbarDragState, With<SeekbarHitbox>>,
 ) {
     let Ok(mut drag_state) = hitboxes.get_mut(event.entity) else {
@@ -222,7 +206,7 @@ fn on_drag_start(
 }
 
 fn on_drag(
-    event: On<Pointer<Drag>>,
+    event: On<PointerDrag>,
     hitboxes: Query<(&SeekbarDragState, &ComputedNode, &UiGlobalTransform), With<SeekbarHitbox>>,
     mut fill: Query<&mut Node, With<SeekbarFill>>,
     mut commands: Commands,
@@ -236,7 +220,7 @@ fn on_drag(
         return;
     }
 
-    let pointer_x = event.pointer_location.position.x;
+    let pointer_x = event.pointer.position.x;
     let scale = computed.inverse_scale_factor;
     let center_x = transform.translation.x * scale;
     let width = computed.size.x * scale;
@@ -251,7 +235,7 @@ fn on_drag(
 }
 
 fn on_drag_end(
-    event: On<Pointer<DragEnd>>,
+    event: On<PointerDragEnd>,
     mut hitboxes: Query<&mut SeekbarDragState, With<SeekbarHitbox>>,
 ) {
     let entity = event.entity;

@@ -13,7 +13,7 @@
   <a href="https://github.com/doceazedo/sprinkles/actions">
     <img src="https://github.com/doceazedo/sprinkles/workflows/CI/badge.svg">
   </a>
-  <img src="https://img.shields.io/static/v1?label=Bevy&message=v0.19&color=4a6e91&logo=bevy">
+  <img src="https://img.shields.io/static/v1?label=Bevy&message=v0.20&color=4a6e91&logo=bevy">
 </p>
 
 # 🍩 Sprinkles
@@ -32,7 +32,7 @@ Add `bevy_sprinkles` to your project:
 
 ```toml
 [dependencies]
-bevy_sprinkles = "0.2"
+bevy_sprinkles = "0.4"
 ```
 
 Add the plugin to your Bevy app:
@@ -52,11 +52,11 @@ Spawn a particle system from a RON asset file:
 
 ```rust
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
-    commands.spawn(Particles3d {
-        handle: asset_server.load("my_effect.ron"),
-    });
+    commands.spawn(Particles3d(asset_server.load("my_effect.ron")));
 }
 ```
+
+Materials using `specular_transmission` require the `ScreenSpaceTransmission` component on your camera.
 
 ### Editor
 
@@ -82,7 +82,8 @@ Documentation is available at [docs.rs](https://docs.rs/bevy_sprinkles/latest/be
 
 | Bevy | Sprinkles |
 |------|-----------|
-| 0.19 | main      |
+| 0.20 | main      |
+| 0.19 | 0.3       |
 | 0.18 | 0.1 - 0.2 |
 
 ## Features

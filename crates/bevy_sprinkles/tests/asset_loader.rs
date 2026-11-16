@@ -2,6 +2,7 @@ use bevy::asset::{AssetLoader, AssetPlugin, AssetServer, Assets, LoadState};
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
+use std::time::{Duration, Instant};
 use thiserror::Error;
 
 use bevy_sprinkles::asset::versions;
@@ -56,6 +57,8 @@ fn fixtures_path() -> String {
         .to_string()
 }
 
+const LOAD_TIMEOUT: Duration = Duration::from_secs(10);
+
 fn create_test_app() -> App {
     let mut app = App::new();
     app.add_plugins(
@@ -77,29 +80,31 @@ fn create_test_app() -> App {
     app
 }
 
-fn run_until_loaded<T: Asset>(app: &mut App, handle: &Handle<T>, max_updates: u32) -> bool {
-    for _ in 0..max_updates {
+fn run_until_loaded<T: Asset>(app: &mut App, handle: &Handle<T>) -> bool {
+    let deadline = Instant::now() + LOAD_TIMEOUT;
+    while Instant::now() < deadline {
         app.update();
 
         let asset_server = app.world().resource::<AssetServer>();
         match asset_server.load_state(handle) {
             LoadState::Loaded => return true,
             LoadState::Failed(_) => return false,
-            _ => continue,
+            _ => std::thread::sleep(Duration::from_millis(1)),
         }
     }
     false
 }
 
-fn run_until_failed<T: Asset>(app: &mut App, handle: &Handle<T>, max_updates: u32) -> bool {
-    for _ in 0..max_updates {
+fn run_until_failed<T: Asset>(app: &mut App, handle: &Handle<T>) -> bool {
+    let deadline = Instant::now() + LOAD_TIMEOUT;
+    while Instant::now() < deadline {
         app.update();
 
         let asset_server = app.world().resource::<AssetServer>();
         match asset_server.load_state(handle) {
             LoadState::Failed(_) => return true,
             LoadState::Loaded => return false,
-            _ => continue,
+            _ => std::thread::sleep(Duration::from_millis(1)),
         }
     }
     false
@@ -125,7 +130,7 @@ fn test_bevy_loads_valid_ron_particle_system() {
     };
 
     assert!(
-        run_until_loaded(&mut app, &handle, 100),
+        run_until_loaded(&mut app, &handle),
         "Should load valid particle system RON"
     );
 
@@ -148,7 +153,7 @@ fn test_bevy_loads_valid_whatever_extension_particle_system() {
     };
 
     assert!(
-        run_until_loaded(&mut app, &handle, 100),
+        run_until_loaded(&mut app, &handle),
         "Should load particle system with .whatever extension"
     );
 
@@ -169,7 +174,7 @@ fn test_bevy_fails_to_load_invalid_ron_as_particle_system() {
     };
 
     assert!(
-        run_until_failed(&mut app, &handle, 100),
+        run_until_failed(&mut app, &handle),
         "Should fail to load invalid RON as particle system"
     );
 }
@@ -184,7 +189,7 @@ fn test_bevy_loads_dummy_data_ron() {
     };
 
     assert!(
-        run_until_loaded(&mut app, &handle, 100),
+        run_until_loaded(&mut app, &handle),
         "Should load dummy data RON"
     );
 
@@ -211,12 +216,12 @@ fn test_bevy_coexisting_ron_loaders_load_correct_types() {
     };
 
     assert!(
-        run_until_loaded(&mut app, &particle_handle, 100),
+        run_until_loaded(&mut app, &particle_handle),
         "ParticleSystem should load from particle_system.ron"
     );
 
     assert!(
-        run_until_loaded(&mut app, &dummy_handle, 100),
+        run_until_loaded(&mut app, &dummy_handle),
         "DummyData should load from dummy_data.ron"
     );
 
@@ -243,7 +248,7 @@ fn test_bevy_wrong_loader_for_wrong_data_fails() {
     };
 
     assert!(
-        run_until_failed(&mut app, &handle, 100),
+        run_until_failed(&mut app, &handle),
         "Loading particle system as DummyData should fail"
     );
 }

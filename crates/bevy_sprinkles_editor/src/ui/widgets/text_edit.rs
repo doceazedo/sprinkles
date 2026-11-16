@@ -9,6 +9,7 @@ use bevy::text::{
 };
 
 use bevy::ui::UiGlobalTransform;
+use bevy::ui_widgets::TextInput;
 use bevy::window::SystemCursorIcon;
 
 use crate::ui::icons::ICON_EXPAND_HORIZONTAL;
@@ -255,7 +256,7 @@ pub fn text_edit(props: TextEditProps) -> impl Scene {
             flex_shrink: 1.0,
             flex_basis: px(0),
         }
-        template_value(TextEditConfig {
+        TextEditConfig {
             label,
             variant,
             filter,
@@ -268,7 +269,7 @@ pub fn text_edit(props: TextEditProps) -> impl Scene {
             allow_empty,
             drag_bottom,
             initialized: false,
-        })
+        }
     }
 }
 
@@ -326,7 +327,6 @@ fn setup_text_edit_input(
                 },
                 BackgroundColor(Color::NONE),
                 BorderColor::all(BORDER_COLOR),
-                Interaction::None,
                 Hovered::default(),
                 HoverCursor(SystemCursorIcon::Text),
             ))
@@ -347,7 +347,6 @@ fn setup_text_edit_input(
                         ..default()
                     },
                     ZIndex(10),
-                    Interaction::None,
                     Hovered::default(),
                     HoverCursor(SystemCursorIcon::ColResize),
                 ))
@@ -369,7 +368,6 @@ fn setup_text_edit_input(
                         ..default()
                     },
                     ZIndex(50),
-                    Interaction::None,
                     Hovered::default(),
                     HoverCursor(SystemCursorIcon::ColResize),
                 ))
@@ -419,6 +417,7 @@ fn setup_text_edit_input(
         let mut text_input = commands.spawn((
             EditorTextEdit,
             config.variant,
+            TextInput,
             EditableText {
                 cursor_blink_period: Duration::from_millis(500),
                 ..default()
@@ -428,6 +427,7 @@ fn setup_text_edit_input(
                 selection_color: PRIMARY_COLOR.with_alpha(0.35).into(),
                 unfocused_selection_color: Color::NONE,
                 selected_text_color: None,
+                ..default()
             },
             TextFont {
                 font: font.clone().into(),
@@ -643,18 +643,18 @@ fn handle_tab_navigation(
 fn handle_click_to_focus(
     mut focus: ResMut<InputFocus>,
     mouse: Res<ButtonInput<MouseButton>>,
-    wrappers: Query<(&TextEditWrapper, &Interaction, &Children)>,
+    wrappers: Query<(&TextEditWrapper, &Hovered, &Children)>,
     drag_hitboxes: Query<&DragHitbox>,
 ) {
     if !mouse.just_pressed(MouseButton::Left) {
         return;
     }
 
-    for (wrapper, interaction, children) in &wrappers {
+    for (wrapper, hovered, children) in &wrappers {
         let is_dragging = children
             .iter()
             .any(|c| drag_hitboxes.get(c).is_ok_and(|d| d.dragging));
-        if *interaction == Interaction::Pressed && !is_dragging {
+        if hovered.get() && !is_dragging {
             focus.set(wrapper.0, FocusCause::Pressed);
         }
     }
@@ -665,7 +665,7 @@ fn handle_unfocus(
     keyboard: Res<ButtonInput<KeyCode>>,
     mouse: Res<ButtonInput<MouseButton>>,
     text_edits: Query<&ChildOf, With<EditorTextEdit>>,
-    wrappers: Query<&Interaction, With<TextEditWrapper>>,
+    wrappers: Query<&Hovered, With<TextEditWrapper>>,
 ) {
     let Some(focused_entity) = focus.get() else {
         return;
@@ -673,12 +673,11 @@ fn handle_unfocus(
     let Ok(child_of) = text_edits.get(focused_entity) else {
         return;
     };
-    let Ok(interaction) = wrappers.get(child_of.parent()) else {
+    let Ok(hovered) = wrappers.get(child_of.parent()) else {
         return;
     };
 
-    let clicked_outside =
-        mouse.get_just_pressed().next().is_some() && *interaction == Interaction::None;
+    let clicked_outside = mouse.get_just_pressed().next().is_some() && !hovered.get();
     let key_dismiss = keyboard.just_pressed(KeyCode::Escape)
         || keyboard.just_pressed(KeyCode::Enter)
         || keyboard.just_pressed(KeyCode::NumpadEnter);
@@ -782,7 +781,7 @@ fn handle_drag_value(
     mouse: Res<ButtonInput<MouseButton>>,
     windows: Query<&Window>,
     keyboard: Res<ButtonInput<KeyCode>>,
-    mut drag_hitboxes: Query<(Entity, &mut DragHitbox, &Interaction, &ChildOf)>,
+    mut drag_hitboxes: Query<(Entity, &mut DragHitbox, &Hovered, &ChildOf)>,
     wrappers: Query<&TextEditWrapper>,
     mut text_edits: Query<
         (
@@ -797,13 +796,13 @@ fn handle_drag_value(
     let Ok(window) = windows.single() else { return };
     let cursor_pos = window.cursor_position();
 
-    for (entity, mut hitbox, interaction, child_of) in &mut drag_hitboxes {
+    for (entity, mut hitbox, hovered, child_of) in &mut drag_hitboxes {
         let Ok(wrapper) = wrappers.get(child_of.parent()) else {
             continue;
         };
         let input_entity = wrapper.0;
 
-        if mouse.just_pressed(MouseButton::Left) && *interaction == Interaction::Pressed {
+        if mouse.just_pressed(MouseButton::Left) && hovered.get() {
             if let Some(pos) = cursor_pos {
                 let start_value = if let Ok((_, editable, suffix, _)) = text_edits.get(input_entity)
                 {

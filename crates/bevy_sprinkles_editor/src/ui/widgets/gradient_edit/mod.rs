@@ -1,6 +1,5 @@
 pub mod materials;
 
-use bevy::picking::events::Click;
 use bevy::picking::hover::Hovered;
 use bevy::picking::pointer::PointerButton;
 use bevy::picking::prelude::Pickable;
@@ -176,8 +175,8 @@ pub fn gradient_edit(props: GradientEditProps) -> impl Scene {
 
     bsn! {
         EditorGradientEdit
-        template_value(config)
-        template_value(state)
+        config
+        state
         PopoverTracker
         Node {
             flex_direction: { FlexDirection::Column },
@@ -699,7 +698,6 @@ fn spawn_stop_handles(
                 HoverCursor(SystemCursorIcon::Grab),
                 Pickable::default(),
                 Hovered::default(),
-                Interaction::None,
                 Node {
                     position_type: PositionType::Absolute,
                     width: px(HANDLE_SIZE),
@@ -781,7 +779,7 @@ fn spawn_stop_rows(
 }
 
 fn on_handle_click(
-    event: On<Pointer<Click>>,
+    event: On<PointerClick>,
     mut commands: Commands,
     handles: Query<(&StopHandle, Has<Dragging>, Has<JustDragged>)>,
     states: Query<&GradientEditState>,
@@ -848,7 +846,7 @@ fn on_handle_click(
 }
 
 fn on_handle_drag_start(
-    event: On<Pointer<DragStart>>,
+    event: On<PointerDragStart>,
     mut commands: Commands,
     handles: Query<&StopHandle>,
 ) {
@@ -874,7 +872,7 @@ fn bar_position_from_normalized(normalized_x: f32, bar_width: f32) -> f32 {
 }
 
 fn on_handle_drag(
-    event: On<Pointer<Drag>>,
+    event: On<PointerDrag>,
     mut commands: Commands,
     handles: Query<&StopHandle, With<Dragging>>,
     bars: Query<(&GradientBar, &ComputedNode, &UiGlobalTransform)>,
@@ -894,7 +892,7 @@ fn on_handle_drag(
         return;
     };
 
-    let cursor_pos = event.pointer_location.position / computed.inverse_scale_factor;
+    let cursor_pos = event.pointer.position / computed.inverse_scale_factor;
     let Some(normalized) = computed.normalize_point(*ui_transform, cursor_pos) else {
         return;
     };
@@ -925,7 +923,7 @@ fn on_handle_drag(
 }
 
 fn on_handle_drag_end(
-    event: On<Pointer<DragEnd>>,
+    event: On<PointerDragEnd>,
     mut commands: Commands,
     handles: Query<&StopHandle>,
     states: Query<&GradientEditState>,

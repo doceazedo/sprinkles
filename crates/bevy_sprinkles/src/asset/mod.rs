@@ -1356,7 +1356,7 @@ pub enum RibbonTrailShape {
 /// Editor-specific metadata.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, Reflect)]
 pub struct SprinklesEditorData {
-    /// Known asset folder paths for resolving [`TextureRef::Asset`] references.
+    /// Known asset folder paths for resolving [`TextureRef::Asset`](crate::TextureRef::Asset) references.
     ///
     /// Multiple entries allow different users or devices to open the same
     /// project from different locations. At load time the first path that

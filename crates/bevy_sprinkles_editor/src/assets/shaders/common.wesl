@@ -1,5 +1,3 @@
-#define_import_path bevy_sprinkles_editor::common
-
 fn checkerboard(uv: vec2<f32>, cell_count: f32) -> f32 {
     let checker = floor(uv * cell_count);
     return (checker.x + checker.y) % 2.0;
